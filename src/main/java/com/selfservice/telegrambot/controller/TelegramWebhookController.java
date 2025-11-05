@@ -1,10 +1,10 @@
 package com.selfservice.telegrambot.controller;
 
 import com.selfservice.telegrambot.service.TelegramService;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
 
@@ -24,24 +24,36 @@ public class TelegramWebhookController {
         log.info("Incoming Telegram update: {}", update);
 
         try {
-            // Extract message info
             Map<String, Object> message = (Map<String, Object>) update.get("message");
-            if (message != null) {
-                Long chatId = ((Number) ((Map<String, Object>) message.get("chat")).get("id")).longValue();
-                String text = (String) message.get("text");
+            if (message == null) return ResponseEntity.ok().build();
 
-                // Simple menu
-                switch (text.trim()) {
-                    case "1":
-                        telegramService.sendMessage(chatId, "Hello World 👋");
-                        break;
-                    case "2":
-                        telegramService.sendMessage(chatId, "Hello Cerillion 🚀");
-                        break;
-                    default:
-                        telegramService.sendMessage(chatId,
-                                "Please choose an option:\n1 - Hello World\n2 - Hello Cerillion");
-                }
+            Map<String, Object> chat = (Map<String, Object>) message.get("chat");
+            if (chat == null || chat.get("id") == null) return ResponseEntity.ok().build();
+
+            long chatId = ((Number) chat.get("id")).longValue();
+            String text = (String) message.get("text");
+            if (text == null) text = "";
+            text = text.trim();
+
+            switch (text) {
+                case "1":
+                    telegramService.sendMessage(chatId, "Hello World 👋");
+                    telegramService.sendMenu(chatId);
+                    break;
+                case "2":
+                    telegramService.sendMessage(chatId, "Hello Cerillion 🚀");
+                    telegramService.sendMenu(chatId);
+                    break;
+                case "3":
+                    // Give the user a link that will be protected once RHSSO (oauth profile) is on
+                    telegramService.sendMessage(chatId,
+                        "Hello Authentication 🔐\n" +
+                        "Open this link to test auth:\n" + telegramService.authHelloUrl());
+                    telegramService.sendMenu(chatId);
+                    break;
+                case "/start":
+                default:
+                    telegramService.sendMenu(chatId);
             }
         } catch (Exception e) {
             log.error("Error processing Telegram update", e);
