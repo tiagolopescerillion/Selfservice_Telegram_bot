@@ -17,7 +17,7 @@ public class TelegramService {
     private static final Logger log = LoggerFactory.getLogger(TelegramService.class);
 
     private final RestTemplate rest = new RestTemplate();
-    private final String baseUrl; 
+    private final String baseUrl;
     private final String publicBaseUrl;
 
     public TelegramService(
@@ -57,20 +57,19 @@ public class TelegramService {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
 
-    Map<String, Object> replyMarkup = Map.of(
-        "keyboard", List.of(
-            List.of(Map.of("text", "1"), Map.of("text", "2"), Map.of("text", "3"))
-        ),
-        "resize_keyboard", true,
-        "one_time_keyboard", false,
-        "is_persistent", true
-    );
+        Map<String, Object> replyMarkup = Map.of(
+                "keyboard", List.of(
+                        List.of(Map.of("text", "1"), Map.of("text", "2"), Map.of("text", "3"), Map.of("text", "4"))),
+                "resize_keyboard", true,
+                "one_time_keyboard", false,
+                "is_persistent", true);
 
         String menuText = """
                 Please choose an option:
                 1 - Hello World
                 2 - Hello Cerillion
                 3 - Hello Authentication
+                4 - Log in with API authentication
                 """;
 
         Map<String, Object> body = Map.of(
@@ -85,26 +84,27 @@ public class TelegramService {
         return publicBaseUrl.isBlank() ? "/auth/hello" : publicBaseUrl + "/auth/hello";
     }
 
-private void post(String url, Map<String, Object> body, HttpHeaders headers) {
-    // Defensive null checks to satisfy static analysis
-    Objects.requireNonNull(url, "url must not be null");
-    if (headers == null) headers = new HttpHeaders();
+    private void post(String url, Map<String, Object> body, HttpHeaders headers) {
+        // Defensive null checks to satisfy static analysis
+        Objects.requireNonNull(url, "url must not be null");
+        if (headers == null)
+            headers = new HttpHeaders();
 
-    try {
-        ResponseEntity<String> resp =
-                rest.postForEntity(url, new HttpEntity<>(body, headers), String.class);
+        try {
+            ResponseEntity<String> resp = rest.postForEntity(url, new HttpEntity<>(body, headers), String.class);
 
-        String respBody = (resp.hasBody() && resp.getBody() != null) ? resp.getBody() : "<no-body>";
-        log.info("Telegram API OK status={} body={}", resp.getStatusCode().value(), respBody);
+            String respBody = (resp.hasBody() && resp.getBody() != null) ? resp.getBody() : "<no-body>";
+            log.info("Telegram API OK status={} body={}", resp.getStatusCode().value(), respBody);
 
-    } catch (HttpStatusCodeException ex) {
-        String errBody = ex.getResponseBodyAsString();
-        if (errBody == null || errBody.isBlank()) errBody = "<no-body>";
-        log.error("Telegram API HTTP {} -> {}", ex.getStatusCode().value(), errBody, ex);
+        } catch (HttpStatusCodeException ex) {
+            String errBody = ex.getResponseBodyAsString();
+            if (errBody == null || errBody.isBlank())
+                errBody = "<no-body>";
+            log.error("Telegram API HTTP {} -> {}", ex.getStatusCode().value(), errBody, ex);
 
-    } catch (Exception ex) {
-        log.error("Telegram API call failed", ex);
+        } catch (Exception ex) {
+            log.error("Telegram API call failed", ex);
+        }
     }
-}
 
 }

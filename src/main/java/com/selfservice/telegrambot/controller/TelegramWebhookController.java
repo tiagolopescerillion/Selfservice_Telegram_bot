@@ -1,6 +1,7 @@
 package com.selfservice.telegrambot.controller;
 
 import com.selfservice.telegrambot.service.TelegramService;
+import com.selfservice.telegrambot.service.KeycloakAuthService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
@@ -14,9 +15,11 @@ public class TelegramWebhookController {
 
     private static final Logger log = LoggerFactory.getLogger(TelegramWebhookController.class);
     private final TelegramService telegramService;
+    private final KeycloakAuthService keycloakAuthService;
 
-    public TelegramWebhookController(TelegramService telegramService) {
+    public TelegramWebhookController(TelegramService telegramService, KeycloakAuthService keycloakAuthService) {
         this.telegramService = telegramService;
+        this.keycloakAuthService = keycloakAuthService;
     }
 
     @PostMapping
@@ -49,6 +52,12 @@ public class TelegramWebhookController {
                     telegramService.sendMessage(chatId,
                         "Hello Authentication 🔐\n" +
                         "Open this link to test auth:\n" + telegramService.authHelloUrl());
+                    telegramService.sendMenu(chatId);
+                    break;
+                                    case "4":
+                    // NEW: client-credentials auth against Keycloak; echo result
+                    String report = keycloakAuthService.authenticateAndReport();
+                    telegramService.sendMessage(chatId, report);
                     telegramService.sendMenu(chatId);
                     break;
                 case "/start":
