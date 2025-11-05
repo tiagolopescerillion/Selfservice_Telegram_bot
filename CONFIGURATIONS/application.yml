@@ -1,12 +1,3 @@
-server:
-  port: 8080
-
 spring:
-  application:
-    name: selfservice-telegram-bot
   profiles:
-    active: local  # default profile
-
-logging:
-  level:
-    root: INFO
+    active: local   # default profile to load application-local.yml
