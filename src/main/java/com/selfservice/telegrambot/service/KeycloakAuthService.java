@@ -38,17 +38,17 @@ public class KeycloakAuthService {
 
     // cached token + expiry
     private volatile String cachedToken = null;
-    private volatile long  expiryEpochMs = 0L; // epoch millis
+    private volatile long expiryEpochMs = 0L; // epoch millis
 
     public KeycloakAuthService(
             @Value("${keycloak.token-endpoint}") String tokenEndpoint,
-            @Value("${keycloak.client-id}") String clientId,
-            @Value("${keycloak.client-secret}") String clientSecret,
+            @Value("${keycloak.client-credentials.client-id}") String clientId,
+            @Value("${keycloak.client-credentials.client-secret}") String clientSecret,
             @Value("${keycloak.allow-insecure-certs:false}") boolean allowInsecure) {
 
         this.tokenEndpoint = Objects.requireNonNull(tokenEndpoint, "keycloak.token-endpoint is required");
-        this.clientId      = Objects.requireNonNull(clientId, "keycloak.client-id is required");
-        this.clientSecret  = Objects.requireNonNull(clientSecret, "keycloak.client-secret is required");
+        this.clientId = Objects.requireNonNull(clientId, "keycloak.client-id is required");
+        this.clientSecret = Objects.requireNonNull(clientSecret, "keycloak.client-secret is required");
         this.allowInsecure = allowInsecure;
 
         this.rest = buildRestTemplate(allowInsecure);
@@ -56,16 +56,23 @@ public class KeycloakAuthService {
     }
 
     private RestTemplate buildRestTemplate(boolean insecure) {
-        if (!insecure) return new RestTemplate();
+        if (!insecure)
+            return new RestTemplate();
 
         try {
             // create an SSLContext that trusts all certificates
             TrustManager[] trustAllCerts = new TrustManager[] {
-                new X509TrustManager() {
-                    public X509Certificate[] getAcceptedIssuers() { return new X509Certificate[0]; }
-                    public void checkClientTrusted(X509Certificate[] certs, String authType) { }
-                    public void checkServerTrusted(X509Certificate[] certs, String authType) { }
-                }
+                    new X509TrustManager() {
+                        public X509Certificate[] getAcceptedIssuers() {
+                            return new X509Certificate[0];
+                        }
+
+                        public void checkClientTrusted(X509Certificate[] certs, String authType) {
+                        }
+
+                        public void checkServerTrusted(X509Certificate[] certs, String authType) {
+                        }
+                    }
             };
             SSLContext sslContext = SSLContext.getInstance("TLS");
             sslContext.init(null, trustAllCerts, new SecureRandom());
@@ -106,7 +113,7 @@ public class KeycloakAuthService {
             ResponseEntity<Map> resp = rest.postForEntity(tokenEndpoint, new HttpEntity<>(form, headers), Map.class);
 
             int status = resp.getStatusCode().value();
-            Map<?,?> body = resp.getBody();
+            Map<?, ?> body = resp.getBody();
             if (status >= 200 && status < 300 && body != null) {
                 Object token = body.get("access_token");
                 Object expires = body.get("expires_in");
@@ -128,7 +135,10 @@ public class KeycloakAuthService {
         }
     }
 
-    /** For Telegram: attempt auth and return a terse report string (status + body or error). */
+    /**
+     * For Telegram: attempt auth and return a terse report string (status + body or
+     * error).
+     */
     public String authenticateAndReport() {
         try {
             String token = getAccessToken();
@@ -139,7 +149,8 @@ public class KeycloakAuthService {
             String body = ex.getResponseBodyAsString();
             return "Auth ERROR: status=" + ex.getStatusCode().value() + "; body=" + (body == null ? "<no-body>" : body);
         } catch (Exception ex) {
-            return "Auth ERROR: " + ex.getClass().getSimpleName() + ": " + (ex.getMessage() == null ? "<no-message>" : ex.getMessage());
+            return "Auth ERROR: " + ex.getClass().getSimpleName() + ": "
+                    + (ex.getMessage() == null ? "<no-message>" : ex.getMessage());
         }
     }
 }

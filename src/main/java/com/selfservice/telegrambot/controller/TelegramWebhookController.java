@@ -6,6 +6,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import com.selfservice.telegrambot.service.ExternalApiService;
+import com.selfservice.telegrambot.service.OAuthLoginService;
 
 import java.util.Map;
 
@@ -16,10 +18,17 @@ public class TelegramWebhookController {
     private static final Logger log = LoggerFactory.getLogger(TelegramWebhookController.class);
     private final TelegramService telegramService;
     private final KeycloakAuthService keycloakAuthService;
+    private final ExternalApiService externalApiService;
+    private final OAuthLoginService oauthLoginService;
 
-    public TelegramWebhookController(TelegramService telegramService, KeycloakAuthService keycloakAuthService) {
+    public TelegramWebhookController(TelegramService telegramService,
+            KeycloakAuthService keycloakAuthService,
+            ExternalApiService externalApiService,
+            OAuthLoginService oauthLoginService) {
         this.telegramService = telegramService;
         this.keycloakAuthService = keycloakAuthService;
+        this.externalApiService = externalApiService;
+        this.oauthLoginService = oauthLoginService;
     }
 
     @PostMapping
@@ -28,14 +37,17 @@ public class TelegramWebhookController {
 
         try {
             Map<String, Object> message = (Map<String, Object>) update.get("message");
-            if (message == null) return ResponseEntity.ok().build();
+            if (message == null)
+                return ResponseEntity.ok().build();
 
             Map<String, Object> chat = (Map<String, Object>) message.get("chat");
-            if (chat == null || chat.get("id") == null) return ResponseEntity.ok().build();
+            if (chat == null || chat.get("id") == null)
+                return ResponseEntity.ok().build();
 
             long chatId = ((Number) chat.get("id")).longValue();
             String text = (String) message.get("text");
-            if (text == null) text = "";
+            if (text == null)
+                text = "";
             text = text.trim();
 
             switch (text) {
@@ -47,17 +59,35 @@ public class TelegramWebhookController {
                     telegramService.sendMessage(chatId, "Hello Cerillion 🚀");
                     telegramService.sendMenu(chatId);
                     break;
+
                 case "3":
-                    // Give the user a link that will be protected once RHSSO (oauth profile) is on
+                    String loginUrl = oauthLoginService.buildAuthUrl(chatId);
                     telegramService.sendMessage(chatId,
-                        "Hello Authentication 🔐\n" +
-                        "Open this link to test auth:\n" + telegramService.authHelloUrl());
+                            "🔐 Login required.\nTap this link to authenticate:\n" + loginUrl);
                     telegramService.sendMenu(chatId);
                     break;
-                                    case "4":
-                    // NEW: client-credentials auth against Keycloak; echo result
-                    String report = keycloakAuthService.authenticateAndReport();
-                    telegramService.sendMessage(chatId, report);
+
+                case "4":
+                    // Step 1: Authenticate and get token
+                    String token = null;
+                    String authMessage;
+                    try {
+                        token = keycloakAuthService.getAccessToken();
+                        authMessage = "Auth OK ✅\nToken retrieved successfully.";
+                    } catch (Exception e) {
+                        authMessage = "Auth ERROR ❌: " + e.getMessage();
+                    }
+
+                    // Step 2: Call the external API using the token
+                    String apiResponse = "No API response.";
+                    if (token != null) {
+                        apiResponse = externalApiService.callTroubleTicketApi(token);
+                    }
+
+                    // Step 3: Combine and send to Telegram
+                    telegramService.sendMessage(chatId,
+                            authMessage + "\n\n" +
+                                    "External API result:\n" + apiResponse);
                     telegramService.sendMenu(chatId);
                     break;
                 case "/start":
