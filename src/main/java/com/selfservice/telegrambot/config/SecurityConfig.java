@@ -22,6 +22,7 @@ public class SecurityConfig {
         return http.build();
     }
 
+    
     // Default profile → no auth (local development)
     @Bean
     @Profile("!oauth")

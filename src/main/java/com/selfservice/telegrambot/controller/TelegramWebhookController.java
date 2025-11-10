@@ -1,5 +1,9 @@
 package com.selfservice.telegrambot.controller;
 
+import com.selfservice.telegrambot.service.UserSessionService;
+import com.selfservice.telegrambot.service.ApimanApiService;
+import com.selfservice.telegrambot.service.OAuthLoginService;
+
 import com.selfservice.telegrambot.service.TelegramService;
 import com.selfservice.telegrambot.service.KeycloakAuthService;
 import org.slf4j.Logger;
@@ -7,7 +11,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import com.selfservice.telegrambot.service.ExternalApiService;
-import com.selfservice.telegrambot.service.OAuthLoginService;
 
 import java.util.Map;
 
@@ -20,15 +23,24 @@ public class TelegramWebhookController {
     private final KeycloakAuthService keycloakAuthService;
     private final ExternalApiService externalApiService;
     private final OAuthLoginService oauthLoginService;
+    private final UserSessionService userSessionService;
+    private final ApimanApiService apimanApiService;
 
     public TelegramWebhookController(TelegramService telegramService,
             KeycloakAuthService keycloakAuthService,
             ExternalApiService externalApiService,
-            OAuthLoginService oauthLoginService) {
+            OAuthLoginService oauthLoginService,
+            UserSessionService userSessionService,
+            ApimanApiService apimanApiService) 
+            {
         this.telegramService = telegramService;
         this.keycloakAuthService = keycloakAuthService;
         this.externalApiService = externalApiService;
         this.oauthLoginService = oauthLoginService;
+        
+        this.userSessionService = userSessionService;
+        this.apimanApiService = apimanApiService;
+
     }
 
     @PostMapping
@@ -61,12 +73,20 @@ public class TelegramWebhookController {
                     break;
 
                 case "3":
-                    String loginUrl = oauthLoginService.buildAuthUrl(chatId);
-                    telegramService.sendMessage(chatId,
-                            "🔐 Login required.\nTap this link to authenticate:\n" + loginUrl);
-                    telegramService.sendMenu(chatId);
+                    // If the user already has a valid token (from PKADMINJ_SELF), call APIMAN
+                    // directly.
+                    String existing = userSessionService.getValidAccessToken(chatId);
+                    if (existing != null) {
+                        String apiResult = apimanApiService.callWithBearer(existing);
+                        telegramService.sendMessage(chatId, "Using existing login ✅\n\nAPIMAN result:\n" + apiResult);
+                        telegramService.sendMenu(chatId);
+                    } else {
+                        String loginUrl = oauthLoginService.buildAuthUrl(chatId);
+                        telegramService.sendMessage(chatId,
+                                "🔐 Login required.\nTap this link to authenticate:\n" + loginUrl);
+                        telegramService.sendMenu(chatId);
+                    }
                     break;
-
                 case "4":
                     // Step 1: Authenticate and get token
                     String token = null;

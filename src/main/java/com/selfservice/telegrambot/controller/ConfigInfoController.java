@@ -26,4 +26,5 @@ public class ConfigInfoController {
                 "botTokenSample", botToken.isEmpty() ? "NOT SET" : "SET"
         );
     }
+    
 }

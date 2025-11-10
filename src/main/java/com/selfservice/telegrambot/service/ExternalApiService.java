@@ -7,11 +7,13 @@ import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.beans.factory.annotation.Qualifier;
 
 @Service
 public class ExternalApiService {
 
     private static final Logger log = LoggerFactory.getLogger(ExternalApiService.class);
+    
 
     private final RestTemplate restTemplate = new RestTemplate();
     private final String troubleTicketUrl;

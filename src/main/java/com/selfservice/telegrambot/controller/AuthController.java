@@ -16,3 +16,8 @@ public class AuthController {
         return "Hello " + authentication.getName() + " (you are authenticated)!";
     }
 }
+
+
+
+
+

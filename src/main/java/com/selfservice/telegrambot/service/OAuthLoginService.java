@@ -35,7 +35,7 @@ public class OAuthLoginService {
 
     public OAuthLoginService(
             @Value("${keycloak.auth-endpoint}") String authEndpoint,
-            @Value("${keycloak.token-endpoint}") String tokenEndpoint,
+            @Value("${keycloak.token-endpoint2}") String tokenEndpoint,
             @Value("${keycloak.oauth.client-id}") String clientId,
             @Value("${keycloak.oauth.client-secret}") String clientSecret,
             @Value("${keycloak.oauth.redirect-uri}") String redirectUri,

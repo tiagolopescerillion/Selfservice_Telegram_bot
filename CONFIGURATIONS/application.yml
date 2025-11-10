@@ -1,3 +1,4 @@
 spring:
   profiles:
     active: local   # default profile to load application-local.yml
+
