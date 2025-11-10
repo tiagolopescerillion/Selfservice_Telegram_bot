@@ -43,8 +43,12 @@ public class TelegramService {
 
     public static final String BUTTON_SELF_SERVICE_LOGIN = "🔑 Self-service login (APIMAN)";
     public static final String BUTTON_DIRECT_LOGIN = "⚙️ Client-credentials login (REST Server)";
-        public static final String CALLBACK_SELF_SERVICE_LOGIN = "LOGIN_SELF_SERVICE";
+    public static final String CALLBACK_SELF_SERVICE_LOGIN = "LOGIN_SELF_SERVICE";
     public static final String CALLBACK_DIRECT_LOGIN = "LOGIN_DIRECT";
+    public static final String BUTTON_HELLO_WORLD = "Hello World";
+    public static final String BUTTON_HELLO_CERILLION = "Hello Cerillion";
+    public static final String CALLBACK_HELLO_WORLD = "HELLO_WORLD";
+    public static final String CALLBACK_HELLO_CERILLION = "HELLO_CERILLION";
 
 
     public void sendMessage(long chatId, String text) {
@@ -59,7 +63,7 @@ public class TelegramService {
         post(url, body, headers);
     }
 
-     public void sendLoginMenu(long chatId) {
+    public void sendLoginMenu(long chatId) {
         String url = baseUrl + "/sendMessage";
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
@@ -91,19 +95,16 @@ public class TelegramService {
         headers.setContentType(MediaType.APPLICATION_JSON);
 
         Map<String, Object> replyMarkup = Map.of(
-                "keyboard", List.of(
-                        List.of(Map.of("text", "1"), Map.of("text", "2"))),
-                "resize_keyboard", true,
-                "one_time_keyboard", false,
-                "is_persistent", true);
+                "inline_keyboard", List.of(
+                        List.of(Map.of(
+                                "text", BUTTON_HELLO_WORLD,
+                                "callback_data", CALLBACK_HELLO_WORLD)),
+                        List.of(Map.of(
+                                "text", BUTTON_HELLO_CERILLION,
+                                "callback_data", CALLBACK_HELLO_CERILLION))));
 
         String menuText = """
                 Welcome! Choose an option:
-
-
-                1 - Hello World
-                2 - Hello Cerillion
-               
                 """;
 
         Map<String, Object> body = Map.of(
@@ -115,7 +116,7 @@ public class TelegramService {
     }
 
 
-        public void answerCallbackQuery(String callbackQueryId) {
+    public void answerCallbackQuery(String callbackQueryId) {
         if (callbackQueryId == null || callbackQueryId.isBlank()) {
             return;
         }

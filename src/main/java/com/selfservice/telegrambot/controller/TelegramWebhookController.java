@@ -93,6 +93,8 @@ public class TelegramWebhookController {
                     + "\" button to access this feature.";
 
             switch (text) {
+                case TelegramService.CALLBACK_HELLO_WORLD:
+                case TelegramService.BUTTON_HELLO_WORLD:
                 case "1":
                     if (hasValidToken) {
                         telegramService.sendMessage(chatId, "Hello World 👋");
@@ -102,6 +104,8 @@ public class TelegramWebhookController {
                         telegramService.sendLoginMenu(chatId);
                     }
                     break;
+                case TelegramService.CALLBACK_HELLO_CERILLION:
+                case TelegramService.BUTTON_HELLO_CERILLION:
                 case "2":
                     if (hasValidToken) {
                         telegramService.sendMessage(chatId, "Hello Cerillion 🚀");
@@ -111,7 +115,7 @@ public class TelegramWebhookController {
                         telegramService.sendLoginMenu(chatId);
                     }
                     break;
-                                    case TelegramService.CALLBACK_SELF_SERVICE_LOGIN:
+                case TelegramService.CALLBACK_SELF_SERVICE_LOGIN:
                 case TelegramService.BUTTON_SELF_SERVICE_LOGIN:
                 case "3":
                     if (hasValidToken) {
@@ -125,7 +129,7 @@ public class TelegramWebhookController {
                         telegramService.sendLoginMenu(chatId);
                     }
                     break;
-                    case TelegramService.CALLBACK_DIRECT_LOGIN:
+                case TelegramService.CALLBACK_DIRECT_LOGIN:
                 case TelegramService.BUTTON_DIRECT_LOGIN:
                 case "4":
                     // Step 1: Authenticate and get token
