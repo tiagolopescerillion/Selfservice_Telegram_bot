@@ -40,6 +40,13 @@ public class TelegramService {
         }
     }
 
+
+    public static final String BUTTON_SELF_SERVICE_LOGIN = "🔑 Self-service login (APIMAN)";
+    public static final String BUTTON_DIRECT_LOGIN = "⚙️ Client-credentials login (REST Server)";
+        public static final String CALLBACK_SELF_SERVICE_LOGIN = "LOGIN_SELF_SERVICE";
+    public static final String CALLBACK_DIRECT_LOGIN = "LOGIN_DIRECT";
+
+
     public void sendMessage(long chatId, String text) {
         String url = baseUrl + "/sendMessage";
         HttpHeaders headers = new HttpHeaders();
@@ -58,16 +65,16 @@ public class TelegramService {
         headers.setContentType(MediaType.APPLICATION_JSON);
 
         Map<String, Object> replyMarkup = Map.of(
-                "keyboard", List.of(
-                        List.of(Map.of("text", "3"), Map.of("text", "4"))),
-                "resize_keyboard", true,
-                "one_time_keyboard", false,
-                "is_persistent", true);
+                "inline_keyboard", List.of(
+                        List.of(Map.of(
+                                "text", BUTTON_SELF_SERVICE_LOGIN,
+                                "callback_data", CALLBACK_SELF_SERVICE_LOGIN)),
+                        List.of(Map.of(
+                                "text", BUTTON_DIRECT_LOGIN,
+                                "callback_data", CALLBACK_DIRECT_LOGIN))));
 
         String menuText = """
-                Please login to continue:
-                3 - Self-service login (Keycloak)
-                4 - Direct client-credentials login
+                Please choose how you'd like to sign in:
                 """;
 
         Map<String, Object> body = Map.of(
@@ -106,6 +113,22 @@ public class TelegramService {
 
         post(url, body, headers);
     }
+
+
+        public void answerCallbackQuery(String callbackQueryId) {
+        if (callbackQueryId == null || callbackQueryId.isBlank()) {
+            return;
+        }
+
+        String url = baseUrl + "/answerCallbackQuery";
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+
+        Map<String, Object> body = Map.of("callback_query_id", callbackQueryId);
+
+        post(url, body, headers);
+    }
+
 
     public String authHelloUrl() {
         return publicBaseUrl.isBlank() ? "/auth/hello" : publicBaseUrl + "/auth/hello";

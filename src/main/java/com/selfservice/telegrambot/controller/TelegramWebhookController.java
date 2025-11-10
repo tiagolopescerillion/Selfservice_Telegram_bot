@@ -31,13 +31,12 @@ public class TelegramWebhookController {
             ExternalApiService externalApiService,
             OAuthLoginService oauthLoginService,
             UserSessionService userSessionService,
-            ApimanApiService apimanApiService) 
-            {
+            ApimanApiService apimanApiService) {
         this.telegramService = telegramService;
         this.keycloakAuthService = keycloakAuthService;
         this.externalApiService = externalApiService;
         this.oauthLoginService = oauthLoginService;
-        
+
         this.userSessionService = userSessionService;
         this.apimanApiService = apimanApiService;
 
@@ -48,22 +47,50 @@ public class TelegramWebhookController {
         log.info("Incoming Telegram update: {}", update);
 
         try {
+
             Map<String, Object> message = (Map<String, Object>) update.get("message");
-            if (message == null)
+            Map<String, Object> callbackQuery = (Map<String, Object>) update.get("callback_query");
+            Map<String, Object> chat;
+            String text;
+            long chatId;
+
+            if (message != null) {
+                chat = (Map<String, Object>) message.get("chat");
+                if (chat == null || chat.get("id") == null)
+                    return ResponseEntity.ok().build();
+
+                chatId = ((Number) chat.get("id")).longValue();
+                text = (String) message.get("text");
+                if (text == null)
+                    text = "";
+                text = text.trim();
+            } else if (callbackQuery != null) {
+                Map<String, Object> callbackMessage = (Map<String, Object>) callbackQuery.get("message");
+                if (callbackMessage == null)
+                    return ResponseEntity.ok().build();
+
+                chat = (Map<String, Object>) callbackMessage.get("chat");
+                if (chat == null || chat.get("id") == null)
+                    return ResponseEntity.ok().build();
+
+                chatId = ((Number) chat.get("id")).longValue();
+                text = (String) callbackQuery.get("data");
+                if (text == null)
+                    text = "";
+                text = text.trim();
+
+                telegramService.answerCallbackQuery((String) callbackQuery.get("id"));
+            } else {
+            
+
                 return ResponseEntity.ok().build();
 
-            Map<String, Object> chat = (Map<String, Object>) message.get("chat");
-            if (chat == null || chat.get("id") == null)
-                return ResponseEntity.ok().build();
-
-            long chatId = ((Number) chat.get("id")).longValue();
-            String text = (String) message.get("text");
-            if (text == null)
-                text = "";
-            text = text.trim();
+            }
 
             String existingToken = userSessionService.getValidAccessToken(chatId);
             boolean hasValidToken = existingToken != null;
+            String loginReminder = "Please login using the \"" + TelegramService.BUTTON_SELF_SERVICE_LOGIN
+                    + "\" button to access this feature.";
 
             switch (text) {
                 case "1":
@@ -71,8 +98,7 @@ public class TelegramWebhookController {
                         telegramService.sendMessage(chatId, "Hello World 👋");
                         telegramService.sendLoggedInMenu(chatId);
                     } else {
-                        telegramService.sendMessage(chatId,
-                                "Please login with option 3 to access this feature.");
+                        telegramService.sendMessage(chatId, loginReminder);
                         telegramService.sendLoginMenu(chatId);
                     }
                     break;
@@ -81,12 +107,12 @@ public class TelegramWebhookController {
                         telegramService.sendMessage(chatId, "Hello Cerillion 🚀");
                         telegramService.sendLoggedInMenu(chatId);
                     } else {
-                        telegramService.sendMessage(chatId,
-                                "Please login with option 3 to access this feature.");
+                        telegramService.sendMessage(chatId, loginReminder);
                         telegramService.sendLoginMenu(chatId);
                     }
                     break;
-
+                                    case TelegramService.CALLBACK_SELF_SERVICE_LOGIN:
+                case TelegramService.BUTTON_SELF_SERVICE_LOGIN:
                 case "3":
                     if (hasValidToken) {
                         String apiResult = apimanApiService.callWithBearer(existingToken);
@@ -99,6 +125,8 @@ public class TelegramWebhookController {
                         telegramService.sendLoginMenu(chatId);
                     }
                     break;
+                    case TelegramService.CALLBACK_DIRECT_LOGIN:
+                case TelegramService.BUTTON_DIRECT_LOGIN:
                 case "4":
                     // Step 1: Authenticate and get token
                     String token = null;
