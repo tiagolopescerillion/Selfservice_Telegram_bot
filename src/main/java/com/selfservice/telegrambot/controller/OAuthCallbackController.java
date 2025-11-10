@@ -37,11 +37,17 @@ public class OAuthCallbackController {
         try {
             if (error != null) {
                 String msg = "Login ERROR: " + error + (errorDescription != null ? " - " + errorDescription : "");
-                if (chatId > 0) telegram.sendMessage(chatId, msg);
+                if (chatId > 0) {
+                    telegram.sendMessage(chatId, msg);
+                    telegram.sendLoginMenu(chatId);
+                }
                 return "<h3>" + msg + "</h3>";
             }
             if (code == null) {
-                if (chatId > 0) telegram.sendMessage(chatId, "Login ERROR: missing authorization code");
+                 if (chatId > 0) {
+                    telegram.sendMessage(chatId, "Login ERROR: missing authorization code");
+                    telegram.sendLoginMenu(chatId);
+                }
                 return "<h3>Missing authorization code</h3>";
             }
 
@@ -66,6 +72,7 @@ public class OAuthCallbackController {
             // 5) DM Telegram with both
             if (chatId > 0) {
                 telegram.sendMessage(chatId, summary + "\n\nAPIMAN result:\n" + apiResult);
+                telegram.sendLoggedInMenu(chatId);
             }
 
             return """
@@ -75,7 +82,10 @@ public class OAuthCallbackController {
                         .replace("&","&amp;").replace("<","&lt;") + "</pre></body></html>";
         } catch (Exception e) {
             String msg = "Login ERROR: " + e.getMessage();
-            if (chatId > 0) telegram.sendMessage(chatId, msg);
+            if (chatId > 0) {
+                telegram.sendMessage(chatId, msg);
+                telegram.sendLoginMenu(chatId);
+            }
             return "<h3>" + msg + "</h3>";
         }
     }

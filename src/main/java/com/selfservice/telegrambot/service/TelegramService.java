@@ -52,24 +52,51 @@ public class TelegramService {
         post(url, body, headers);
     }
 
-    public void sendMenu(long chatId) {
+     public void sendLoginMenu(long chatId) {
         String url = baseUrl + "/sendMessage";
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
 
         Map<String, Object> replyMarkup = Map.of(
                 "keyboard", List.of(
-                        List.of(Map.of("text", "1"), Map.of("text", "2"), Map.of("text", "3"), Map.of("text", "4"))),
+                        List.of(Map.of("text", "3"), Map.of("text", "4"))),
                 "resize_keyboard", true,
                 "one_time_keyboard", false,
                 "is_persistent", true);
 
         String menuText = """
-                Please choose an option:
+                Please login to continue:
+                3 - Self-service login (Keycloak)
+                4 - Direct client-credentials login
+                """;
+
+        Map<String, Object> body = Map.of(
+                "chat_id", chatId,
+                "text", menuText,
+                "reply_markup", replyMarkup);
+
+        post(url, body, headers);
+    }
+
+    public void sendLoggedInMenu(long chatId) {
+        String url = baseUrl + "/sendMessage";
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+
+        Map<String, Object> replyMarkup = Map.of(
+                "keyboard", List.of(
+                        List.of(Map.of("text", "1"), Map.of("text", "2"))),
+                "resize_keyboard", true,
+                "one_time_keyboard", false,
+                "is_persistent", true);
+
+        String menuText = """
+                Welcome! Choose an option:
+
+
                 1 - Hello World
                 2 - Hello Cerillion
-                3 - Hello Authentication
-                4 - Log in with API authentication
+               
                 """;
 
         Map<String, Object> body = Map.of(

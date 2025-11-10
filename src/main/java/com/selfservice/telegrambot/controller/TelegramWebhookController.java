@@ -62,29 +62,41 @@ public class TelegramWebhookController {
                 text = "";
             text = text.trim();
 
+            String existingToken = userSessionService.getValidAccessToken(chatId);
+            boolean hasValidToken = existingToken != null;
+
             switch (text) {
                 case "1":
-                    telegramService.sendMessage(chatId, "Hello World 👋");
-                    telegramService.sendMenu(chatId);
+                    if (hasValidToken) {
+                        telegramService.sendMessage(chatId, "Hello World 👋");
+                        telegramService.sendLoggedInMenu(chatId);
+                    } else {
+                        telegramService.sendMessage(chatId,
+                                "Please login with option 3 to access this feature.");
+                        telegramService.sendLoginMenu(chatId);
+                    }
                     break;
                 case "2":
-                    telegramService.sendMessage(chatId, "Hello Cerillion 🚀");
-                    telegramService.sendMenu(chatId);
+                    if (hasValidToken) {
+                        telegramService.sendMessage(chatId, "Hello Cerillion 🚀");
+                        telegramService.sendLoggedInMenu(chatId);
+                    } else {
+                        telegramService.sendMessage(chatId,
+                                "Please login with option 3 to access this feature.");
+                        telegramService.sendLoginMenu(chatId);
+                    }
                     break;
 
                 case "3":
-                    // If the user already has a valid token (from PKADMINJ_SELF), call APIMAN
-                    // directly.
-                    String existing = userSessionService.getValidAccessToken(chatId);
-                    if (existing != null) {
-                        String apiResult = apimanApiService.callWithBearer(existing);
+                    if (hasValidToken) {
+                        String apiResult = apimanApiService.callWithBearer(existingToken);
                         telegramService.sendMessage(chatId, "Using existing login ✅\n\nAPIMAN result:\n" + apiResult);
-                        telegramService.sendMenu(chatId);
+                        telegramService.sendLoggedInMenu(chatId);
                     } else {
                         String loginUrl = oauthLoginService.buildAuthUrl(chatId);
                         telegramService.sendMessage(chatId,
                                 "🔐 Login required.\nTap this link to authenticate:\n" + loginUrl);
-                        telegramService.sendMenu(chatId);
+                        telegramService.sendLoginMenu(chatId);
                     }
                     break;
                 case "4":
@@ -108,11 +120,15 @@ public class TelegramWebhookController {
                     telegramService.sendMessage(chatId,
                             authMessage + "\n\n" +
                                     "External API result:\n" + apiResponse);
-                    telegramService.sendMenu(chatId);
+                    telegramService.sendLoginMenu(chatId);
                     break;
                 case "/start":
                 default:
-                    telegramService.sendMenu(chatId);
+                    if (hasValidToken) {
+                        telegramService.sendLoggedInMenu(chatId);
+                    } else {
+                        telegramService.sendLoginMenu(chatId);
+                    }
             }
         } catch (Exception e) {
             log.error("Error processing Telegram update", e);
