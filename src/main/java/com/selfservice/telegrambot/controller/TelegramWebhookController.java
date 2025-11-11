@@ -119,7 +119,7 @@ public class TelegramWebhookController {
                 case TelegramService.BUTTON_TROUBLE_TICKET:
                 case "5":
                     if (hasValidToken) {
-                        String ticketInfo = apimanApiService.callWithBearer(existingToken);
+                        String ticketInfo = apimanApiService.callTroubleTicket(existingToken);
                         telegramService.sendMessage(chatId,
                                 "🎫 Trouble ticket information:\n" + ticketInfo);
                         telegramService.sendLoggedInMenu(chatId);
@@ -132,8 +132,8 @@ public class TelegramWebhookController {
                 case TelegramService.BUTTON_SELF_SERVICE_LOGIN:
                 case "3":
                     if (hasValidToken) {
-                        String apiResult = apimanApiService.callWithBearer(existingToken);
-                        telegramService.sendMessage(chatId, "Using existing login ✅\n\nAPIMAN result:\n" + apiResult);
+                        String apiResult = apimanApiService.callTroubleTicket(existingToken);
+                        telegramService.sendMessage(chatId, "Using existing login ✅\n\nAPIMAN trouble ticket result:\n" + apiResult);
                         telegramService.sendLoggedInMenu(chatId);
                     } else {
                         String loginUrl = oauthLoginService.buildAuthUrl(chatId);

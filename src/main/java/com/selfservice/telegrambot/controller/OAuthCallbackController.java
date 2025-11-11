@@ -67,18 +67,18 @@ public class OAuthCallbackController {
 
             // 4) Immediately call APIMAN with the user token
             String apiResult = (at instanceof String)
-                    ? apiman.callWithBearer((String) at)
+                    ? apiman.callFindUser((String) at)
                     : "No access_token to call APIMAN.";
             // 5) DM Telegram with both
             if (chatId > 0) {
-                telegram.sendMessage(chatId, summary + "\n\nAPIMAN result:\n" + apiResult);
+                telegram.sendMessage(chatId, summary + "\n\nAPIMAN findUser result:\n" + apiResult);
                 telegram.sendLoggedInMenu(chatId);
             }
 
             return """
                    <html><body>
                    <h3>Login successful. You can return to Telegram.</h3>
-                   <pre>""" + (summary + "\n\n" + apiResult)
+                   <pre>""" + (summary + "\n\nAPIMAN findUser result:\n" + apiResult)
                         .replace("&","&amp;").replace("<","&lt;") + "</pre></body></html>";
         } catch (Exception e) {
             String msg = "Login ERROR: " + e.getMessage();

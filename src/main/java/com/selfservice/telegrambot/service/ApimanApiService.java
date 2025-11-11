@@ -15,15 +15,40 @@ public class ApimanApiService {
     private static final Logger log = LoggerFactory.getLogger(ApimanApiService.class);
 
     private final RestTemplate rest;
-    private final String apimanUrl;
+    private final String findUserEndpoint;
+    private final String troubleTicketEndpoint;
 
     public ApimanApiService(@Qualifier("loggingRestTemplate") RestTemplate rest,
-            @Value("${apiman.url}") String apimanUrl) {
+            @Value("${apiman.find-user.url:https://lonlinux13.cerillion.com:49987/apiman-gateway/CSS-MASTER-ORG/findUser/1.0?offset=0&limit=1}")
+            String findUserEndpoint,
+            @Value("${apiman.trouble-ticket.url:${apiman.url:}}")
+            String troubleTicketEndpoint) {
         this.rest = rest;
-        this.apimanUrl = apimanUrl;
+        this.findUserEndpoint = findUserEndpoint;
+        this.troubleTicketEndpoint = (troubleTicketEndpoint == null || troubleTicketEndpoint.isBlank())
+                ? null
+                : troubleTicketEndpoint;
+        if (this.troubleTicketEndpoint == null) {
+            log.warn("APIMAN trouble-ticket endpoint is not configured; related features will be disabled.");
+        }
     }
 
-    public String callWithBearer(String accessToken) {
+    public String callFindUser(String accessToken) {
+        return callEndpoint("FindUser", findUserEndpoint, accessToken);
+    }
+
+    public String callTroubleTicket(String accessToken) {
+        if (troubleTicketEndpoint == null) {
+            return "APIMAN ERROR: Trouble ticket endpoint is not configured.";
+        }
+        return callEndpoint("TroubleTicket", troubleTicketEndpoint, accessToken);
+    }
+
+    private String callEndpoint(String label, String url, String accessToken) {
+        if (url == null || url.isBlank()) {
+            return "APIMAN[" + label + "] ERROR: endpoint URL is not configured.";
+        }
+
         HttpHeaders headers = new HttpHeaders();
         headers.setAccept(java.util.List.of(MediaType.APPLICATION_JSON));
         headers.setContentType(MediaType.APPLICATION_JSON);
@@ -32,7 +57,7 @@ public class ApimanApiService {
 
         try {
             ResponseEntity<byte[]> resp = rest.exchange(
-                    apimanUrl, HttpMethod.GET, new HttpEntity<>(headers), byte[].class);
+                    url, HttpMethod.GET, new HttpEntity<>(headers), byte[].class);
 
             int code = resp.getStatusCode().value();
             MediaType ct = resp.getHeaders().getContentType();
@@ -48,7 +73,7 @@ public class ApimanApiService {
             boolean notJson = (ct == null) || !MediaType.APPLICATION_JSON.isCompatibleWith(ct);
 
             StringBuilder out = new StringBuilder();
-            out.append("APIMAN ").append(code).append(" (")
+            out.append("APIMAN[").append(label).append("] ").append(code).append(" (")
                     .append(ctype).append(", ").append(clen).append(" bytes)\n");
 
             if (looksHtml || notJson) {
@@ -60,11 +85,11 @@ public class ApimanApiService {
 
         } catch (HttpStatusCodeException ex) {
             String body = ex.getResponseBodyAsString();
-            return "APIMAN ERROR: status=" + ex.getStatusCode().value() + " ("
+            return "APIMAN[" + label + "] ERROR: status=" + ex.getStatusCode().value() + " ("
                     + ex.getResponseHeaders().getContentType() + ")\n"
                     + (body == null ? "<no-body>" : truncate(body, 3500));
         } catch (Exception ex) {
-            return "APIMAN ERROR: " + ex.getClass().getSimpleName() + ": "
+            return "APIMAN[" + label + "] ERROR: " + ex.getClass().getSimpleName() + ": "
                     + (ex.getMessage() == null ? "<no-message>" : ex.getMessage());
         }
     }
