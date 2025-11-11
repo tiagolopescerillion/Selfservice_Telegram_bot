@@ -7,6 +7,7 @@ import com.selfservice.telegrambot.service.TelegramService;
 import com.selfservice.telegrambot.service.KeycloakAuthService;
 import com.selfservice.telegrambot.service.TroubleTicketService;
 import com.selfservice.telegrambot.service.dto.AccountSummary;
+import com.selfservice.telegrambot.service.dto.TroubleTicketListResult;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
@@ -105,6 +106,24 @@ public class TelegramWebhookController {
                 return ResponseEntity.ok().build();
             }
 
+            if (text.startsWith(TelegramService.CALLBACK_TROUBLE_TICKET_PREFIX)) {
+                String ticketId = text.substring(TelegramService.CALLBACK_TROUBLE_TICKET_PREFIX.length()).trim();
+                if (ticketId.isEmpty()) {
+                    telegramService.sendMessage(chatId, "That ticket is no longer available.");
+                } else {
+                    telegramService.sendMessage(chatId, "Ticket selected: #" + ticketId);
+                }
+
+                if (hasValidToken && ensureAccountSelected(chatId)) {
+                    AccountSummary selected = userSessionService.getSelectedAccount(chatId);
+                    telegramService.sendLoggedInMenu(chatId, selected,
+                            userSessionService.getAccounts(chatId).size() > 1);
+                } else {
+                    telegramService.sendLoginMenu(chatId, oauthLoginService.buildAuthUrl(chatId));
+                }
+                return ResponseEntity.ok().build();
+            }
+
             if (text.startsWith(TelegramService.CALLBACK_ACCOUNT_PREFIX)) {
                 int index = parseIndex(text, TelegramService.CALLBACK_ACCOUNT_PREFIX);
                 var accounts = userSessionService.getAccounts(chatId);
@@ -181,6 +200,35 @@ public class TelegramWebhookController {
                                 "🎫 Trouble ticket information:\n" + ticketInfo);
                         telegramService.sendLoggedInMenu(chatId, selected,
                                 userSessionService.getAccounts(chatId).size() > 1);
+                    } else {
+                        telegramService.sendMessage(chatId, loginReminder);
+                        telegramService.sendLoginMenu(chatId, oauthLoginService.buildAuthUrl(chatId));
+                    }
+                    break;
+                case TelegramService.CALLBACK_MY_ISSUES:
+                case TelegramService.BUTTON_MY_ISSUES:
+                    if (hasValidToken) {
+                        if (!ensureAccountSelected(chatId)) {
+                            break;
+                        }
+                        AccountSummary selected = userSessionService.getSelectedAccount(chatId);
+                        TroubleTicketListResult result = troubleTicketService
+                                .getTroubleTicketsByAccountId(existingToken, selected.accountId());
+                        if (result.hasError()) {
+                            telegramService.sendMessage(chatId,
+                                    "Unable to retrieve trouble tickets: " + result.errorMessage());
+                            telegramService.sendLoggedInMenu(chatId, selected,
+                                    userSessionService.getAccounts(chatId).size() > 1);
+                        } else if (result.tickets().isEmpty()) {
+                            telegramService.sendMessage(chatId,
+                                    "No trouble tickets were found for account " + selected.accountId() + ".");
+                            telegramService.sendLoggedInMenu(chatId, selected,
+                                    userSessionService.getAccounts(chatId).size() > 1);
+                        } else {
+                            telegramService.sendMessage(chatId,
+                                    "Select a ticket below to continue.");
+                            telegramService.sendTroubleTicketCards(chatId, result.tickets());
+                        }
                     } else {
                         telegramService.sendMessage(chatId, loginReminder);
                         telegramService.sendLoginMenu(chatId, oauthLoginService.buildAuthUrl(chatId));

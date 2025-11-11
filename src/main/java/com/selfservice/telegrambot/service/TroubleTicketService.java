@@ -1,5 +1,9 @@
 package com.selfservice.telegrambot.service;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.selfservice.telegrambot.service.dto.TroubleTicketListResult;
+import com.selfservice.telegrambot.service.dto.TroubleTicketSummary;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -8,6 +12,10 @@ import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.web.util.UriComponentsBuilder;
+
+import java.util.ArrayList;
+import java.util.List;
 
 @Service
 public class TroubleTicketService {
@@ -16,13 +24,16 @@ public class TroubleTicketService {
 
     private final RestTemplate restTemplate;
     private final String troubleTicketEndpoint;
+    private final ObjectMapper objectMapper;
 
     public TroubleTicketService(@Qualifier("loggingRestTemplate") RestTemplate restTemplate,
-            @Value("${apiman.trouble-ticket.url:${apiman.url:}}") String troubleTicketEndpoint) {
+            @Value("${apiman.trouble-ticket.url:${apiman.url:}}") String troubleTicketEndpoint,
+            ObjectMapper objectMapper) {
         this.restTemplate = restTemplate;
         this.troubleTicketEndpoint = (troubleTicketEndpoint == null || troubleTicketEndpoint.isBlank())
                 ? null
                 : troubleTicketEndpoint;
+        this.objectMapper = objectMapper;
         if (this.troubleTicketEndpoint == null) {
             log.warn("APIMAN trouble-ticket endpoint is not configured; related features will be disabled.");
         }
@@ -34,7 +45,7 @@ public class TroubleTicketService {
         }
 
         HttpHeaders headers = new HttpHeaders();
-        headers.setAccept(java.util.List.of(MediaType.APPLICATION_JSON));
+        headers.setAccept(List.of(MediaType.APPLICATION_JSON));
         headers.setContentType(MediaType.APPLICATION_JSON);
         headers.setBearerAuth(accessToken);
         headers.set("User-Agent", "SelfserviceTelegramBot/1.0");
@@ -79,6 +90,99 @@ public class TroubleTicketService {
 
     private static String truncate(String s, int max) {
         return s.length() > max ? s.substring(0, max) + "\n…(truncated)" : s;
+    }
+
+    public TroubleTicketListResult getTroubleTicketsByAccountId(String accessToken, String accountId) {
+        if (troubleTicketEndpoint == null) {
+            return new TroubleTicketListResult(List.of(),
+                    "APIMAN trouble-ticket endpoint is not configured.");
+        }
+        if (accessToken == null || accessToken.isBlank()) {
+            return new TroubleTicketListResult(List.of(), "Missing access token.");
+        }
+        if (accountId == null || accountId.isBlank()) {
+            return new TroubleTicketListResult(List.of(), "No billing account is selected.");
+        }
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setAccept(List.of(MediaType.APPLICATION_JSON));
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.setBearerAuth(accessToken);
+        headers.set("User-Agent", "SelfserviceTelegramBot/1.0");
+
+        final String url;
+        try {
+            url = UriComponentsBuilder.fromHttpUrl(troubleTicketEndpoint)
+                    .replaceQueryParam("relatedEntity.billingAccount.id", accountId)
+                    .build(true)
+                    .toUriString();
+        } catch (IllegalArgumentException ex) {
+            log.error("Invalid trouble ticket endpoint configured: {}", troubleTicketEndpoint, ex);
+            return new TroubleTicketListResult(List.of(), "Invalid trouble ticket endpoint URL.");
+        }
+
+        try {
+            ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.GET,
+                    new HttpEntity<>(headers), String.class);
+
+            if (!response.getStatusCode().is2xxSuccessful()) {
+                log.warn("Trouble ticket lookup returned non-success status: {}", response.getStatusCode());
+                return new TroubleTicketListResult(List.of(),
+                        "Received status " + response.getStatusCode().value() + " from trouble ticket API.");
+            }
+
+            String body = response.getBody();
+            if (body == null || body.isBlank()) {
+                return new TroubleTicketListResult(List.of(), null);
+            }
+
+            JsonNode root = objectMapper.readTree(body);
+            if (!root.isArray()) {
+                log.warn("Trouble ticket response was not an array: {}", body);
+                return new TroubleTicketListResult(List.of(),
+                        "Unexpected trouble ticket response format.");
+            }
+
+            List<TroubleTicketSummary> tickets = new ArrayList<>();
+            for (JsonNode ticketNode : root) {
+                String id = safeText(ticketNode.get("id"));
+                if (id.isBlank()) {
+                    continue;
+                }
+                String status = safeText(ticketNode.get("status"));
+                String description = firstNoteText(ticketNode);
+                if (description.isBlank()) {
+                    description = safeText(ticketNode.get("description"));
+                }
+                tickets.add(new TroubleTicketSummary(id, status, description.strip()));
+            }
+
+            return new TroubleTicketListResult(tickets, null);
+        } catch (HttpStatusCodeException ex) {
+            String body = ex.getResponseBodyAsString();
+            log.error("Trouble ticket API error: status={} body={}", ex.getStatusCode().value(), body);
+            return new TroubleTicketListResult(List.of(),
+                    "Trouble ticket API error " + ex.getStatusCode().value());
+        } catch (Exception ex) {
+            log.error("Trouble ticket API call failed", ex);
+            return new TroubleTicketListResult(List.of(), "Failed to contact trouble ticket API.");
+        }
+    }
+
+    private static String firstNoteText(JsonNode ticketNode) {
+        JsonNode notes = ticketNode.get("note");
+        if (notes == null || !notes.isArray() || notes.isEmpty()) {
+            return "";
+        }
+        JsonNode first = notes.get(0);
+        if (first == null) {
+            return "";
+        }
+        return safeText(first.get("text"));
+    }
+
+    private static String safeText(JsonNode node) {
+        return node == null ? "" : node.asText("");
     }
 }
 
