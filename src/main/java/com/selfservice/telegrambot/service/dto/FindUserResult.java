@@ -5,6 +5,6 @@ import java.util.List;
 /**
  * Encapsulates the parsed outcome of the APIMAN findUser call.
  */
-public record FindUserResult(boolean success, String summary, List<String> accountNumbers) {
+public record FindUserResult(boolean success, String summary, List<AccountSummary> accounts) {
 }
 

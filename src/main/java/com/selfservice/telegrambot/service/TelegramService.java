@@ -1,5 +1,6 @@
 package com.selfservice.telegrambot.service;
 
+import com.selfservice.telegrambot.service.dto.AccountSummary;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -8,6 +9,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.RestTemplate;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -51,6 +53,8 @@ public class TelegramService {
     public static final String CALLBACK_HELLO_WORLD = "HELLO_WORLD";
     public static final String CALLBACK_HELLO_CERILLION = "HELLO_CERILLION";
     public static final String CALLBACK_TROUBLE_TICKET = "VIEW_TROUBLE_TICKET";
+    public static final String CALLBACK_SHOW_MORE_PREFIX = "SHOW_MORE:";
+    public static final String CALLBACK_ACCOUNT_PREFIX = "ACCOUNT:";
 
 
     public void sendMessage(long chatId, String text) {
@@ -65,19 +69,26 @@ public class TelegramService {
         post(url, body, headers);
     }
 
-    public void sendLoginMenu(long chatId) {
+    public void sendLoginMenu(long chatId, String loginUrl) {
         String url = baseUrl + "/sendMessage";
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
 
-        Map<String, Object> replyMarkup = Map.of(
-                "inline_keyboard", List.of(
-                        List.of(Map.of(
-                                "text", BUTTON_SELF_SERVICE_LOGIN,
-                                "callback_data", CALLBACK_SELF_SERVICE_LOGIN)),
-                        List.of(Map.of(
-                                "text", BUTTON_DIRECT_LOGIN,
-                                "callback_data", CALLBACK_DIRECT_LOGIN))));
+        List<List<Map<String, Object>>> keyboard = new ArrayList<>();
+        if (loginUrl != null && !loginUrl.isBlank()) {
+            keyboard.add(List.of(Map.of(
+                    "text", BUTTON_SELF_SERVICE_LOGIN,
+                    "url", loginUrl)));
+        } else {
+            keyboard.add(List.of(Map.of(
+                    "text", BUTTON_SELF_SERVICE_LOGIN,
+                    "callback_data", CALLBACK_SELF_SERVICE_LOGIN)));
+        }
+        keyboard.add(List.of(Map.of(
+                "text", BUTTON_DIRECT_LOGIN,
+                "callback_data", CALLBACK_DIRECT_LOGIN)));
+
+        Map<String, Object> replyMarkup = Map.of("inline_keyboard", keyboard);
 
         String menuText = """
                 Please choose how you'd like to sign in:
@@ -86,27 +97,6 @@ public class TelegramService {
         Map<String, Object> body = Map.of(
                 "chat_id", chatId,
                 "text", menuText,
-                "reply_markup", replyMarkup);
-
-        post(url, body, headers);
-    }
-
-    public void sendLoginProgress(long chatId, String loginUrl) {
-        Objects.requireNonNull(loginUrl, "loginUrl must not be null");
-
-        String url = baseUrl + "/sendMessage";
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
-
-        Map<String, Object> replyMarkup = Map.of(
-                "inline_keyboard", List.of(
-                        List.of(Map.of(
-                                "text", "Login Here",
-                                "url", loginUrl))));
-
-        Map<String, Object> body = Map.of(
-                "chat_id", chatId,
-                "text", "Login in Progress",
                 "reply_markup", replyMarkup);
 
         post(url, body, headers);
@@ -159,6 +149,48 @@ public class TelegramService {
 
     public String authHelloUrl() {
         return publicBaseUrl.isBlank() ? "/auth/hello" : publicBaseUrl + "/auth/hello";
+    }
+
+    public void sendAccountPage(long chatId, List<AccountSummary> accounts, int startIndex) {
+        Objects.requireNonNull(accounts, "accounts must not be null");
+
+        if (accounts.isEmpty()) {
+            sendMessage(chatId, "No accounts available for this user.");
+            return;
+        }
+
+        int safeStart = Math.max(0, startIndex);
+        if (safeStart >= accounts.size()) {
+            safeStart = Math.max(0, accounts.size() - 5);
+        }
+
+        int end = Math.min(accounts.size(), safeStart + 5);
+
+        List<List<Map<String, Object>>> rows = new ArrayList<>();
+        for (int i = safeStart; i < end; i++) {
+            AccountSummary summary = accounts.get(i);
+            rows.add(List.of(Map.of(
+                    "text", summary.displayLabel(),
+                    "callback_data", CALLBACK_ACCOUNT_PREFIX + i)));
+        }
+
+        if (end < accounts.size()) {
+            rows.add(List.of(Map.of(
+                    "text", "Show more",
+                    "callback_data", CALLBACK_SHOW_MORE_PREFIX + end)));
+        }
+
+        String url = baseUrl + "/sendMessage";
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+
+        Map<String, Object> replyMarkup = Map.of("inline_keyboard", rows);
+        Map<String, Object> body = Map.of(
+                "chat_id", chatId,
+                "text", "Select an account:",
+                "reply_markup", replyMarkup);
+
+        post(url, body, headers);
     }
 
     private void post(String url, Map<String, Object> body, HttpHeaders headers) {
