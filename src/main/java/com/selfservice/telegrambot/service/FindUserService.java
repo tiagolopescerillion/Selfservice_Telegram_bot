@@ -38,7 +38,7 @@ public class FindUserService {
 
     public FindUserResult fetchAccountNumbers(String accessToken) {
         if (findUserEndpoint == null || findUserEndpoint.isBlank()) {
-            return new FindUserResult(false, "APIMAN[FindUser] ERROR: endpoint URL is not configured.", List.of());
+            return new FindUserResult(false, "APIMAN[FindUser] ERROR: endpoint URL is not configured.", List.of(), null);
         }
 
         HttpHeaders headers = new HttpHeaders();
@@ -65,7 +65,7 @@ public class FindUserService {
                     + " (" + contentType + ", " + bodyBytes + " bytes)";
 
             if (!response.getStatusCode().is2xxSuccessful()) {
-                return new FindUserResult(false, summary + "\n" + (body.isBlank() ? "<empty body>" : body), List.of());
+                return new FindUserResult(false, summary + "\n" + (body.isBlank() ? "<empty body>" : body), List.of(), null);
             }
 
             if (response.getHeaders().getContentType() == null
@@ -74,11 +74,11 @@ public class FindUserService {
             }
 
             try {
-                List<AccountSummary> accounts = extractAccounts(body);
-                return new FindUserResult(true, summary, accounts);
+                ParsedResponse parsed = extractAccountsAndName(body);
+                return new FindUserResult(true, summary, parsed.accounts(), parsed.givenName());
             } catch (Exception parseError) {
                 log.error("Unable to parse findUser response body", parseError);
-                return new FindUserResult(false, summary + "\nParse error: " + parseError.getMessage(), List.of());
+                return new FindUserResult(false, summary + "\nParse error: " + parseError.getMessage(), List.of(), null);
             }
         } catch (HttpStatusCodeException ex) {
             String body = ex.getResponseBodyAsString();
@@ -86,31 +86,34 @@ public class FindUserService {
             String contentType = ct == null ? "<none>" : ct.toString();
             String summary = "APIMAN[FindUser] ERROR: status=" + ex.getStatusCode().value()
                     + " (" + contentType + ")";
-            return new FindUserResult(false, summary + "\n" + (body == null ? "<no-body>" : truncate(body, 3500)), List.of());
+            return new FindUserResult(false, summary + "\n" + (body == null ? "<no-body>" : truncate(body, 3500)), List.of(), null);
         } catch (Exception ex) {
             String summary = "APIMAN[FindUser] ERROR: " + ex.getClass().getSimpleName()
                     + ": " + (ex.getMessage() == null ? "<no-message>" : ex.getMessage());
-            return new FindUserResult(false, summary, List.of());
+            return new FindUserResult(false, summary, List.of(), null);
         }
     }
 
-    private List<AccountSummary> extractAccounts(String body) throws Exception {
+    private ParsedResponse extractAccountsAndName(String body) throws Exception {
         if (body == null || body.isBlank()) {
-            return List.of();
+            return new ParsedResponse(List.of(), null);
         }
 
         JsonNode root = objectMapper.readTree(body);
         Map<String, AccountSummary> accounts = new LinkedHashMap<>();
+        String preferredName = null;
 
         if (root.isArray()) {
             for (JsonNode individual : root) {
+                preferredName = pickPreferredName(preferredName, individual);
                 collectFromIndividual(individual, accounts);
             }
         } else {
+            preferredName = pickPreferredName(preferredName, root);
             collectFromIndividual(root, accounts);
         }
 
-        return List.copyOf(accounts.values());
+        return new ParsedResponse(List.copyOf(accounts.values()), preferredName);
     }
 
     private void collectFromIndividual(JsonNode individual, Map<String, AccountSummary> accounts) {
@@ -138,11 +141,32 @@ public class FindUserService {
         }
     }
 
+    private String pickPreferredName(String current, JsonNode individual) {
+        if (current != null && !current.isBlank()) {
+            return current;
+        }
+        if (individual == null) {
+            return current;
+        }
+        String given = individual.path("givenName").asText("").trim();
+        if (!given.isEmpty()) {
+            return given;
+        }
+        String fullName = individual.path("fullName").asText("").trim();
+        if (!fullName.isEmpty()) {
+            return fullName;
+        }
+        return current;
+    }
+
     private static String truncate(String input, int max) {
         if (input == null) {
             return "<null>";
         }
         return input.length() > max ? input.substring(0, max) + "\n…(truncated)" : input;
+    }
+
+    private record ParsedResponse(List<AccountSummary> accounts, String givenName) {
     }
 }
 

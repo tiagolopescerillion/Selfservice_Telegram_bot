@@ -55,6 +55,8 @@ public class TelegramService {
     public static final String CALLBACK_TROUBLE_TICKET = "VIEW_TROUBLE_TICKET";
     public static final String CALLBACK_SHOW_MORE_PREFIX = "SHOW_MORE:";
     public static final String CALLBACK_ACCOUNT_PREFIX = "ACCOUNT:";
+    public static final String BUTTON_CHANGE_ACCOUNT = "Select a different account";
+    public static final String CALLBACK_CHANGE_ACCOUNT = "CHANGE_ACCOUNT";
 
 
     public void sendMessage(long chatId, String text) {
@@ -102,26 +104,39 @@ public class TelegramService {
         post(url, body, headers);
     }
 
-    public void sendLoggedInMenu(long chatId) {
+    public void sendLoggedInMenu(long chatId, AccountSummary selectedAccount, boolean showChangeAccountOption) {
         String url = baseUrl + "/sendMessage";
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
 
-        Map<String, Object> replyMarkup = Map.of(
-                "inline_keyboard", List.of(
-                        List.of(Map.of(
-                                "text", BUTTON_HELLO_WORLD,
-                                "callback_data", CALLBACK_HELLO_WORLD)),
-                        List.of(Map.of(
-                                "text", BUTTON_HELLO_CERILLION,
-                                "callback_data", CALLBACK_HELLO_CERILLION)),
-                        List.of(Map.of(
-                                "text", BUTTON_TROUBLE_TICKET,
-                                "callback_data", CALLBACK_TROUBLE_TICKET))));
+        List<List<Map<String, Object>>> keyboard = new ArrayList<>();
+        keyboard.add(List.of(Map.of(
+                "text", BUTTON_HELLO_WORLD,
+                "callback_data", CALLBACK_HELLO_WORLD)));
+        keyboard.add(List.of(Map.of(
+                "text", BUTTON_HELLO_CERILLION,
+                "callback_data", CALLBACK_HELLO_CERILLION)));
+        keyboard.add(List.of(Map.of(
+                "text", BUTTON_TROUBLE_TICKET,
+                "callback_data", CALLBACK_TROUBLE_TICKET)));
+        if (showChangeAccountOption) {
+            keyboard.add(List.of(Map.of(
+                    "text", BUTTON_CHANGE_ACCOUNT,
+                    "callback_data", CALLBACK_CHANGE_ACCOUNT)));
+        }
 
-        String menuText = """
-                Welcome! Choose an option:
-                """;
+        Map<String, Object> replyMarkup = Map.of("inline_keyboard", keyboard);
+
+        String menuText;
+        if (selectedAccount != null) {
+            menuText = """
+                    Welcome! Choose an option:
+                    """ + "\nCurrent account: " + selectedAccount.displayLabel();
+        } else {
+            menuText = """
+                    Welcome! Choose an option:
+                    """;
+        }
 
         Map<String, Object> body = Map.of(
                 "chat_id", chatId,
@@ -167,11 +182,19 @@ public class TelegramService {
         int end = Math.min(accounts.size(), safeStart + 5);
 
         List<List<Map<String, Object>>> rows = new ArrayList<>();
+        List<Map<String, Object>> currentRow = new ArrayList<>();
         for (int i = safeStart; i < end; i++) {
             AccountSummary summary = accounts.get(i);
-            rows.add(List.of(Map.of(
+            currentRow.add(Map.of(
                     "text", summary.displayLabel(),
-                    "callback_data", CALLBACK_ACCOUNT_PREFIX + i)));
+                    "callback_data", CALLBACK_ACCOUNT_PREFIX + i));
+            if (currentRow.size() == 3) {
+                rows.add(List.copyOf(currentRow));
+                currentRow = new ArrayList<>();
+            }
+        }
+        if (!currentRow.isEmpty()) {
+            rows.add(List.copyOf(currentRow));
         }
 
         if (end < accounts.size()) {
