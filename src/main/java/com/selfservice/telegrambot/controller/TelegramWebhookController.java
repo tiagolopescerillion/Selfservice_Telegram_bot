@@ -92,6 +92,33 @@ public class TelegramWebhookController {
             String loginReminder = "Please login using the \"" + TelegramService.BUTTON_SELF_SERVICE_LOGIN
                     + "\" button to access this feature.";
 
+            if (text.startsWith(TelegramService.CALLBACK_SHOW_MORE_PREFIX)) {
+                int offset = parseIndex(text, TelegramService.CALLBACK_SHOW_MORE_PREFIX);
+                var accounts = userSessionService.getAccounts(chatId);
+                if (accounts.isEmpty()) {
+                    telegramService.sendMessage(chatId, "No stored accounts. Please login again.");
+                    telegramService.sendLoginMenu(chatId, oauthLoginService.buildAuthUrl(chatId));
+                } else {
+                    telegramService.sendAccountPage(chatId, accounts, offset);
+                }
+                return ResponseEntity.ok().build();
+            }
+
+            if (text.startsWith(TelegramService.CALLBACK_ACCOUNT_PREFIX)) {
+                int index = parseIndex(text, TelegramService.CALLBACK_ACCOUNT_PREFIX);
+                var accounts = userSessionService.getAccounts(chatId);
+                if (accounts.isEmpty() || index < 0 || index >= accounts.size()) {
+                    telegramService.sendMessage(chatId, "Account selection expired. Please login again.");
+                    telegramService.sendLoginMenu(chatId, oauthLoginService.buildAuthUrl(chatId));
+                } else {
+                    var selected = accounts.get(index);
+                    telegramService.sendMessage(chatId,
+                            "Selected account: " + selected.displayLabel());
+                    telegramService.sendLoggedInMenu(chatId);
+                }
+                return ResponseEntity.ok().build();
+            }
+
             switch (text) {
                 case TelegramService.CALLBACK_HELLO_WORLD:
                 case TelegramService.BUTTON_HELLO_WORLD:
@@ -101,7 +128,7 @@ public class TelegramWebhookController {
                         telegramService.sendLoggedInMenu(chatId);
                     } else {
                         telegramService.sendMessage(chatId, loginReminder);
-                        telegramService.sendLoginMenu(chatId);
+                        telegramService.sendLoginMenu(chatId, oauthLoginService.buildAuthUrl(chatId));
                     }
                     break;
                 case TelegramService.CALLBACK_HELLO_CERILLION:
@@ -112,7 +139,7 @@ public class TelegramWebhookController {
                         telegramService.sendLoggedInMenu(chatId);
                     } else {
                         telegramService.sendMessage(chatId, loginReminder);
-                        telegramService.sendLoginMenu(chatId);
+                        telegramService.sendLoginMenu(chatId, oauthLoginService.buildAuthUrl(chatId));
                     }
                     break;
                 case TelegramService.CALLBACK_TROUBLE_TICKET:
@@ -125,7 +152,7 @@ public class TelegramWebhookController {
                         telegramService.sendLoggedInMenu(chatId);
                     } else {
                         telegramService.sendMessage(chatId, loginReminder);
-                        telegramService.sendLoginMenu(chatId);
+                        telegramService.sendLoginMenu(chatId, oauthLoginService.buildAuthUrl(chatId));
                     }
                     break;
                 case TelegramService.CALLBACK_SELF_SERVICE_LOGIN:
@@ -138,7 +165,8 @@ public class TelegramWebhookController {
                     } else {
                         String loginUrl = oauthLoginService.buildAuthUrl(chatId);
                         log.info("Login URL for chat {}: {}", chatId, loginUrl);
-                        telegramService.sendLoginProgress(chatId, loginUrl);
+                        telegramService.sendLoginMenu(chatId, loginUrl);
+                        telegramService.sendMessage(chatId, "Tap the login button above to continue.");
                     }
                     break;
                 case TelegramService.CALLBACK_DIRECT_LOGIN:
@@ -164,14 +192,14 @@ public class TelegramWebhookController {
                     telegramService.sendMessage(chatId,
                             authMessage + "\n\n" +
                                     "External API result:\n" + apiResponse);
-                    telegramService.sendLoginMenu(chatId);
+                    telegramService.sendLoginMenu(chatId, oauthLoginService.buildAuthUrl(chatId));
                     break;
                 case "/start":
                 default:
                     if (hasValidToken) {
                         telegramService.sendLoggedInMenu(chatId);
                     } else {
-                        telegramService.sendLoginMenu(chatId);
+                        telegramService.sendLoginMenu(chatId, oauthLoginService.buildAuthUrl(chatId));
                     }
             }
         } catch (Exception e) {
@@ -179,5 +207,13 @@ public class TelegramWebhookController {
         }
 
         return ResponseEntity.ok().build();
+    }
+
+    private int parseIndex(String text, String prefix) {
+        try {
+            return Integer.parseInt(text.substring(prefix.length()));
+        } catch (Exception e) {
+            return -1;
+        }
     }
 }

@@ -2,6 +2,7 @@ package com.selfservice.telegrambot.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.selfservice.telegrambot.service.dto.AccountSummary;
 import com.selfservice.telegrambot.service.dto.FindUserResult;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -13,9 +14,9 @@ import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.RestTemplate;
 
 import java.nio.charset.StandardCharsets;
-import java.util.LinkedHashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Set;
+import java.util.Map;
 
 @Service
 public class FindUserService {
@@ -73,8 +74,8 @@ public class FindUserService {
             }
 
             try {
-                List<String> accountNumbers = extractAccountNumbers(body);
-                return new FindUserResult(true, summary, accountNumbers);
+                List<AccountSummary> accounts = extractAccounts(body);
+                return new FindUserResult(true, summary, accounts);
             } catch (Exception parseError) {
                 log.error("Unable to parse findUser response body", parseError);
                 return new FindUserResult(false, summary + "\nParse error: " + parseError.getMessage(), List.of());
@@ -93,26 +94,26 @@ public class FindUserService {
         }
     }
 
-    private List<String> extractAccountNumbers(String body) throws Exception {
+    private List<AccountSummary> extractAccounts(String body) throws Exception {
         if (body == null || body.isBlank()) {
             return List.of();
         }
 
         JsonNode root = objectMapper.readTree(body);
-        Set<String> accountNumbers = new LinkedHashSet<>();
+        Map<String, AccountSummary> accounts = new LinkedHashMap<>();
 
         if (root.isArray()) {
             for (JsonNode individual : root) {
-                collectFromIndividual(individual, accountNumbers);
+                collectFromIndividual(individual, accounts);
             }
         } else {
-            collectFromIndividual(root, accountNumbers);
+            collectFromIndividual(root, accounts);
         }
 
-        return List.copyOf(accountNumbers);
+        return List.copyOf(accounts.values());
     }
 
-    private void collectFromIndividual(JsonNode individual, Set<String> accountNumbers) {
+    private void collectFromIndividual(JsonNode individual, Map<String, AccountSummary> accounts) {
         if (individual == null) {
             return;
         }
@@ -129,9 +130,11 @@ public class FindUserService {
                 continue;
             }
             String id = party.path("id").asText("").trim();
-            if (!id.isEmpty()) {
-                accountNumbers.add(id);
+            if (id.isEmpty()) {
+                continue;
             }
+            String name = party.path("name").asText("").trim();
+            accounts.putIfAbsent(id, new AccountSummary(id, name));
         }
     }
 
