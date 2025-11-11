@@ -4,12 +4,14 @@ import com.selfservice.telegrambot.service.FindUserService;
 import com.selfservice.telegrambot.service.OAuthLoginService;
 import com.selfservice.telegrambot.service.TelegramService;
 import com.selfservice.telegrambot.service.UserSessionService;
+import com.selfservice.telegrambot.service.dto.AccountSummary;
 import com.selfservice.telegrambot.service.dto.FindUserResult;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -79,20 +81,21 @@ public class OAuthCallbackController {
             // 4) Immediately call APIMAN with the user token
             FindUserResult findUserResult = (at instanceof String)
                     ? findUserService.fetchAccountNumbers((String) at)
-                    : new FindUserResult(false, "No access_token to call APIMAN.", java.util.List.of());
+                    : new FindUserResult(false, "No access_token to call APIMAN.", java.util.List.of(), null);
 
             if (findUserResult.summary() != null) {
                 log.info("findUser summary: {}", findUserResult.summary());
             }
 
             String accountListMessage;
+            List<AccountSummary> accounts = findUserResult.accounts();
             if (findUserResult.success()) {
                 if (chatId > 0) {
-                    sessions.saveAccounts(chatId, findUserResult.accounts());
+                    sessions.saveAccounts(chatId, accounts);
                 }
-                accountListMessage = findUserResult.accounts().isEmpty()
+                accountListMessage = accounts.isEmpty()
                         ? "No billing accounts were found."
-                        : findUserResult.accounts().stream()
+                        : accounts.stream()
                         .map(a -> a.accountId() + " - " + a.truncatedName())
                         .reduce((a, b) -> a + "\n" + b)
                         .orElse("No billing accounts were found.");
@@ -104,12 +107,31 @@ public class OAuthCallbackController {
             if (chatId > 0) {
                 telegram.sendMessage(chatId,
                         "Login OK ✅\n\nAPIMAN findUser summary:\n" + findUserResult.summary());
-                if (findUserResult.success() && !findUserResult.accounts().isEmpty()) {
-                    telegram.sendAccountPage(chatId, findUserResult.accounts(), 0);
+                if (findUserResult.givenName() != null && !findUserResult.givenName().isBlank()) {
+                    telegram.sendMessage(chatId,
+                            "Hi " + findUserResult.givenName()
+                                    + ", welcome to Cerillion and thank you for using our Telegram channel.");
+                }
+
+                if (findUserResult.success()) {
+                    if (accounts.isEmpty()) {
+                        sessions.clearSelectedAccount(chatId);
+                        telegram.sendMessage(chatId, "No billing accounts were found.");
+                    } else if (accounts.size() == 1) {
+                        var onlyAccount = accounts.get(0);
+                        sessions.selectAccount(chatId, onlyAccount);
+                        telegram.sendMessage(chatId,
+                                "We found one account and selected it for you:\n" + onlyAccount.displayLabel());
+                        telegram.sendLoggedInMenu(chatId, onlyAccount, false);
+                    } else {
+                        sessions.clearSelectedAccount(chatId);
+                        telegram.sendMessage(chatId, "Please choose an account to continue.");
+                        telegram.sendAccountPage(chatId, accounts, 0);
+                    }
                 } else {
+                    sessions.clearSelectedAccount(chatId);
                     telegram.sendMessage(chatId, accountListMessage);
                 }
-                telegram.sendLoggedInMenu(chatId);
             }
 
             return """

@@ -15,11 +15,14 @@ public class UserSessionService {
         public final String accessToken;
         public final long expiryEpochMs;
         public final List<AccountSummary> accounts;
+        public final AccountSummary selectedAccount;
 
-        public TokenInfo(String accessToken, long expiryEpochMs, List<AccountSummary> accounts) {
+        public TokenInfo(String accessToken, long expiryEpochMs, List<AccountSummary> accounts,
+                AccountSummary selectedAccount) {
             this.accessToken = accessToken;
             this.expiryEpochMs = expiryEpochMs;
             this.accounts = accounts;
+            this.selectedAccount = selectedAccount;
         }
     }
 
@@ -27,7 +30,7 @@ public class UserSessionService {
 
     public void save(long chatId, String accessToken, long expiresInSeconds) {
         long exp = System.currentTimeMillis() + expiresInSeconds * 1000L;
-        byChat.put(chatId, new TokenInfo(accessToken, exp, Collections.emptyList()));
+        byChat.put(chatId, new TokenInfo(accessToken, exp, Collections.emptyList(), null));
     }
 
     public String getValidAccessToken(long chatId) {
@@ -47,7 +50,14 @@ public class UserSessionService {
             if (existing.expiryEpochMs <= System.currentTimeMillis() + 30_000) {
                 return null;
             }
-            return new TokenInfo(existing.accessToken, existing.expiryEpochMs, copy);
+            AccountSummary selected = existing.selectedAccount;
+            if (selected != null) {
+                selected = copy.stream()
+                        .filter(a -> a.accountId().equals(selected.accountId()))
+                        .findFirst()
+                        .orElse(null);
+            }
+            return new TokenInfo(existing.accessToken, existing.expiryEpochMs, copy, selected);
         });
     }
 
@@ -61,5 +71,48 @@ public class UserSessionService {
             return List.of();
         }
         return info.accounts;
+    }
+
+    public AccountSummary getSelectedAccount(long chatId) {
+        TokenInfo info = byChat.get(chatId);
+        if (info == null) {
+            return null;
+        }
+        if (info.expiryEpochMs <= System.currentTimeMillis() + 30_000) {
+            byChat.remove(chatId);
+            return null;
+        }
+        return info.selectedAccount;
+    }
+
+    public void selectAccount(long chatId, AccountSummary account) {
+        if (account == null) {
+            return;
+        }
+        byChat.computeIfPresent(chatId, (id, existing) -> {
+            if (existing.expiryEpochMs <= System.currentTimeMillis() + 30_000) {
+                return null;
+            }
+            AccountSummary matched = existing.accounts.stream()
+                    .filter(a -> a.accountId().equals(account.accountId()))
+                    .findFirst()
+                    .orElse(null);
+            if (matched == null) {
+                return existing;
+            }
+            return new TokenInfo(existing.accessToken, existing.expiryEpochMs, existing.accounts, matched);
+        });
+    }
+
+    public void clearSelectedAccount(long chatId) {
+        byChat.computeIfPresent(chatId, (id, existing) -> {
+            if (existing.expiryEpochMs <= System.currentTimeMillis() + 30_000) {
+                return null;
+            }
+            if (existing.selectedAccount == null) {
+                return existing;
+            }
+            return new TokenInfo(existing.accessToken, existing.expiryEpochMs, existing.accounts, null);
+        });
     }
 }
