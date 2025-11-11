@@ -137,9 +137,8 @@ public class TelegramWebhookController {
                         telegramService.sendLoggedInMenu(chatId);
                     } else {
                         String loginUrl = oauthLoginService.buildAuthUrl(chatId);
-                        telegramService.sendMessage(chatId,
-                                "🔐 Login required.\nTap this link to authenticate:\n" + loginUrl);
-                        telegramService.sendLoginMenu(chatId);
+                        log.info("Login URL for chat {}: {}", chatId, loginUrl);
+                        telegramService.sendLoginProgress(chatId, loginUrl);
                     }
                     break;
                 case TelegramService.CALLBACK_DIRECT_LOGIN:

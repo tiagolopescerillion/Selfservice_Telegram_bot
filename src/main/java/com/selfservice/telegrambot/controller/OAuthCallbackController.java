@@ -41,15 +41,18 @@ public class OAuthCallbackController {
         try {
             if (error != null) {
                 String msg = "Login ERROR: " + error + (errorDescription != null ? " - " + errorDescription : "");
+                log.error("Self-service login failed for chat {}: {}", chatId, msg);
                 if (chatId > 0) {
-                    telegram.sendMessage(chatId, msg);
+                    telegram.sendMessage(chatId, "Login Failed");
                     telegram.sendLoginMenu(chatId);
                 }
                 return "<h3>" + msg + "</h3>";
             }
             if (code == null) {
-                 if (chatId > 0) {
-                    telegram.sendMessage(chatId, "Login ERROR: missing authorization code");
+                String msg = "Login ERROR: missing authorization code";
+                log.error("Self-service login failed for chat {}: {}", chatId, msg);
+                if (chatId > 0) {
+                    telegram.sendMessage(chatId, "Login Failed");
                     telegram.sendLoginMenu(chatId);
                 }
                 return "<h3>Missing authorization code</h3>";
@@ -59,7 +62,11 @@ public class OAuthCallbackController {
             Map tokens = oauth.exchangeCodeForTokens(code, state);
 
             // 2) Summarize for user
-            String summary = "Login OK ✅\n" + oauth.summarizeTokens(tokens);
+            String tokenSummary = oauth.summarizeTokens(tokens);
+            if (tokenSummary == null) {
+                tokenSummary = "No token body.";
+            }
+            log.info("Login token summary for chat {}:\n{}", chatId, tokenSummary);
 
             // 3) Store token for this chat
             Object at = tokens.get("access_token");
@@ -90,19 +97,20 @@ public class OAuthCallbackController {
             // 5) DM Telegram with both
             if (chatId > 0) {
                 telegram.sendMessage(chatId,
-                        summary + "\n\nAPIMAN findUser account numbers:\n" + accountListMessage);
+                        "Login OK ✅\n\nAPIMAN findUser account numbers:\n" + accountListMessage);
                 telegram.sendLoggedInMenu(chatId);
             }
 
             return """
                    <html><body>
                    <h3>Login successful. You can return to Telegram.</h3>
-                   <pre>""" + (summary + "\n\nAPIMAN findUser account numbers:\n" + accountListMessage)
+                   <pre>""" + (("Login OK ✅\n" + tokenSummary) + "\n\nAPIMAN findUser account numbers:\n" + accountListMessage)
                         .replace("&","&amp;").replace("<","&lt;") + "</pre></body></html>";
         } catch (Exception e) {
             String msg = "Login ERROR: " + e.getMessage();
+            log.error("Self-service login failed for chat {}", chatId, e);
             if (chatId > 0) {
-                telegram.sendMessage(chatId, msg);
+                telegram.sendMessage(chatId, "Login Failed");
                 telegram.sendLoginMenu(chatId);
             }
             return "<h3>" + msg + "</h3>";
