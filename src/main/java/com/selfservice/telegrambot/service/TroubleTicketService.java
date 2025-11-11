@@ -2,29 +2,24 @@ package com.selfservice.telegrambot.service;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.RestTemplate;
-import org.springframework.beans.factory.annotation.Qualifier;
 
 @Service
-public class ApimanApiService {
+public class TroubleTicketService {
 
-    private static final Logger log = LoggerFactory.getLogger(ApimanApiService.class);
+    private static final Logger log = LoggerFactory.getLogger(TroubleTicketService.class);
 
-    private final RestTemplate rest;
-    private final String findUserEndpoint;
+    private final RestTemplate restTemplate;
     private final String troubleTicketEndpoint;
 
-    public ApimanApiService(@Qualifier("loggingRestTemplate") RestTemplate rest,
-            @Value("${apiman.find-user.url:https://lonlinux13.cerillion.com:49987/apiman-gateway/CSS-MASTER-ORG/findUser/1.0?offset=0&limit=1}")
-            String findUserEndpoint,
-            @Value("${apiman.trouble-ticket.url:${apiman.url:}}")
-            String troubleTicketEndpoint) {
-        this.rest = rest;
-        this.findUserEndpoint = findUserEndpoint;
+    public TroubleTicketService(@Qualifier("loggingRestTemplate") RestTemplate restTemplate,
+            @Value("${apiman.trouble-ticket.url:${apiman.url:}}") String troubleTicketEndpoint) {
+        this.restTemplate = restTemplate;
         this.troubleTicketEndpoint = (troubleTicketEndpoint == null || troubleTicketEndpoint.isBlank())
                 ? null
                 : troubleTicketEndpoint;
@@ -33,31 +28,20 @@ public class ApimanApiService {
         }
     }
 
-    public String callFindUser(String accessToken) {
-        return callEndpoint("FindUser", findUserEndpoint, accessToken);
-    }
-
     public String callTroubleTicket(String accessToken) {
         if (troubleTicketEndpoint == null) {
-            return "APIMAN ERROR: Trouble ticket endpoint is not configured.";
-        }
-        return callEndpoint("TroubleTicket", troubleTicketEndpoint, accessToken);
-    }
-
-    private String callEndpoint(String label, String url, String accessToken) {
-        if (url == null || url.isBlank()) {
-            return "APIMAN[" + label + "] ERROR: endpoint URL is not configured.";
+            return "APIMAN[TroubleTicket] ERROR: endpoint URL is not configured.";
         }
 
         HttpHeaders headers = new HttpHeaders();
         headers.setAccept(java.util.List.of(MediaType.APPLICATION_JSON));
         headers.setContentType(MediaType.APPLICATION_JSON);
         headers.setBearerAuth(accessToken);
-        headers.set("User-Agent", "SelfserviceTelegramBot/1.0"); // helps diagnose at gateway
+        headers.set("User-Agent", "SelfserviceTelegramBot/1.0");
 
         try {
-            ResponseEntity<byte[]> resp = rest.exchange(
-                    url, HttpMethod.GET, new HttpEntity<>(headers), byte[].class);
+            ResponseEntity<byte[]> resp = restTemplate.exchange(
+                    troubleTicketEndpoint, HttpMethod.GET, new HttpEntity<>(headers), byte[].class);
 
             int code = resp.getStatusCode().value();
             MediaType ct = resp.getHeaders().getContentType();
@@ -68,12 +52,11 @@ public class ApimanApiService {
                     : new String(resp.getBody(), java.nio.charset.StandardCharsets.UTF_8);
             String preview = truncate(body, 3500);
 
-            // Heuristics: If Content-Type isn’t JSON or body looks like HTML, flag it.
             boolean looksHtml = preview.trim().startsWith("<!DOCTYPE") || preview.trim().startsWith("<html");
             boolean notJson = (ct == null) || !MediaType.APPLICATION_JSON.isCompatibleWith(ct);
 
             StringBuilder out = new StringBuilder();
-            out.append("APIMAN[").append(label).append("] ").append(code).append(" (")
+            out.append("APIMAN[TroubleTicket] ").append(code).append(" (")
                     .append(ctype).append(", ").append(clen).append(" bytes)\n");
 
             if (looksHtml || notJson) {
@@ -85,11 +68,11 @@ public class ApimanApiService {
 
         } catch (HttpStatusCodeException ex) {
             String body = ex.getResponseBodyAsString();
-            return "APIMAN[" + label + "] ERROR: status=" + ex.getStatusCode().value() + " ("
+            return "APIMAN[TroubleTicket] ERROR: status=" + ex.getStatusCode().value() + " ("
                     + ex.getResponseHeaders().getContentType() + ")\n"
                     + (body == null ? "<no-body>" : truncate(body, 3500));
         } catch (Exception ex) {
-            return "APIMAN[" + label + "] ERROR: " + ex.getClass().getSimpleName() + ": "
+            return "APIMAN[TroubleTicket] ERROR: " + ex.getClass().getSimpleName() + ": "
                     + (ex.getMessage() == null ? "<no-message>" : ex.getMessage());
         }
     }
@@ -98,3 +81,4 @@ public class ApimanApiService {
         return s.length() > max ? s.substring(0, max) + "\n…(truncated)" : s;
     }
 }
+

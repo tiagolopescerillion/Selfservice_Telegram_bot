@@ -1,6 +1,10 @@
 package com.selfservice.telegrambot.controller;
 
-import com.selfservice.telegrambot.service.*;
+import com.selfservice.telegrambot.service.FindUserService;
+import com.selfservice.telegrambot.service.OAuthLoginService;
+import com.selfservice.telegrambot.service.TelegramService;
+import com.selfservice.telegrambot.service.UserSessionService;
+import com.selfservice.telegrambot.service.dto.FindUserResult;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.MediaType;
@@ -15,16 +19,16 @@ public class OAuthCallbackController {
     private final OAuthLoginService oauth;
     private final TelegramService telegram;
     private final UserSessionService sessions;
-    private final ApimanApiService apiman;
+    private final FindUserService findUserService;
 
     public OAuthCallbackController(OAuthLoginService oauth,
                                    TelegramService telegram,
                                    UserSessionService sessions,
-                                   ApimanApiService apiman) {
+                                   FindUserService findUserService) {
         this.oauth = oauth;
         this.telegram = telegram;
         this.sessions = sessions;
-        this.apiman = apiman;
+        this.findUserService = findUserService;
     }
 
     @GetMapping(value = "/oauth/callback", produces = MediaType.TEXT_HTML_VALUE)
@@ -66,19 +70,34 @@ public class OAuthCallbackController {
             }
 
             // 4) Immediately call APIMAN with the user token
-            String apiResult = (at instanceof String)
-                    ? apiman.callFindUser((String) at)
-                    : "No access_token to call APIMAN.";
+            FindUserResult findUserResult = (at instanceof String)
+                    ? findUserService.fetchAccountNumbers((String) at)
+                    : new FindUserResult(false, "No access_token to call APIMAN.", java.util.List.of());
+
+            if (findUserResult.summary() != null) {
+                log.info("findUser summary: {}", findUserResult.summary());
+            }
+
+            String accountListMessage;
+            if (findUserResult.success()) {
+                accountListMessage = findUserResult.accountNumbers().isEmpty()
+                        ? "No billing account numbers were found."
+                        : String.join("\n", findUserResult.accountNumbers());
+            } else {
+                accountListMessage = findUserResult.summary();
+            }
+
             // 5) DM Telegram with both
             if (chatId > 0) {
-                telegram.sendMessage(chatId, summary + "\n\nAPIMAN findUser result:\n" + apiResult);
+                telegram.sendMessage(chatId,
+                        summary + "\n\nAPIMAN findUser account numbers:\n" + accountListMessage);
                 telegram.sendLoggedInMenu(chatId);
             }
 
             return """
                    <html><body>
                    <h3>Login successful. You can return to Telegram.</h3>
-                   <pre>""" + (summary + "\n\nAPIMAN findUser result:\n" + apiResult)
+                   <pre>""" + (summary + "\n\nAPIMAN findUser account numbers:\n" + accountListMessage)
                         .replace("&","&amp;").replace("<","&lt;") + "</pre></body></html>";
         } catch (Exception e) {
             String msg = "Login ERROR: " + e.getMessage();

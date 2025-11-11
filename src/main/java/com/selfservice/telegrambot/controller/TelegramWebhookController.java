@@ -1,11 +1,11 @@
 package com.selfservice.telegrambot.controller;
 
 import com.selfservice.telegrambot.service.UserSessionService;
-import com.selfservice.telegrambot.service.ApimanApiService;
 import com.selfservice.telegrambot.service.OAuthLoginService;
 
 import com.selfservice.telegrambot.service.TelegramService;
 import com.selfservice.telegrambot.service.KeycloakAuthService;
+import com.selfservice.telegrambot.service.TroubleTicketService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
@@ -24,21 +24,21 @@ public class TelegramWebhookController {
     private final ExternalApiService externalApiService;
     private final OAuthLoginService oauthLoginService;
     private final UserSessionService userSessionService;
-    private final ApimanApiService apimanApiService;
+    private final TroubleTicketService troubleTicketService;
 
     public TelegramWebhookController(TelegramService telegramService,
             KeycloakAuthService keycloakAuthService,
             ExternalApiService externalApiService,
             OAuthLoginService oauthLoginService,
             UserSessionService userSessionService,
-            ApimanApiService apimanApiService) {
+            TroubleTicketService troubleTicketService) {
         this.telegramService = telegramService;
         this.keycloakAuthService = keycloakAuthService;
         this.externalApiService = externalApiService;
         this.oauthLoginService = oauthLoginService;
 
         this.userSessionService = userSessionService;
-        this.apimanApiService = apimanApiService;
+        this.troubleTicketService = troubleTicketService;
 
     }
 
@@ -119,7 +119,7 @@ public class TelegramWebhookController {
                 case TelegramService.BUTTON_TROUBLE_TICKET:
                 case "5":
                     if (hasValidToken) {
-                        String ticketInfo = apimanApiService.callTroubleTicket(existingToken);
+                        String ticketInfo = troubleTicketService.callTroubleTicket(existingToken);
                         telegramService.sendMessage(chatId,
                                 "🎫 Trouble ticket information:\n" + ticketInfo);
                         telegramService.sendLoggedInMenu(chatId);
@@ -132,7 +132,7 @@ public class TelegramWebhookController {
                 case TelegramService.BUTTON_SELF_SERVICE_LOGIN:
                 case "3":
                     if (hasValidToken) {
-                        String apiResult = apimanApiService.callTroubleTicket(existingToken);
+                        String apiResult = troubleTicketService.callTroubleTicket(existingToken);
                         telegramService.sendMessage(chatId, "Using existing login ✅\n\nAPIMAN trouble ticket result:\n" + apiResult);
                         telegramService.sendLoggedInMenu(chatId);
                     } else {
