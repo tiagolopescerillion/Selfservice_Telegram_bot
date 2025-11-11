@@ -45,7 +45,7 @@ public class UserSessionService {
     }
 
     public void saveAccounts(long chatId, List<AccountSummary> accounts) {
-        List<AccountSummary> copy = accounts == null ? Collections.emptyList() : List.copyOf(accounts);
+        final List<AccountSummary> copy = accounts == null ? Collections.emptyList() : List.copyOf(accounts);
         byChat.computeIfPresent(chatId, (id, existing) -> {
             if (existing.expiryEpochMs <= System.currentTimeMillis() + 30_000) {
                 return null;
