@@ -47,8 +47,10 @@ public class TelegramService {
     public static final String CALLBACK_DIRECT_LOGIN = "LOGIN_DIRECT";
     public static final String BUTTON_HELLO_WORLD = "Hello World";
     public static final String BUTTON_HELLO_CERILLION = "Hello Cerillion";
+    public static final String BUTTON_TROUBLE_TICKET = "🎫 View trouble ticket";
     public static final String CALLBACK_HELLO_WORLD = "HELLO_WORLD";
     public static final String CALLBACK_HELLO_CERILLION = "HELLO_CERILLION";
+    public static final String CALLBACK_TROUBLE_TICKET = "VIEW_TROUBLE_TICKET";
 
 
     public void sendMessage(long chatId, String text) {
@@ -101,7 +103,10 @@ public class TelegramService {
                                 "callback_data", CALLBACK_HELLO_WORLD)),
                         List.of(Map.of(
                                 "text", BUTTON_HELLO_CERILLION,
-                                "callback_data", CALLBACK_HELLO_CERILLION))));
+                                "callback_data", CALLBACK_HELLO_CERILLION)),
+                        List.of(Map.of(
+                                "text", BUTTON_TROUBLE_TICKET,
+                                "callback_data", CALLBACK_TROUBLE_TICKET))));
 
         String menuText = """
                 Welcome! Choose an option:

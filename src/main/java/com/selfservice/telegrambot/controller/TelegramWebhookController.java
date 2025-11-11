@@ -115,6 +115,19 @@ public class TelegramWebhookController {
                         telegramService.sendLoginMenu(chatId);
                     }
                     break;
+                case TelegramService.CALLBACK_TROUBLE_TICKET:
+                case TelegramService.BUTTON_TROUBLE_TICKET:
+                case "5":
+                    if (hasValidToken) {
+                        String ticketInfo = apimanApiService.callWithBearer(existingToken);
+                        telegramService.sendMessage(chatId,
+                                "🎫 Trouble ticket information:\n" + ticketInfo);
+                        telegramService.sendLoggedInMenu(chatId);
+                    } else {
+                        telegramService.sendMessage(chatId, loginReminder);
+                        telegramService.sendLoginMenu(chatId);
+                    }
+                    break;
                 case TelegramService.CALLBACK_SELF_SERVICE_LOGIN:
                 case TelegramService.BUTTON_SELF_SERVICE_LOGIN:
                 case "3":
