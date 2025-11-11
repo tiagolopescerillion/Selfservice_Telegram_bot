@@ -1,6 +1,7 @@
 package com.selfservice.telegrambot.service;
 
 import com.selfservice.telegrambot.service.dto.AccountSummary;
+import com.selfservice.telegrambot.service.dto.TroubleTicketSummary;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -50,11 +51,14 @@ public class TelegramService {
     public static final String BUTTON_HELLO_WORLD = "Hello World";
     public static final String BUTTON_HELLO_CERILLION = "Hello Cerillion";
     public static final String BUTTON_TROUBLE_TICKET = "🎫 View trouble ticket";
+    public static final String BUTTON_MY_ISSUES = "📂 My Issues";
     public static final String CALLBACK_HELLO_WORLD = "HELLO_WORLD";
     public static final String CALLBACK_HELLO_CERILLION = "HELLO_CERILLION";
     public static final String CALLBACK_TROUBLE_TICKET = "VIEW_TROUBLE_TICKET";
     public static final String CALLBACK_SHOW_MORE_PREFIX = "SHOW_MORE:";
     public static final String CALLBACK_ACCOUNT_PREFIX = "ACCOUNT:";
+    public static final String CALLBACK_MY_ISSUES = "MY_ISSUES";
+    public static final String CALLBACK_TROUBLE_TICKET_PREFIX = "TICKET:";
     public static final String BUTTON_CHANGE_ACCOUNT = "Select a different account";
     public static final String CALLBACK_CHANGE_ACCOUNT = "CHANGE_ACCOUNT";
 
@@ -119,6 +123,9 @@ public class TelegramService {
         keyboard.add(List.of(Map.of(
                 "text", BUTTON_TROUBLE_TICKET,
                 "callback_data", CALLBACK_TROUBLE_TICKET)));
+        keyboard.add(List.of(Map.of(
+                "text", BUTTON_MY_ISSUES,
+                "callback_data", CALLBACK_MY_ISSUES)));
         if (showChangeAccountOption) {
             keyboard.add(List.of(Map.of(
                     "text", BUTTON_CHANGE_ACCOUNT,
@@ -214,6 +221,36 @@ public class TelegramService {
                 "reply_markup", replyMarkup);
 
         post(url, body, headers);
+    }
+
+    public void sendTroubleTicketCards(long chatId, List<TroubleTicketSummary> tickets) {
+        if (tickets == null || tickets.isEmpty()) {
+            sendMessage(chatId, "No trouble tickets were found for this account.");
+            return;
+        }
+
+        String url = baseUrl + "/sendMessage";
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+
+        for (TroubleTicketSummary ticket : tickets) {
+            String cardText = "Ticket #" + ticket.id()
+                    + "\nStatus: " + (ticket.status() == null || ticket.status().isBlank()
+                    ? "<unknown>"
+                    : ticket.status())
+                    + "\nDescription: " + ticket.descriptionOrFallback();
+
+            List<List<Map<String, Object>>> keyboard = List.of(List.of(Map.of(
+                    "text", "Select #" + ticket.id(),
+                    "callback_data", CALLBACK_TROUBLE_TICKET_PREFIX + ticket.id())));
+
+            Map<String, Object> body = Map.of(
+                    "chat_id", chatId,
+                    "text", cardText,
+                    "reply_markup", Map.of("inline_keyboard", keyboard));
+
+            post(url, body, headers);
+        }
     }
 
     private void post(String url, Map<String, Object> body, HttpHeaders headers) {
