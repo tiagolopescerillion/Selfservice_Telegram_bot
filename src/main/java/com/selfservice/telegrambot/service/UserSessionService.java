@@ -1,6 +1,7 @@
 package com.selfservice.telegrambot.service;
 
 import com.selfservice.telegrambot.service.dto.AccountSummary;
+import com.selfservice.telegrambot.service.dto.ServiceSummary;
 import org.springframework.stereotype.Service;
 
 import java.util.Collections;
@@ -27,6 +28,7 @@ public class UserSessionService {
     }
 
     private final Map<Long, TokenInfo> byChat = new ConcurrentHashMap<>();
+    private final Map<Long, List<ServiceSummary>> servicesByChat = new ConcurrentHashMap<>();
 
     public void save(long chatId, String accessToken, long expiresInSeconds) {
         long exp = System.currentTimeMillis() + expiresInSeconds * 1000L;
@@ -104,6 +106,7 @@ public class UserSessionService {
             }
             return new TokenInfo(existing.accessToken, existing.expiryEpochMs, existing.accounts, matched);
         });
+        clearServices(chatId);
     }
 
     public void clearSelectedAccount(long chatId) {
@@ -116,5 +119,18 @@ public class UserSessionService {
             }
             return new TokenInfo(existing.accessToken, existing.expiryEpochMs, existing.accounts, null);
         });
+        clearServices(chatId);
+    }
+
+    public void saveServices(long chatId, List<ServiceSummary> services) {
+        servicesByChat.put(chatId, services == null ? List.of() : List.copyOf(services));
+    }
+
+    public List<ServiceSummary> getServices(long chatId) {
+        return servicesByChat.getOrDefault(chatId, List.of());
+    }
+
+    public void clearServices(long chatId) {
+        servicesByChat.remove(chatId);
     }
 }
