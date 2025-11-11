@@ -51,14 +51,17 @@ public class TelegramService {
     public static final String BUTTON_HELLO_WORLD = "Hello World";
     public static final String BUTTON_HELLO_CERILLION = "Hello Cerillion";
     public static final String BUTTON_TROUBLE_TICKET = "🎫 View trouble ticket";
+    public static final String BUTTON_SELECT_SERVICE = "Select a Service";
     public static final String BUTTON_MY_ISSUES = "📂 My Issues";
     public static final String CALLBACK_HELLO_WORLD = "HELLO_WORLD";
     public static final String CALLBACK_HELLO_CERILLION = "HELLO_CERILLION";
     public static final String CALLBACK_TROUBLE_TICKET = "VIEW_TROUBLE_TICKET";
     public static final String CALLBACK_SHOW_MORE_PREFIX = "SHOW_MORE:";
     public static final String CALLBACK_ACCOUNT_PREFIX = "ACCOUNT:";
+    public static final String CALLBACK_SERVICE_PREFIX = "SERVICE:";
     public static final String CALLBACK_MY_ISSUES = "MY_ISSUES";
     public static final String CALLBACK_TROUBLE_TICKET_PREFIX = "TICKET:";
+    public static final String CALLBACK_SELECT_SERVICE = "SELECT_SERVICE";
     public static final String BUTTON_CHANGE_ACCOUNT = "Select a different account";
     public static final String CALLBACK_CHANGE_ACCOUNT = "CHANGE_ACCOUNT";
 
@@ -123,6 +126,9 @@ public class TelegramService {
         keyboard.add(List.of(Map.of(
                 "text", BUTTON_TROUBLE_TICKET,
                 "callback_data", CALLBACK_TROUBLE_TICKET)));
+        keyboard.add(List.of(Map.of(
+                "text", BUTTON_SELECT_SERVICE,
+                "callback_data", CALLBACK_SELECT_SERVICE)));
         keyboard.add(List.of(Map.of(
                 "text", BUTTON_MY_ISSUES,
                 "callback_data", CALLBACK_MY_ISSUES)));
@@ -243,6 +249,40 @@ public class TelegramService {
             List<List<Map<String, Object>>> keyboard = List.of(List.of(Map.of(
                     "text", "Select #" + ticket.id(),
                     "callback_data", CALLBACK_TROUBLE_TICKET_PREFIX + ticket.id())));
+
+            Map<String, Object> body = Map.of(
+                    "chat_id", chatId,
+                    "text", cardText,
+                    "reply_markup", Map.of("inline_keyboard", keyboard));
+
+            post(url, body, headers);
+        }
+    }
+
+    public void sendServiceCards(long chatId, List<com.selfservice.telegrambot.service.dto.ServiceSummary> services) {
+        if (services == null || services.isEmpty()) {
+            sendMessage(chatId, "No services were found for this account.");
+            return;
+        }
+
+        String url = baseUrl + "/sendMessage";
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+
+        for (int i = 0; i < services.size(); i++) {
+            var service = services.get(i);
+            String name = (service.productName() == null || service.productName().isBlank())
+                    ? "<unknown service>"
+                    : service.productName().strip();
+            String number = (service.accessNumber() == null || service.accessNumber().isBlank())
+                    ? "<no access number>"
+                    : service.accessNumber().strip();
+
+            String cardText = "Product Name: " + name + "\nAccess Number: " + number;
+
+            List<List<Map<String, Object>>> keyboard = List.of(List.of(Map.of(
+                    "text", number,
+                    "callback_data", CALLBACK_SERVICE_PREFIX + i)));
 
             Map<String, Object> body = Map.of(
                     "chat_id", chatId,

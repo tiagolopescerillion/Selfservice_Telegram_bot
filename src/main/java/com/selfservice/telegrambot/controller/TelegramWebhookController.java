@@ -6,14 +6,18 @@ import com.selfservice.telegrambot.service.OAuthLoginService;
 import com.selfservice.telegrambot.service.TelegramService;
 import com.selfservice.telegrambot.service.KeycloakAuthService;
 import com.selfservice.telegrambot.service.TroubleTicketService;
+import com.selfservice.telegrambot.service.MainServiceCatalogService;
 import com.selfservice.telegrambot.service.dto.AccountSummary;
 import com.selfservice.telegrambot.service.dto.TroubleTicketListResult;
+import com.selfservice.telegrambot.service.dto.ServiceListResult;
+import com.selfservice.telegrambot.service.dto.ServiceSummary;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import com.selfservice.telegrambot.service.ExternalApiService;
 
+import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -24,6 +28,7 @@ public class TelegramWebhookController {
     private final TelegramService telegramService;
     private final KeycloakAuthService keycloakAuthService;
     private final ExternalApiService externalApiService;
+    private final MainServiceCatalogService mainServiceCatalogService;
     private final OAuthLoginService oauthLoginService;
     private final UserSessionService userSessionService;
     private final TroubleTicketService troubleTicketService;
@@ -31,12 +36,14 @@ public class TelegramWebhookController {
     public TelegramWebhookController(TelegramService telegramService,
             KeycloakAuthService keycloakAuthService,
             ExternalApiService externalApiService,
+            MainServiceCatalogService mainServiceCatalogService,
             OAuthLoginService oauthLoginService,
             UserSessionService userSessionService,
             TroubleTicketService troubleTicketService) {
         this.telegramService = telegramService;
         this.keycloakAuthService = keycloakAuthService;
         this.externalApiService = externalApiService;
+        this.mainServiceCatalogService = mainServiceCatalogService;
         this.oauthLoginService = oauthLoginService;
 
         this.userSessionService = userSessionService;
@@ -112,6 +119,34 @@ public class TelegramWebhookController {
                     telegramService.sendMessage(chatId, "That ticket is no longer available.");
                 } else {
                     telegramService.sendMessage(chatId, "Ticket selected: #" + ticketId);
+                }
+
+                if (hasValidToken && ensureAccountSelected(chatId)) {
+                    AccountSummary selected = userSessionService.getSelectedAccount(chatId);
+                    telegramService.sendLoggedInMenu(chatId, selected,
+                            userSessionService.getAccounts(chatId).size() > 1);
+                } else {
+                    telegramService.sendLoginMenu(chatId, oauthLoginService.buildAuthUrl(chatId));
+                }
+                return ResponseEntity.ok().build();
+            }
+
+            if (text.startsWith(TelegramService.CALLBACK_SERVICE_PREFIX)) {
+                int index = parseIndex(text, TelegramService.CALLBACK_SERVICE_PREFIX);
+                List<ServiceSummary> services = userSessionService.getServices(chatId);
+                if (services.isEmpty() || index < 0 || index >= services.size()) {
+                    telegramService.sendMessage(chatId,
+                            "That service is no longer available. Please request the list again.");
+                } else {
+                    ServiceSummary selectedService = services.get(index);
+                    String name = (selectedService.productName() == null || selectedService.productName().isBlank())
+                            ? "<unknown service>"
+                            : selectedService.productName().strip();
+                    String number = (selectedService.accessNumber() == null || selectedService.accessNumber().isBlank())
+                            ? "<no access number>"
+                            : selectedService.accessNumber().strip();
+                    telegramService.sendMessage(chatId,
+                            "Service selected:\n" + name + "\nAccess number: " + number);
                 }
 
                 if (hasValidToken && ensureAccountSelected(chatId)) {
@@ -200,6 +235,38 @@ public class TelegramWebhookController {
                                 "🎫 Trouble ticket information:\n" + ticketInfo);
                         telegramService.sendLoggedInMenu(chatId, selected,
                                 userSessionService.getAccounts(chatId).size() > 1);
+                    } else {
+                        telegramService.sendMessage(chatId, loginReminder);
+                        telegramService.sendLoginMenu(chatId, oauthLoginService.buildAuthUrl(chatId));
+                    }
+                    break;
+                case TelegramService.CALLBACK_SELECT_SERVICE:
+                case TelegramService.BUTTON_SELECT_SERVICE:
+                    if (hasValidToken) {
+                        if (!ensureAccountSelected(chatId)) {
+                            break;
+                        }
+                        AccountSummary selected = userSessionService.getSelectedAccount(chatId);
+                        ServiceListResult services = mainServiceCatalogService
+                                .getMainServices(existingToken, selected.accountId());
+                        if (services.hasError()) {
+                            userSessionService.clearServices(chatId);
+                            telegramService.sendMessage(chatId,
+                                    "Unable to retrieve services: " + services.errorMessage());
+                            telegramService.sendLoggedInMenu(chatId, selected,
+                                    userSessionService.getAccounts(chatId).size() > 1);
+                        } else if (services.services().isEmpty()) {
+                            userSessionService.clearServices(chatId);
+                            telegramService.sendMessage(chatId,
+                                    "No services were found for account " + selected.accountId() + ".");
+                            telegramService.sendLoggedInMenu(chatId, selected,
+                                    userSessionService.getAccounts(chatId).size() > 1);
+                        } else {
+                            userSessionService.saveServices(chatId, services.services());
+                            telegramService.sendMessage(chatId,
+                                    "Select a service below to continue.");
+                            telegramService.sendServiceCards(chatId, services.services());
+                        }
                     } else {
                         telegramService.sendMessage(chatId, loginReminder);
                         telegramService.sendLoginMenu(chatId, oauthLoginService.buildAuthUrl(chatId));
