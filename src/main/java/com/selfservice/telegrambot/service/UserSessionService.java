@@ -50,10 +50,12 @@ public class UserSessionService {
             if (existing.expiryEpochMs <= System.currentTimeMillis() + 30_000) {
                 return null;
             }
-            AccountSummary selected = existing.selectedAccount;
-            if (selected != null) {
+            AccountSummary selected = null;
+            AccountSummary priorSelection = existing.selectedAccount;
+            if (priorSelection != null) {
+                String selectedAccountId = priorSelection.accountId();
                 selected = copy.stream()
-                        .filter(a -> a.accountId().equals(selected.accountId()))
+                        .filter(a -> a.accountId().equals(selectedAccountId))
                         .findFirst()
                         .orElse(null);
             }
