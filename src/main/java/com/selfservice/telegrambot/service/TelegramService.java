@@ -91,6 +91,27 @@ public class TelegramService {
         post(url, body, headers);
     }
 
+    public void sendLoginProgress(long chatId, String loginUrl) {
+        Objects.requireNonNull(loginUrl, "loginUrl must not be null");
+
+        String url = baseUrl + "/sendMessage";
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+
+        Map<String, Object> replyMarkup = Map.of(
+                "inline_keyboard", List.of(
+                        List.of(Map.of(
+                                "text", "Login Here",
+                                "url", loginUrl))));
+
+        Map<String, Object> body = Map.of(
+                "chat_id", chatId,
+                "text", "Login in Progress",
+                "reply_markup", replyMarkup);
+
+        post(url, body, headers);
+    }
+
     public void sendLoggedInMenu(long chatId) {
         String url = baseUrl + "/sendMessage";
         HttpHeaders headers = new HttpHeaders();
