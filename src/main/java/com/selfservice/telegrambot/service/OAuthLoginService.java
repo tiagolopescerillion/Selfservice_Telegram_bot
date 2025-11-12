@@ -9,6 +9,7 @@ import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.web.util.UriComponentsBuilder;
 
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
@@ -29,6 +30,7 @@ public class OAuthLoginService {
     private final String authEndpoint;
     private final String tokenEndpoint;
     private final String logoutEndpoint;
+    private final String logoutRedirectUri;
     private final String clientId;
     private final String clientSecret;
     private final String redirectUri;
@@ -42,6 +44,7 @@ public class OAuthLoginService {
             @Value("${keycloak.oauth.redirect-uri}") String redirectUri,
             @Value("${keycloak.allow-insecure-certs:false}") boolean allowInsecure,
             @Value("${keycloak.logout-endpoint:}") String logoutEndpoint,
+            @Value("${keycloak.logout-redirect-uri:}") String logoutRedirectUri,
             PkceStore pkceStore
     ) {
         this.authEndpoint = Objects.requireNonNull(authEndpoint);
@@ -50,6 +53,11 @@ public class OAuthLoginService {
         this.clientSecret = Objects.requireNonNull(clientSecret);
         this.redirectUri = Objects.requireNonNull(redirectUri);
         this.logoutEndpoint = (logoutEndpoint == null || logoutEndpoint.isBlank()) ? null : logoutEndpoint;
+        if (logoutRedirectUri == null || logoutRedirectUri.isBlank()) {
+            this.logoutRedirectUri = redirectUri;
+        } else {
+            this.logoutRedirectUri = logoutRedirectUri;
+        }
         this.pkceStore = pkceStore;
         this.rest = new RestTemplate(); // if you need trust-all, copy your KC RestTemplate here
         log.info("OAuthLoginService ready, redirectUri={}", redirectUri);
@@ -105,13 +113,47 @@ public class OAuthLoginService {
         }
     }
 
-    public void logout(String refreshToken) {
+    public void logout(String refreshToken, String idToken) {
         if (logoutEndpoint == null) {
             log.warn("Logout endpoint not configured; skipping Keycloak logout");
             return;
         }
+        boolean endSessionSucceeded = false;
+        boolean endSessionAttempted = false;
+
+        if (idToken != null && !idToken.isBlank()) {
+            String url = UriComponentsBuilder.fromHttpUrl(logoutEndpoint)
+                    .queryParam("id_token_hint", idToken)
+                    .queryParam("post_logout_redirect_uri", logoutRedirectUri)
+                    .build(true)
+                    .toUriString();
+            try {
+                ResponseEntity<String> resp = rest.getForEntity(url, String.class);
+                log.info("Keycloak end-session (id_token) status={} for endpoint {}", resp.getStatusCode().value(), logoutEndpoint);
+                endSessionSucceeded = resp.getStatusCode().is2xxSuccessful();
+                endSessionAttempted = true;
+            } catch (HttpStatusCodeException ex) {
+                String body = ex.getResponseBodyAsString();
+                log.warn("Keycloak end-session failed via id_token: status={} body={}", ex.getStatusCode().value(), body);
+                endSessionAttempted = true;
+            } catch (Exception ex) {
+                log.warn("Keycloak end-session request failed via id_token", ex);
+                endSessionAttempted = true;
+            }
+        } else {
+            log.info("No id token available; skipping Keycloak end-session call with id_token_hint");
+        }
+
+        if (endSessionAttempted && endSessionSucceeded) {
+            return;
+        }
+
         if (refreshToken == null || refreshToken.isBlank()) {
-            log.info("No refresh token available; skipping Keycloak logout call");
+            if (endSessionAttempted) {
+                log.info("No refresh token available; skipping fallback Keycloak logout call");
+            } else {
+                log.info("No refresh token available; skipping Keycloak logout call");
+            }
             return;
         }
 
@@ -125,10 +167,10 @@ public class OAuthLoginService {
 
         try {
             ResponseEntity<String> resp = rest.postForEntity(logoutEndpoint, new HttpEntity<>(form, headers), String.class);
-            log.info("Keycloak logout status={} for endpoint {}", resp.getStatusCode().value(), logoutEndpoint);
+            log.info("Keycloak logout (refresh token) status={} for endpoint {}", resp.getStatusCode().value(), logoutEndpoint);
         } catch (HttpStatusCodeException ex) {
             String body = ex.getResponseBodyAsString();
-            log.warn("Keycloak logout failed: status={} body={}", ex.getStatusCode().value(), body);
+            log.warn("Keycloak logout (refresh token) failed: status={} body={}", ex.getStatusCode().value(), body);
             throw new RuntimeException("Logout HTTP " + ex.getStatusCode().value() + ": " + body, ex);
         }
     }
