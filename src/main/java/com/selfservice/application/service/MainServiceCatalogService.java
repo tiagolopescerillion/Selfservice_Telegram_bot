@@ -1,9 +1,9 @@
-package com.selfservice.telegrambot.service;
+package com.selfservice.application.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.selfservice.telegrambot.service.dto.ServiceListResult;
-import com.selfservice.telegrambot.service.dto.ServiceSummary;
+import com.selfservice.application.dto.ServiceListResult;
+import com.selfservice.application.dto.ServiceSummary;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -21,6 +21,14 @@ import java.util.List;
 public class MainServiceCatalogService {
 
     private static final Logger log = LoggerFactory.getLogger(MainServiceCatalogService.class);
+
+    private static final int DEFAULT_OFFSET = 0;
+    private static final int DEFAULT_LIMIT = 50;
+    private static final boolean DEFAULT_IS_MAIN_SERVICE = true;
+    private static final boolean DEFAULT_IS_VISIBLE = true;
+    private static final String DEFAULT_SUB_STATUS = "CU,FA,TA,RP,TP";
+    private static final boolean DEFAULT_COMPLETE_PACKAGES = true;
+    private static final String DEFAULT_FIELDS = "id,isBundle,description,subStatus,isMainService,serviceType,productRelationship,productCharacteristic,billingAccount";
 
     private final RestTemplate restTemplate;
     private final ObjectMapper objectMapper;
@@ -51,7 +59,14 @@ public class MainServiceCatalogService {
         final String url;
         try {
             url = UriComponentsBuilder.fromHttpUrl(serviceEndpoint)
-                    .replaceQueryParam("billingAccount.id", accountId)
+                    .queryParam("offset", DEFAULT_OFFSET)
+                    .queryParam("limit", DEFAULT_LIMIT)
+                    .queryParam("isMainService", DEFAULT_IS_MAIN_SERVICE)
+                    .queryParam("isVisible", DEFAULT_IS_VISIBLE)
+                    .queryParam("subStatus", DEFAULT_SUB_STATUS)
+                    .queryParam("completePackages", DEFAULT_COMPLETE_PACKAGES)
+                    .queryParam("fields", DEFAULT_FIELDS)
+                    .queryParam("billingAccount.id", accountId)
                     .build(true)
                     .toUriString();
         } catch (IllegalArgumentException ex) {

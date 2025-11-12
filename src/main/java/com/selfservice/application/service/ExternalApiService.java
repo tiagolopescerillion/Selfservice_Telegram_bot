@@ -1,4 +1,4 @@
-package com.selfservice.telegrambot.service;
+package com.selfservice.application.service;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -7,7 +7,6 @@ import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.RestTemplate;
-import org.springframework.beans.factory.annotation.Qualifier;
 
 @Service
 public class ExternalApiService {
@@ -23,6 +22,9 @@ public class ExternalApiService {
     }
 
     public String callTroubleTicketApi(String bearerToken) {
+        if (troubleTicketUrl == null || troubleTicketUrl.isBlank()) {
+            return "API ERROR: trouble-ticket endpoint is not configured.";
+        }
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
         headers.set("Accept", "application/json");

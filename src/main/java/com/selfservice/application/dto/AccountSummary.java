@@ -1,4 +1,4 @@
-package com.selfservice.telegrambot.service.dto;
+package com.selfservice.application.dto;
 
 /** Summary data for an account returned by the findUser API. */
 public record AccountSummary(String accountId, String accountName) {

@@ -1,4 +1,4 @@
-package com.selfservice.telegrambot.service.dto;
+package com.selfservice.application.dto;
 
 /** Lightweight representation of a customer's main service. */
 public record ServiceSummary(String productId, String productName, String accessNumber) {
