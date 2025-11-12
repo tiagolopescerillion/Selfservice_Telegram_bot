@@ -32,6 +32,7 @@ public class TelegramService {
     public static final String KEY_BUTTON_MY_ISSUES = "ButtonMyIssues";
     public static final String KEY_BUTTON_CHANGE_ACCOUNT = "ButtonChangeAccount";
     public static final String KEY_BUTTON_CHANGE_LANGUAGE = "ButtonChangeLanguage";
+    public static final String KEY_BUTTON_LOGOUT = "ButtonLogout";
     public static final String KEY_SHOW_MORE = "ShowMore";
     public static final String KEY_SELECT_ACCOUNT_PROMPT = "SelectAccountPrompt";
 
@@ -40,7 +41,6 @@ public class TelegramService {
     public static final String CALLBACK_HELLO_WORLD = "HELLO_WORLD";
     public static final String CALLBACK_HELLO_CERILLION = "HELLO_CERILLION";
     public static final String CALLBACK_TROUBLE_TICKET = "VIEW_TROUBLE_TICKET";
-    public static final String CALLBACK_SHOW_MORE_PREFIX = "SHOW_MORE:";
     public static final String CALLBACK_ACCOUNT_PREFIX = "ACCOUNT:";
     public static final String CALLBACK_SERVICE_PREFIX = "SERVICE:";
     public static final String CALLBACK_MY_ISSUES = "MY_ISSUES";
@@ -49,6 +49,10 @@ public class TelegramService {
     public static final String CALLBACK_CHANGE_ACCOUNT = "CHANGE_ACCOUNT";
     public static final String CALLBACK_LANGUAGE_MENU = "LANGUAGE_MENU";
     public static final String CALLBACK_LANGUAGE_PREFIX = "LANGUAGE:";
+    public static final String CALLBACK_LOGOUT = "LOGOUT";
+    public static final String CALLBACK_SHOW_MORE_ACCOUNTS_PREFIX = "SHOW_MORE_ACCOUNTS:";
+    public static final String CALLBACK_SHOW_MORE_SERVICES_PREFIX = "SHOW_MORE_SERVICES:";
+    public static final String CALLBACK_SHOW_MORE_TICKETS_PREFIX = "SHOW_MORE_TICKETS:";
 
     private final RestTemplate rest = new RestTemplate();
     private final String baseUrl;
@@ -167,6 +171,9 @@ public class TelegramService {
                     "text", translate(chatId, KEY_BUTTON_CHANGE_ACCOUNT),
                     "callback_data", CALLBACK_CHANGE_ACCOUNT)));
         }
+        keyboard.add(List.of(Map.of(
+                "text", translate(chatId, KEY_BUTTON_LOGOUT),
+                "callback_data", CALLBACK_LOGOUT)));
 
         Map<String, Object> replyMarkup = Map.of("inline_keyboard", keyboard);
 
@@ -195,6 +202,12 @@ public class TelegramService {
         keyboard.add(List.of(Map.of(
                 "text", translate(chatId, "LanguageFrench"),
                 "callback_data", CALLBACK_LANGUAGE_PREFIX + "fr")));
+        keyboard.add(List.of(Map.of(
+                "text", translate(chatId, "LanguagePortuguese"),
+                "callback_data", CALLBACK_LANGUAGE_PREFIX + "pt")));
+        keyboard.add(List.of(Map.of(
+                "text", translate(chatId, "LanguageRussian"),
+                "callback_data", CALLBACK_LANGUAGE_PREFIX + "ru")));
 
         Map<String, Object> replyMarkup = Map.of("inline_keyboard", keyboard);
 
@@ -246,7 +259,7 @@ public class TelegramService {
             currentRow.add(Map.of(
                     "text", summary.displayLabel(),
                     "callback_data", CALLBACK_ACCOUNT_PREFIX + i));
-            if (currentRow.size() == 3) {
+            if (currentRow.size() == 2) {
                 rows.add(List.copyOf(currentRow));
                 currentRow = new ArrayList<>();
             }
@@ -258,7 +271,7 @@ public class TelegramService {
         if (end < accounts.size()) {
             rows.add(List.of(Map.of(
                     "text", translate(chatId, KEY_SHOW_MORE),
-                    "callback_data", CALLBACK_SHOW_MORE_PREFIX + end)));
+                    "callback_data", CALLBACK_SHOW_MORE_ACCOUNTS_PREFIX + end)));
         }
 
         String url = baseUrl + "/sendMessage";
@@ -268,7 +281,74 @@ public class TelegramService {
         Map<String, Object> replyMarkup = Map.of("inline_keyboard", rows);
         Map<String, Object> body = Map.of(
                 "chat_id", chatId,
-                "text", translate(chatId, KEY_SELECT_ACCOUNT_PROMPT),
+                "text", buildPagedPrompt(chatId, KEY_SELECT_ACCOUNT_PROMPT, safeStart, end, accounts.size()),
+                "reply_markup", replyMarkup);
+
+        post(url, body, headers);
+    }
+
+    public void sendServiceCards(long chatId, List<ServiceSummary> services) {
+        if (services == null || services.isEmpty()) {
+            sendMessageWithKey(chatId, "NoServicesFound");
+            return;
+        }
+
+        sendServicePage(chatId, services, 0);
+    }
+
+    public void sendServicePage(long chatId, List<ServiceSummary> services, int startIndex) {
+        Objects.requireNonNull(services, "services must not be null");
+
+        if (services.isEmpty()) {
+            sendMessageWithKey(chatId, "NoServicesFound");
+            return;
+        }
+
+        int safeStart = Math.max(0, startIndex);
+        if (safeStart >= services.size()) {
+            safeStart = Math.max(0, services.size() - 5);
+        }
+
+        int end = Math.min(services.size(), safeStart + 5);
+
+        List<List<Map<String, Object>>> rows = new ArrayList<>();
+        List<Map<String, Object>> currentRow = new ArrayList<>();
+        for (int i = safeStart; i < end; i++) {
+            ServiceSummary service = services.get(i);
+            String name = (service.productName() == null || service.productName().isBlank())
+                    ? translate(chatId, "UnknownService")
+                    : service.productName().strip();
+            String number = (service.accessNumber() == null || service.accessNumber().isBlank())
+                    ? translate(chatId, "NoAccessNumber")
+                    : service.accessNumber().strip();
+
+            String buttonText = format(chatId, "ServiceButtonLabel", name, number);
+            currentRow.add(Map.of(
+                    "text", buttonText,
+                    "callback_data", CALLBACK_SERVICE_PREFIX + i));
+            if (currentRow.size() == 2) {
+                rows.add(List.copyOf(currentRow));
+                currentRow = new ArrayList<>();
+            }
+        }
+        if (!currentRow.isEmpty()) {
+            rows.add(List.copyOf(currentRow));
+        }
+
+        if (end < services.size()) {
+            rows.add(List.of(Map.of(
+                    "text", translate(chatId, KEY_SHOW_MORE),
+                    "callback_data", CALLBACK_SHOW_MORE_SERVICES_PREFIX + end)));
+        }
+
+        String url = baseUrl + "/sendMessage";
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+
+        Map<String, Object> replyMarkup = Map.of("inline_keyboard", rows);
+        Map<String, Object> body = Map.of(
+                "chat_id", chatId,
+                "text", buildPagedPrompt(chatId, "SelectServicePrompt", safeStart, end, services.size()),
                 "reply_markup", replyMarkup);
 
         post(url, body, headers);
@@ -280,62 +360,68 @@ public class TelegramService {
             return;
         }
 
-        String url = baseUrl + "/sendMessage";
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
-
-        for (TroubleTicketSummary ticket : tickets) {
-            String status = (ticket.status() == null || ticket.status().isBlank())
-                    ? translate(chatId, "UnknownValue")
-                    : ticket.status().strip();
-            String cardText = format(chatId, "TicketCardText",
-                    ticket.id(), status, ticket.descriptionOrFallback());
-
-            List<List<Map<String, Object>>> keyboard = List.of(List.of(Map.of(
-                    "text", format(chatId, "TicketSelectButton", ticket.id()),
-                    "callback_data", CALLBACK_TROUBLE_TICKET_PREFIX + ticket.id())));
-
-            Map<String, Object> body = Map.of(
-                    "chat_id", chatId,
-                    "text", cardText,
-                    "reply_markup", Map.of("inline_keyboard", keyboard));
-
-            post(url, body, headers);
-        }
+        sendTroubleTicketPage(chatId, tickets, 0);
     }
 
-    public void sendServiceCards(long chatId, List<ServiceSummary> services) {
-        if (services == null || services.isEmpty()) {
-            sendMessageWithKey(chatId, "NoServicesFound");
+    public void sendTroubleTicketPage(long chatId, List<TroubleTicketSummary> tickets, int startIndex) {
+        Objects.requireNonNull(tickets, "tickets must not be null");
+
+        if (tickets.isEmpty()) {
+            sendMessageWithKey(chatId, "NoTroubleTickets");
             return;
         }
 
+        int safeStart = Math.max(0, startIndex);
+        if (safeStart >= tickets.size()) {
+            safeStart = Math.max(0, tickets.size() - 5);
+        }
+
+        int end = Math.min(tickets.size(), safeStart + 5);
+
+        List<List<Map<String, Object>>> rows = new ArrayList<>();
+        List<Map<String, Object>> currentRow = new ArrayList<>();
+        for (int i = safeStart; i < end; i++) {
+            TroubleTicketSummary ticket = tickets.get(i);
+            String status = (ticket.status() == null || ticket.status().isBlank())
+                    ? translate(chatId, "UnknownValue")
+                    : ticket.status().strip();
+            currentRow.add(Map.of(
+                    "text", format(chatId, "TicketButtonLabel", ticket.id(), status),
+                    "callback_data", CALLBACK_TROUBLE_TICKET_PREFIX + ticket.id()));
+            if (currentRow.size() == 2) {
+                rows.add(List.copyOf(currentRow));
+                currentRow = new ArrayList<>();
+            }
+        }
+        if (!currentRow.isEmpty()) {
+            rows.add(List.copyOf(currentRow));
+        }
+
+        if (end < tickets.size()) {
+            rows.add(List.of(Map.of(
+                    "text", translate(chatId, KEY_SHOW_MORE),
+                    "callback_data", CALLBACK_SHOW_MORE_TICKETS_PREFIX + end)));
+        }
+
         String url = baseUrl + "/sendMessage";
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
 
-        for (int i = 0; i < services.size(); i++) {
-            var service = services.get(i);
-            String name = (service.productName() == null || service.productName().isBlank())
-                    ? translate(chatId, "UnknownService")
-                    : service.productName().strip();
-            String number = (service.accessNumber() == null || service.accessNumber().isBlank())
-                    ? translate(chatId, "NoAccessNumber")
-                    : service.accessNumber().strip();
+        Map<String, Object> replyMarkup = Map.of("inline_keyboard", rows);
+        Map<String, Object> body = Map.of(
+                "chat_id", chatId,
+                "text", buildPagedPrompt(chatId, "SelectTicketPrompt", safeStart, end, tickets.size()),
+                "reply_markup", replyMarkup);
 
-            String cardText = format(chatId, "ServiceCardText", name, number);
+        post(url, body, headers);
+    }
 
-            List<List<Map<String, Object>>> keyboard = List.of(List.of(Map.of(
-                    "text", number,
-                    "callback_data", CALLBACK_SERVICE_PREFIX + i)));
-
-            Map<String, Object> body = Map.of(
-                    "chat_id", chatId,
-                    "text", cardText,
-                    "reply_markup", Map.of("inline_keyboard", keyboard));
-
-            post(url, body, headers);
+    private String buildPagedPrompt(long chatId, String promptKey, int start, int end, int total) {
+        String prompt = translate(chatId, promptKey);
+        if (total > 5) {
+            prompt += " " + format(chatId, "ListPageCounter", start + 1, end, total);
         }
+        return prompt;
     }
 
     private void post(String url, Map<String, Object> body, HttpHeaders headers) {
