@@ -212,7 +212,7 @@ public class OAuthLoginService {
             return UriComponentsBuilder.fromUri(uri)
                     .replacePath(newPath)
                     .replaceQuery(null)
-                    .replaceFragment(null)
+                    .fragment(null)
                     .build(true)
                     .toUriString();
         } catch (IllegalArgumentException ex) {
