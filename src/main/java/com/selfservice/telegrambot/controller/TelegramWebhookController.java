@@ -205,6 +205,12 @@ public class TelegramWebhookController {
             }
 
             if (TelegramService.CALLBACK_LOGOUT.equals(text)) {
+                String refreshToken = userSessionService.getRefreshToken(chatId);
+                try {
+                    oauthLoginService.logout(refreshToken);
+                } catch (Exception e) {
+                    log.warn("Failed to revoke Keycloak session for chat {}", chatId, e);
+                }
                 userSessionService.clearSession(chatId);
                 telegramService.sendMessageWithKey(chatId, "LoggedOutMessage");
                 telegramService.sendLoginMenu(chatId, oauthLoginService.buildAuthUrl(chatId));
