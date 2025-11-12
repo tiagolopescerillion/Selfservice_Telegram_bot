@@ -146,6 +146,10 @@ public class TelegramService {
     }
 
     public void sendLoggedInMenu(long chatId, AccountSummary selectedAccount, boolean showChangeAccountOption) {
+        sendLoggedInMenu(chatId, selectedAccount, showChangeAccountOption, null);
+    }
+
+    public void sendLoggedInMenu(long chatId, AccountSummary selectedAccount, boolean showChangeAccountOption, String greeting) {
         String url = baseUrl + "/sendMessage";
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
@@ -177,10 +181,12 @@ public class TelegramService {
 
         Map<String, Object> replyMarkup = Map.of("inline_keyboard", keyboard);
 
-        StringBuilder menuText = new StringBuilder(translate(chatId, "LoginWelcome"));
+        StringBuilder menuText = new StringBuilder();
+        appendParagraph(menuText, greeting);
         if (selectedAccount != null) {
-            menuText.append("\n").append(format(chatId, "CurrentAccount", selectedAccount.displayLabel()));
+            appendParagraph(menuText, format(chatId, "AccountSelected", selectedAccount.accountId()));
         }
+        appendParagraph(menuText, translate(chatId, "LoginWelcome"));
 
         Map<String, Object> body = Map.of(
                 "chat_id", chatId,
@@ -238,6 +244,10 @@ public class TelegramService {
     }
 
     public void sendAccountPage(long chatId, List<AccountSummary> accounts, int startIndex) {
+        sendAccountPage(chatId, accounts, startIndex, null);
+    }
+
+    public void sendAccountPage(long chatId, List<AccountSummary> accounts, int startIndex, String header) {
         Objects.requireNonNull(accounts, "accounts must not be null");
 
         if (accounts.isEmpty()) {
@@ -279,9 +289,15 @@ public class TelegramService {
         headers.setContentType(MediaType.APPLICATION_JSON);
 
         Map<String, Object> replyMarkup = Map.of("inline_keyboard", rows);
+
+        String prompt = buildPagedPrompt(chatId, KEY_SELECT_ACCOUNT_PROMPT, safeStart, end, accounts.size());
+        if (header != null && !header.isBlank()) {
+            prompt = header.strip() + "\n\n" + prompt;
+        }
+
         Map<String, Object> body = Map.of(
                 "chat_id", chatId,
-                "text", buildPagedPrompt(chatId, KEY_SELECT_ACCOUNT_PROMPT, safeStart, end, accounts.size()),
+                "text", prompt,
                 "reply_markup", replyMarkup);
 
         post(url, body, headers);
@@ -414,6 +430,20 @@ public class TelegramService {
                 "reply_markup", replyMarkup);
 
         post(url, body, headers);
+    }
+
+    private void appendParagraph(StringBuilder target, String text) {
+        if (text == null) {
+            return;
+        }
+        String trimmed = text.strip();
+        if (trimmed.isEmpty()) {
+            return;
+        }
+        if (target.length() > 0) {
+            target.append("\n\n");
+        }
+        target.append(trimmed);
     }
 
     private String buildPagedPrompt(long chatId, String promptKey, int start, int end, int total) {
