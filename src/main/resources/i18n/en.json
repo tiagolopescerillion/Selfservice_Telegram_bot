@@ -22,8 +22,8 @@
   "ButtonLogout": "🚪 Log out",
   "ShowMore": "Show more",
   "SelectAccountPrompt": "Select an account:",
-  "LoginWelcome": "Welcome! Choose an option:",
-  "CurrentAccount": "Current account: %s",
+  "LoginWelcome": "Please choose an option",
+  "AccountSelected": "Account Selected: %s",
   "NoAccountsAvailable": "No accounts available for this user.",
   "NoTroubleTickets": "No trouble tickets were found for this account.",
   "UnknownValue": "<unknown>",
@@ -69,8 +69,6 @@
   "NoApiResponse": "No API response.",
   "ExternalApiResult": "External API result:\n%s",
   "LoginFailed": "Login Failed",
-  "LoginOkSummary": "Login OK ✅\n\nAPIMAN findUser summary:\n%s",
   "LoginGreeting": "Hi %s, welcome to Cerillion and thank you for using our Telegram channel.",
-  "NoBillingAccountsFound": "No billing accounts were found.",
-  "SingleAccountSelected": "We found one account and selected it for you:\n%s"
+  "NoBillingAccountsFound": "No billing accounts were found."
 }

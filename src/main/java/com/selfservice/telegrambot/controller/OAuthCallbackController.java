@@ -114,24 +114,26 @@ public class OAuthCallbackController {
 
             // 5) DM Telegram with both
             if (chatId > 0) {
-                telegram.sendMessageWithKey(chatId, "LoginOkSummary", findUserResult.summary());
-                if (findUserResult.givenName() != null && !findUserResult.givenName().isBlank()) {
-                    telegram.sendMessageWithKey(chatId, "LoginGreeting", findUserResult.givenName());
-                }
+                String greeting = (findUserResult.givenName() != null && !findUserResult.givenName().isBlank())
+                        ? telegram.format(chatId, "LoginGreeting", findUserResult.givenName())
+                        : null;
 
                 if (findUserResult.success()) {
                     if (accounts.isEmpty()) {
                         sessions.clearSelectedAccount(chatId);
-                        telegram.sendMessageWithKey(chatId, "NoBillingAccountsFound");
+                        String noAccountsMessage = telegram.translate(chatId, "NoBillingAccountsFound");
+                        if (greeting != null && !greeting.isBlank()) {
+                            telegram.sendMessage(chatId, greeting.strip() + "\n\n" + noAccountsMessage);
+                        } else {
+                            telegram.sendMessage(chatId, noAccountsMessage);
+                        }
                     } else if (accounts.size() == 1) {
                         var onlyAccount = accounts.get(0);
                         sessions.selectAccount(chatId, onlyAccount);
-                        telegram.sendMessageWithKey(chatId, "SingleAccountSelected", onlyAccount.displayLabel());
-                        telegram.sendLoggedInMenu(chatId, onlyAccount, false);
+                        telegram.sendLoggedInMenu(chatId, onlyAccount, false, greeting);
                     } else {
                         sessions.clearSelectedAccount(chatId);
-                        telegram.sendMessageWithKey(chatId, "ChooseAccountToContinue");
-                        telegram.sendAccountPage(chatId, accounts, 0);
+                        telegram.sendAccountPage(chatId, accounts, 0, greeting);
                     }
                 } else {
                     sessions.clearSelectedAccount(chatId);
