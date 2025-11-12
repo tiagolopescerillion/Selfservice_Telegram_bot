@@ -11,6 +11,7 @@ import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
 
+import java.net.URI;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -52,7 +53,7 @@ public class OAuthLoginService {
         this.clientId = Objects.requireNonNull(clientId);
         this.clientSecret = Objects.requireNonNull(clientSecret);
         this.redirectUri = Objects.requireNonNull(redirectUri);
-        this.logoutEndpoint = (logoutEndpoint == null || logoutEndpoint.isBlank()) ? null : logoutEndpoint;
+        this.logoutEndpoint = resolveLogoutEndpoint(logoutEndpoint, authEndpoint, tokenEndpoint);
         if (logoutRedirectUri == null || logoutRedirectUri.isBlank()) {
             this.logoutRedirectUri = redirectUri;
         } else {
@@ -122,7 +123,7 @@ public class OAuthLoginService {
         boolean endSessionAttempted = false;
 
         if (idToken != null && !idToken.isBlank()) {
-            String url = UriComponentsBuilder.fromHttpUrl(logoutEndpoint)
+            String url = UriComponentsBuilder.fromUriString(logoutEndpoint)
                     .queryParam("id_token_hint", idToken)
                     .queryParam("post_logout_redirect_uri", logoutRedirectUri)
                     .build(true)
@@ -172,6 +173,51 @@ public class OAuthLoginService {
             String body = ex.getResponseBodyAsString();
             log.warn("Keycloak logout (refresh token) failed: status={} body={}", ex.getStatusCode().value(), body);
             throw new RuntimeException("Logout HTTP " + ex.getStatusCode().value() + ": " + body, ex);
+        }
+    }
+
+    private String resolveLogoutEndpoint(String configured, String authEndpoint, String tokenEndpoint) {
+        if (configured != null && !configured.isBlank()) {
+            return configured;
+        }
+
+        String derived = deriveLogoutEndpoint(authEndpoint);
+        if (derived == null) {
+            derived = deriveLogoutEndpoint(tokenEndpoint);
+        }
+        if (derived != null) {
+            log.info("Derived logout endpoint from OAuth configuration: {}", derived);
+        }
+        return derived;
+    }
+
+    private String deriveLogoutEndpoint(String endpoint) {
+        if (endpoint == null || endpoint.isBlank()) {
+            return null;
+        }
+        try {
+            URI uri = URI.create(endpoint);
+            String path = uri.getPath();
+            if (path == null || path.isBlank()) {
+                return null;
+            }
+            int lastSlash = path.lastIndexOf('/');
+            if (lastSlash < 0) {
+                return null;
+            }
+            String newPath = path.substring(0, lastSlash + 1) + "logout";
+            if (path.endsWith("/")) {
+                newPath = path + "logout";
+            }
+            return UriComponentsBuilder.fromUri(uri)
+                    .replacePath(newPath)
+                    .replaceQuery(null)
+                    .replaceFragment(null)
+                    .build(true)
+                    .toUriString();
+        } catch (IllegalArgumentException ex) {
+            log.warn("Unable to derive logout endpoint from {}", endpoint, ex);
+            return null;
         }
     }
 
