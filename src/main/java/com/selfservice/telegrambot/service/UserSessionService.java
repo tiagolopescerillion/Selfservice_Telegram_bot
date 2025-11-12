@@ -159,6 +159,7 @@ public class UserSessionService {
         byChat.remove(chatId);
         servicesByChat.remove(chatId);
         ticketsByChat.remove(chatId);
+        languageByChat.remove(chatId);
     }
 
     public String getLanguage(long chatId) {
