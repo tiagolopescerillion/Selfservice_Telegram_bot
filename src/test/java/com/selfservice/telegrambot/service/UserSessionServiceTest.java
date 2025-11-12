@@ -16,7 +16,7 @@ class UserSessionServiceTest {
         UserSessionService service = new UserSessionService();
         long chatId = 42L;
 
-        service.save(chatId, "token", "refresh", 3_600);
+        service.save(chatId, "token", "refresh", "id-token", 3_600);
         service.saveAccounts(chatId, List.of(new AccountSummary("acct-1", "Account")));
         service.selectAccount(chatId, new AccountSummary("acct-1", "Account"));
         service.saveServices(chatId, List.of(new ServiceSummary("svc-1", "Service", "123")));
@@ -30,6 +30,7 @@ class UserSessionServiceTest {
         assertThat(service.getTroubleTickets(chatId)).hasSize(1);
         assertThat(service.getLanguage(chatId)).isEqualTo("es");
         assertThat(service.getRefreshToken(chatId)).isEqualTo("refresh");
+        assertThat(service.getIdToken(chatId)).isEqualTo("id-token");
 
         service.clearSession(chatId);
 
@@ -40,5 +41,6 @@ class UserSessionServiceTest {
         assertThat(service.getTroubleTickets(chatId)).isEmpty();
         assertThat(service.getLanguage(chatId)).isEqualTo("en");
         assertThat(service.getRefreshToken(chatId)).isNull();
+        assertThat(service.getIdToken(chatId)).isNull();
     }
 }
