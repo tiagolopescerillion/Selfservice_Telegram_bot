@@ -1,21 +1,20 @@
 package com.selfservice.telegrambot.controller;
 
-import com.selfservice.telegrambot.service.UserSessionService;
-import com.selfservice.telegrambot.service.OAuthLoginService;
-
+import com.selfservice.application.auth.KeycloakAuthService;
+import com.selfservice.application.auth.OAuthSessionService;
+import com.selfservice.application.dto.AccountSummary;
+import com.selfservice.application.dto.ServiceListResult;
+import com.selfservice.application.dto.ServiceSummary;
+import com.selfservice.application.dto.TroubleTicketListResult;
+import com.selfservice.application.service.ExternalApiService;
+import com.selfservice.application.service.MainServiceCatalogService;
+import com.selfservice.application.service.TroubleTicketService;
 import com.selfservice.telegrambot.service.TelegramService;
-import com.selfservice.telegrambot.service.KeycloakAuthService;
-import com.selfservice.telegrambot.service.TroubleTicketService;
-import com.selfservice.telegrambot.service.MainServiceCatalogService;
-import com.selfservice.telegrambot.service.dto.AccountSummary;
-import com.selfservice.telegrambot.service.dto.TroubleTicketListResult;
-import com.selfservice.telegrambot.service.dto.ServiceListResult;
-import com.selfservice.telegrambot.service.dto.ServiceSummary;
+import com.selfservice.telegrambot.service.UserSessionService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import com.selfservice.telegrambot.service.ExternalApiService;
 
 import java.util.List;
 import java.util.Map;
@@ -29,7 +28,7 @@ public class TelegramWebhookController {
     private final KeycloakAuthService keycloakAuthService;
     private final ExternalApiService externalApiService;
     private final MainServiceCatalogService mainServiceCatalogService;
-    private final OAuthLoginService oauthLoginService;
+    private final OAuthSessionService oauthSessionService;
     private final UserSessionService userSessionService;
     private final TroubleTicketService troubleTicketService;
 
@@ -37,14 +36,14 @@ public class TelegramWebhookController {
             KeycloakAuthService keycloakAuthService,
             ExternalApiService externalApiService,
             MainServiceCatalogService mainServiceCatalogService,
-            OAuthLoginService oauthLoginService,
+            OAuthSessionService oauthSessionService,
             UserSessionService userSessionService,
             TroubleTicketService troubleTicketService) {
         this.telegramService = telegramService;
         this.keycloakAuthService = keycloakAuthService;
         this.externalApiService = externalApiService;
         this.mainServiceCatalogService = mainServiceCatalogService;
-        this.oauthLoginService = oauthLoginService;
+        this.oauthSessionService = oauthSessionService;
 
         this.userSessionService = userSessionService;
         this.troubleTicketService = troubleTicketService;
@@ -124,7 +123,7 @@ public class TelegramWebhookController {
                 var accounts = userSessionService.getAccounts(chatId);
                 if (accounts.isEmpty()) {
                     telegramService.sendMessageWithKey(chatId, "NoStoredAccounts");
-                    telegramService.sendLoginMenu(chatId, oauthLoginService.buildAuthUrl(chatId));
+                    telegramService.sendLoginMenu(chatId, oauthSessionService.buildAuthUrl(chatId));
                 } else {
                     telegramService.sendAccountPage(chatId, accounts, offset);
                 }
@@ -180,7 +179,7 @@ public class TelegramWebhookController {
                         telegramService.sendLoggedInMenu(chatId, selected,
                                 userSessionService.getAccounts(chatId).size() > 1);
                     } else {
-                        telegramService.sendLoginMenu(chatId, oauthLoginService.buildAuthUrl(chatId));
+                        telegramService.sendLoginMenu(chatId, oauthSessionService.buildAuthUrl(chatId));
                     }
                 }
                 return ResponseEntity.ok().build();
@@ -199,7 +198,7 @@ public class TelegramWebhookController {
                     telegramService.sendLoggedInMenu(chatId, selected,
                             userSessionService.getAccounts(chatId).size() > 1);
                 } else {
-                    telegramService.sendLoginMenu(chatId, oauthLoginService.buildAuthUrl(chatId));
+                    telegramService.sendLoginMenu(chatId, oauthSessionService.buildAuthUrl(chatId));
                 }
                 return ResponseEntity.ok().build();
             }
@@ -208,13 +207,13 @@ public class TelegramWebhookController {
                 String refreshToken = userSessionService.getRefreshToken(chatId);
                 String idToken = userSessionService.getIdToken(chatId);
                 try {
-                    oauthLoginService.logout(refreshToken, idToken);
+                    oauthSessionService.logout(refreshToken, idToken);
                 } catch (Exception e) {
                     log.warn("Failed to revoke Keycloak session for chat {}", chatId, e);
                 }
                 userSessionService.clearSession(chatId);
                 telegramService.sendMessageWithKey(chatId, "LoggedOutMessage");
-                telegramService.sendLoginMenu(chatId, oauthLoginService.buildAuthUrl(chatId));
+                telegramService.sendLoginMenu(chatId, oauthSessionService.buildAuthUrl(chatId));
                 return ResponseEntity.ok().build();
             }
 
@@ -239,7 +238,7 @@ public class TelegramWebhookController {
                     telegramService.sendLoggedInMenu(chatId, selected,
                             userSessionService.getAccounts(chatId).size() > 1);
                 } else {
-                    telegramService.sendLoginMenu(chatId, oauthLoginService.buildAuthUrl(chatId));
+                    telegramService.sendLoginMenu(chatId, oauthSessionService.buildAuthUrl(chatId));
                 }
                 return ResponseEntity.ok().build();
             }
@@ -249,7 +248,7 @@ public class TelegramWebhookController {
                 var accounts = userSessionService.getAccounts(chatId);
                 if (accounts.isEmpty() || index < 0 || index >= accounts.size()) {
                     telegramService.sendMessageWithKey(chatId, "AccountSelectionExpired");
-                    telegramService.sendLoginMenu(chatId, oauthLoginService.buildAuthUrl(chatId));
+                    telegramService.sendLoginMenu(chatId, oauthSessionService.buildAuthUrl(chatId));
                 } else {
                     var selected = accounts.get(index);
                     userSessionService.selectAccount(chatId, selected);
@@ -264,7 +263,7 @@ public class TelegramWebhookController {
                 if (accounts.isEmpty()) {
                     userSessionService.clearSelectedAccount(chatId);
                     telegramService.sendMessageWithKey(chatId, "NoStoredAccounts");
-                    telegramService.sendLoginMenu(chatId, oauthLoginService.buildAuthUrl(chatId));
+                    telegramService.sendLoginMenu(chatId, oauthSessionService.buildAuthUrl(chatId));
                 } else {
                     userSessionService.clearSelectedAccount(chatId);
                     telegramService.sendMessageWithKey(chatId, "ChooseAccountToContinue");
@@ -286,7 +285,7 @@ public class TelegramWebhookController {
                                 userSessionService.getAccounts(chatId).size() > 1);
                     } else {
                         telegramService.sendMessage(chatId, loginReminder);
-                        telegramService.sendLoginMenu(chatId, oauthLoginService.buildAuthUrl(chatId));
+                        telegramService.sendLoginMenu(chatId, oauthSessionService.buildAuthUrl(chatId));
                     }
                     break;
                 case TelegramService.CALLBACK_HELLO_CERILLION:
@@ -301,7 +300,7 @@ public class TelegramWebhookController {
                                 userSessionService.getAccounts(chatId).size() > 1);
                     } else {
                         telegramService.sendMessage(chatId, loginReminder);
-                        telegramService.sendLoginMenu(chatId, oauthLoginService.buildAuthUrl(chatId));
+                        telegramService.sendLoginMenu(chatId, oauthSessionService.buildAuthUrl(chatId));
                     }
                     break;
                 case TelegramService.CALLBACK_TROUBLE_TICKET:
@@ -317,7 +316,7 @@ public class TelegramWebhookController {
                                 userSessionService.getAccounts(chatId).size() > 1);
                     } else {
                         telegramService.sendMessage(chatId, loginReminder);
-                        telegramService.sendLoginMenu(chatId, oauthLoginService.buildAuthUrl(chatId));
+                        telegramService.sendLoginMenu(chatId, oauthSessionService.buildAuthUrl(chatId));
                     }
                     break;
                 case TelegramService.CALLBACK_SELECT_SERVICE:
@@ -344,7 +343,7 @@ public class TelegramWebhookController {
                         }
                     } else {
                         telegramService.sendMessage(chatId, loginReminder);
-                        telegramService.sendLoginMenu(chatId, oauthLoginService.buildAuthUrl(chatId));
+                        telegramService.sendLoginMenu(chatId, oauthSessionService.buildAuthUrl(chatId));
                     }
                     break;
                 case TelegramService.CALLBACK_MY_ISSUES:
@@ -371,7 +370,7 @@ public class TelegramWebhookController {
                         }
                     } else {
                         telegramService.sendMessage(chatId, loginReminder);
-                        telegramService.sendLoginMenu(chatId, oauthLoginService.buildAuthUrl(chatId));
+                        telegramService.sendLoginMenu(chatId, oauthSessionService.buildAuthUrl(chatId));
                     }
                     break;
                 case TelegramService.CALLBACK_SELF_SERVICE_LOGIN:
@@ -386,7 +385,7 @@ public class TelegramWebhookController {
                         telegramService.sendLoggedInMenu(chatId, selected,
                                 userSessionService.getAccounts(chatId).size() > 1);
                     } else {
-                        String loginUrl = oauthLoginService.buildAuthUrl(chatId);
+                        String loginUrl = oauthSessionService.buildAuthUrl(chatId);
                         log.info("Login URL for chat {}: {}", chatId, loginUrl);
                         telegramService.sendLoginMenu(chatId, loginUrl);
                         telegramService.sendMessageWithKey(chatId, "TapLoginButton");
@@ -413,7 +412,7 @@ public class TelegramWebhookController {
                     // Step 3: Combine and send to Telegram
                     String externalApiMessage = telegramService.format(chatId, "ExternalApiResult", apiResponse);
                     telegramService.sendMessage(chatId, authMessage + "\n\n" + externalApiMessage);
-                    telegramService.sendLoginMenu(chatId, oauthLoginService.buildAuthUrl(chatId));
+                    telegramService.sendLoginMenu(chatId, oauthSessionService.buildAuthUrl(chatId));
                     break;
                 case "/start":
                 default:
@@ -424,7 +423,7 @@ public class TelegramWebhookController {
                                     userSessionService.getAccounts(chatId).size() > 1);
                         }
                     } else {
-                        telegramService.sendLoginMenu(chatId, oauthLoginService.buildAuthUrl(chatId));
+                        telegramService.sendLoginMenu(chatId, oauthSessionService.buildAuthUrl(chatId));
                     }
             }
         } catch (Exception e) {
@@ -450,7 +449,7 @@ public class TelegramWebhookController {
         var accounts = userSessionService.getAccounts(chatId);
         if (accounts.isEmpty()) {
             telegramService.sendMessageWithKey(chatId, "NoStoredAccounts");
-            telegramService.sendLoginMenu(chatId, oauthLoginService.buildAuthUrl(chatId));
+            telegramService.sendLoginMenu(chatId, oauthSessionService.buildAuthUrl(chatId));
             return false;
         }
         telegramService.sendMessageWithKey(chatId, "ChooseAccountToContinue");

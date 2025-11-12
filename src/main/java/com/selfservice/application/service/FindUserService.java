@@ -1,9 +1,9 @@
-package com.selfservice.telegrambot.service;
+package com.selfservice.application.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.selfservice.telegrambot.service.dto.AccountSummary;
-import com.selfservice.telegrambot.service.dto.FindUserResult;
+import com.selfservice.application.dto.AccountSummary;
+import com.selfservice.application.dto.FindUserResult;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -12,6 +12,7 @@ import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.web.util.UriComponentsBuilder;
 
 import java.nio.charset.StandardCharsets;
 import java.util.LinkedHashMap;
@@ -23,22 +24,40 @@ public class FindUserService {
 
     private static final Logger log = LoggerFactory.getLogger(FindUserService.class);
 
+    private static final int DEFAULT_OFFSET = 0;
+    private static final int DEFAULT_LIMIT = 1;
+
     private final RestTemplate restTemplate;
     private final ObjectMapper objectMapper;
     private final String findUserEndpoint;
 
     public FindUserService(@Qualifier("loggingRestTemplate") RestTemplate restTemplate,
             ObjectMapper objectMapper,
-            @Value("${apiman.find-user.url:https://lonlinux13.cerillion.com:49987/apiman-gateway/CSS-MASTER-ORG/findUser/1.0?offset=0&limit=1}")
+            @Value("${apiman.find-user.url:https://lonlinux13.cerillion.com:49987/apiman-gateway/CSS-MASTER-ORG/findUser/1.0}")
             String findUserEndpoint) {
         this.restTemplate = restTemplate;
         this.objectMapper = objectMapper;
-        this.findUserEndpoint = findUserEndpoint;
+        this.findUserEndpoint = (findUserEndpoint == null || findUserEndpoint.isBlank()) ? null : findUserEndpoint;
+        if (this.findUserEndpoint == null) {
+            log.warn("APIMAN find-user endpoint is not configured; account discovery will be disabled.");
+        }
     }
 
     public FindUserResult fetchAccountNumbers(String accessToken) {
         if (findUserEndpoint == null || findUserEndpoint.isBlank()) {
             return new FindUserResult(false, "APIMAN[FindUser] ERROR: endpoint URL is not configured.", List.of(), null);
+        }
+
+        final String url;
+        try {
+            url = UriComponentsBuilder.fromHttpUrl(findUserEndpoint)
+                    .queryParam("offset", DEFAULT_OFFSET)
+                    .queryParam("limit", DEFAULT_LIMIT)
+                    .build(true)
+                    .toUriString();
+        } catch (IllegalArgumentException ex) {
+            log.error("Invalid findUser endpoint configured: {}", findUserEndpoint, ex);
+            return new FindUserResult(false, "APIMAN[FindUser] ERROR: invalid endpoint URL.", List.of(), null);
         }
 
         HttpHeaders headers = new HttpHeaders();
@@ -49,7 +68,7 @@ public class FindUserService {
 
         try {
             ResponseEntity<String> response = restTemplate.exchange(
-                    findUserEndpoint,
+                    url,
                     HttpMethod.GET,
                     new HttpEntity<>(headers),
                     String.class);

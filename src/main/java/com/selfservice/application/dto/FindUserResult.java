@@ -1,4 +1,4 @@
-package com.selfservice.telegrambot.service.dto;
+package com.selfservice.application.dto;
 
 import java.util.List;
 

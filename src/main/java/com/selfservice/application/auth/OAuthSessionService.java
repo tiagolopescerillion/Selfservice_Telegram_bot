@@ -1,4 +1,4 @@
-package com.selfservice.telegrambot.service;
+package com.selfservice.application.auth;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -23,9 +23,9 @@ import java.util.Objects;
 import java.util.UUID;
 
 @Service
-public class OAuthLoginService {
+public class OAuthSessionService {
 
-    private static final Logger log = LoggerFactory.getLogger(OAuthLoginService.class);
+    private static final Logger log = LoggerFactory.getLogger(OAuthSessionService.class);
 
     private final RestTemplate rest;
     private final String authEndpoint;
@@ -37,7 +37,7 @@ public class OAuthLoginService {
     private final String redirectUri;
     private final PkceStore pkceStore;
 
-    public OAuthLoginService(
+    public OAuthSessionService(
             @Value("${keycloak.auth-endpoint}") String authEndpoint,
             @Value("${keycloak.token-endpoint2}") String tokenEndpoint,
             @Value("${keycloak.oauth.client-id}") String clientId,
@@ -61,7 +61,7 @@ public class OAuthLoginService {
         }
         this.pkceStore = pkceStore;
         this.rest = new RestTemplate(); // if you need trust-all, copy your KC RestTemplate here
-        log.info("OAuthLoginService ready, redirectUri={}", redirectUri);
+        log.info("OAuthSessionService ready, redirectUri={}", redirectUri);
     }
 
     /** Build the browser URL for Keycloak login (with PKCE). State carries chatId and nonce. */

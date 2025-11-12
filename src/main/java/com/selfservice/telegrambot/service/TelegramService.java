@@ -1,8 +1,8 @@
 package com.selfservice.telegrambot.service;
 
-import com.selfservice.telegrambot.service.dto.AccountSummary;
-import com.selfservice.telegrambot.service.dto.ServiceSummary;
-import com.selfservice.telegrambot.service.dto.TroubleTicketSummary;
+import com.selfservice.application.dto.AccountSummary;
+import com.selfservice.application.dto.ServiceSummary;
+import com.selfservice.application.dto.TroubleTicketSummary;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;

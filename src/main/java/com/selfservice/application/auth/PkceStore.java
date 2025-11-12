@@ -1,4 +1,4 @@
-package com.selfservice.telegrambot.service;
+package com.selfservice.application.auth;
 
 import org.springframework.stereotype.Component;
 

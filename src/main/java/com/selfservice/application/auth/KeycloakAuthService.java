@@ -1,4 +1,4 @@
-package com.selfservice.telegrambot.service;
+package com.selfservice.application.auth;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -19,11 +19,6 @@ import java.time.Instant;
 import java.util.Map;
 import java.util.Objects;
 
-import org.apache.hc.client5.http.classic.HttpClient;
-import org.apache.hc.client5.http.impl.classic.HttpClients;
-import org.apache.hc.core5.ssl.SSLContexts;
-import org.apache.hc.core5.ssl.TrustStrategy;
-import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
 
 @Service
 public class KeycloakAuthService {

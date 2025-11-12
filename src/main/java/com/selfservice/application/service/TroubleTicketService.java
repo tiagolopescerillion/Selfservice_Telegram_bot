@@ -1,9 +1,9 @@
-package com.selfservice.telegrambot.service;
+package com.selfservice.application.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.selfservice.telegrambot.service.dto.TroubleTicketListResult;
-import com.selfservice.telegrambot.service.dto.TroubleTicketSummary;
+import com.selfservice.application.dto.TroubleTicketListResult;
+import com.selfservice.application.dto.TroubleTicketSummary;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -113,7 +113,7 @@ public class TroubleTicketService {
         final String url;
         try {
             url = UriComponentsBuilder.fromHttpUrl(troubleTicketEndpoint)
-                    .replaceQueryParam("relatedEntity.billingAccount.id", accountId)
+                    .queryParam("relatedEntity.billingAccount.id", accountId)
                     .build(true)
                     .toUriString();
         } catch (IllegalArgumentException ex) {

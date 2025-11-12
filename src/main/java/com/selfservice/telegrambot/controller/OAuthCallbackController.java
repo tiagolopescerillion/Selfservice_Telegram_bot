@@ -1,11 +1,11 @@
 package com.selfservice.telegrambot.controller;
 
-import com.selfservice.telegrambot.service.FindUserService;
-import com.selfservice.telegrambot.service.OAuthLoginService;
+import com.selfservice.application.auth.OAuthSessionService;
+import com.selfservice.application.dto.AccountSummary;
+import com.selfservice.application.dto.FindUserResult;
+import com.selfservice.application.service.FindUserService;
 import com.selfservice.telegrambot.service.TelegramService;
 import com.selfservice.telegrambot.service.UserSessionService;
-import com.selfservice.telegrambot.service.dto.AccountSummary;
-import com.selfservice.telegrambot.service.dto.FindUserResult;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.MediaType;
@@ -18,12 +18,12 @@ import java.util.Map;
 public class OAuthCallbackController {
     private static final Logger log = LoggerFactory.getLogger(OAuthCallbackController.class);
 
-    private final OAuthLoginService oauth;
+    private final OAuthSessionService oauth;
     private final TelegramService telegram;
     private final UserSessionService sessions;
     private final FindUserService findUserService;
 
-    public OAuthCallbackController(OAuthLoginService oauth,
+    public OAuthCallbackController(OAuthSessionService oauth,
                                    TelegramService telegram,
                                    UserSessionService sessions,
                                    FindUserService findUserService) {
