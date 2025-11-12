@@ -110,6 +110,8 @@ public class TelegramWebhookController {
                 text = TelegramService.CALLBACK_SELF_SERVICE_LOGIN;
             } else if (text.equals(telegramService.translate(chatId, TelegramService.KEY_BUTTON_DIRECT_LOGIN))) {
                 text = TelegramService.CALLBACK_DIRECT_LOGIN;
+            } else if (text.equals(telegramService.translate(chatId, TelegramService.KEY_BUTTON_LOGOUT))) {
+                text = TelegramService.CALLBACK_LOGOUT;
             }
 
             String existingToken = userSessionService.getValidAccessToken(chatId);
@@ -117,14 +119,38 @@ public class TelegramWebhookController {
             String loginReminder = telegramService.format(chatId, "LoginReminder",
                     telegramService.translate(chatId, TelegramService.KEY_BUTTON_SELF_SERVICE_LOGIN));
 
-            if (text.startsWith(TelegramService.CALLBACK_SHOW_MORE_PREFIX)) {
-                int offset = parseIndex(text, TelegramService.CALLBACK_SHOW_MORE_PREFIX);
+            if (text.startsWith(TelegramService.CALLBACK_SHOW_MORE_ACCOUNTS_PREFIX)) {
+                int offset = parseIndex(text, TelegramService.CALLBACK_SHOW_MORE_ACCOUNTS_PREFIX);
                 var accounts = userSessionService.getAccounts(chatId);
                 if (accounts.isEmpty()) {
                     telegramService.sendMessageWithKey(chatId, "NoStoredAccounts");
                     telegramService.sendLoginMenu(chatId, oauthLoginService.buildAuthUrl(chatId));
                 } else {
                     telegramService.sendAccountPage(chatId, accounts, offset);
+                }
+                return ResponseEntity.ok().build();
+            }
+
+            if (text.startsWith(TelegramService.CALLBACK_SHOW_MORE_SERVICES_PREFIX)) {
+                int offset = parseIndex(text, TelegramService.CALLBACK_SHOW_MORE_SERVICES_PREFIX);
+                List<ServiceSummary> services = userSessionService.getServices(chatId);
+                if (services.isEmpty()) {
+                    userSessionService.clearServices(chatId);
+                    telegramService.sendMessageWithKey(chatId, "ServiceNoLongerAvailable");
+                } else {
+                    telegramService.sendServicePage(chatId, services, offset);
+                }
+                return ResponseEntity.ok().build();
+            }
+
+            if (text.startsWith(TelegramService.CALLBACK_SHOW_MORE_TICKETS_PREFIX)) {
+                int offset = parseIndex(text, TelegramService.CALLBACK_SHOW_MORE_TICKETS_PREFIX);
+                var tickets = userSessionService.getTroubleTickets(chatId);
+                if (tickets.isEmpty()) {
+                    userSessionService.clearTroubleTickets(chatId);
+                    telegramService.sendMessageWithKey(chatId, "TicketNoLongerAvailable");
+                } else {
+                    telegramService.sendTroubleTicketPage(chatId, tickets, offset);
                 }
                 return ResponseEntity.ok().build();
             }
@@ -142,6 +168,8 @@ public class TelegramWebhookController {
                     userSessionService.setLanguage(chatId, languageCode);
                     String languageLabelKey = switch (languageCode) {
                         case "fr" -> "LanguageFrench";
+                        case "pt" -> "LanguagePortuguese";
+                        case "ru" -> "LanguageRussian";
                         case "en" -> "LanguageEnglish";
                         default -> "LanguageEnglish";
                     };
@@ -173,6 +201,13 @@ public class TelegramWebhookController {
                 } else {
                     telegramService.sendLoginMenu(chatId, oauthLoginService.buildAuthUrl(chatId));
                 }
+                return ResponseEntity.ok().build();
+            }
+
+            if (TelegramService.CALLBACK_LOGOUT.equals(text)) {
+                userSessionService.clearSession(chatId);
+                telegramService.sendMessageWithKey(chatId, "LoggedOutMessage");
+                telegramService.sendLoginMenu(chatId, oauthLoginService.buildAuthUrl(chatId));
                 return ResponseEntity.ok().build();
             }
 
@@ -298,8 +333,7 @@ public class TelegramWebhookController {
                                     userSessionService.getAccounts(chatId).size() > 1);
                         } else {
                             userSessionService.saveServices(chatId, services.services());
-                            telegramService.sendMessageWithKey(chatId, "SelectServicePrompt");
-                            telegramService.sendServiceCards(chatId, services.services());
+                            telegramService.sendServicePage(chatId, services.services(), 0);
                         }
                     } else {
                         telegramService.sendMessage(chatId, loginReminder);
@@ -315,16 +349,18 @@ public class TelegramWebhookController {
                         TroubleTicketListResult result = troubleTicketService
                                 .getTroubleTicketsByAccountId(existingToken, selected.accountId());
                         if (result.hasError()) {
+                            userSessionService.clearTroubleTickets(chatId);
                             telegramService.sendMessageWithKey(chatId, "UnableToRetrieveTroubleTickets", result.errorMessage());
                             telegramService.sendLoggedInMenu(chatId, selected,
                                     userSessionService.getAccounts(chatId).size() > 1);
                         } else if (result.tickets().isEmpty()) {
+                            userSessionService.clearTroubleTickets(chatId);
                             telegramService.sendMessageWithKey(chatId, "NoTroubleTicketsForAccount", selected.accountId());
                             telegramService.sendLoggedInMenu(chatId, selected,
                                     userSessionService.getAccounts(chatId).size() > 1);
                         } else {
-                            telegramService.sendMessageWithKey(chatId, "SelectTicketPrompt");
-                            telegramService.sendTroubleTicketCards(chatId, result.tickets());
+                            userSessionService.saveTroubleTickets(chatId, result.tickets());
+                            telegramService.sendTroubleTicketPage(chatId, result.tickets(), 0);
                         }
                     } else {
                         telegramService.sendMessage(chatId, loginReminder);
