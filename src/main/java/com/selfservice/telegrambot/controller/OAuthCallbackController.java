@@ -45,7 +45,7 @@ public class OAuthCallbackController {
                 String msg = "Login ERROR: " + error + (errorDescription != null ? " - " + errorDescription : "");
                 log.error("Self-service login failed for chat {}: {}", chatId, msg);
                 if (chatId > 0) {
-                    telegram.sendMessage(chatId, "Login Failed");
+                    telegram.sendMessageWithKey(chatId, "LoginFailed");
                     telegram.sendLoginMenu(chatId, oauth.buildAuthUrl(chatId));
                 }
                 return "<h3>" + msg + "</h3>";
@@ -54,7 +54,7 @@ public class OAuthCallbackController {
                 String msg = "Login ERROR: missing authorization code";
                 log.error("Self-service login failed for chat {}: {}", chatId, msg);
                 if (chatId > 0) {
-                    telegram.sendMessage(chatId, "Login Failed");
+                    telegram.sendMessageWithKey(chatId, "LoginFailed");
                     telegram.sendLoginMenu(chatId, oauth.buildAuthUrl(chatId));
                 }
                 return "<h3>Missing authorization code</h3>";
@@ -93,39 +93,38 @@ public class OAuthCallbackController {
                 if (chatId > 0) {
                     sessions.saveAccounts(chatId, accounts);
                 }
+                String noAccountsMessage = (chatId > 0)
+                        ? telegram.translate(chatId, "NoBillingAccountsFound")
+                        : "No billing accounts were found.";
                 accountListMessage = accounts.isEmpty()
-                        ? "No billing accounts were found."
+                        ? noAccountsMessage
                         : accounts.stream()
                         .map(a -> a.accountId() + " - " + a.truncatedName())
                         .reduce((a, b) -> a + "\n" + b)
-                        .orElse("No billing accounts were found.");
+                        .orElse(noAccountsMessage);
             } else {
                 accountListMessage = findUserResult.summary();
             }
 
             // 5) DM Telegram with both
             if (chatId > 0) {
-                telegram.sendMessage(chatId,
-                        "Login OK ✅\n\nAPIMAN findUser summary:\n" + findUserResult.summary());
+                telegram.sendMessageWithKey(chatId, "LoginOkSummary", findUserResult.summary());
                 if (findUserResult.givenName() != null && !findUserResult.givenName().isBlank()) {
-                    telegram.sendMessage(chatId,
-                            "Hi " + findUserResult.givenName()
-                                    + ", welcome to Cerillion and thank you for using our Telegram channel.");
+                    telegram.sendMessageWithKey(chatId, "LoginGreeting", findUserResult.givenName());
                 }
 
                 if (findUserResult.success()) {
                     if (accounts.isEmpty()) {
                         sessions.clearSelectedAccount(chatId);
-                        telegram.sendMessage(chatId, "No billing accounts were found.");
+                        telegram.sendMessageWithKey(chatId, "NoBillingAccountsFound");
                     } else if (accounts.size() == 1) {
                         var onlyAccount = accounts.get(0);
                         sessions.selectAccount(chatId, onlyAccount);
-                        telegram.sendMessage(chatId,
-                                "We found one account and selected it for you:\n" + onlyAccount.displayLabel());
+                        telegram.sendMessageWithKey(chatId, "SingleAccountSelected", onlyAccount.displayLabel());
                         telegram.sendLoggedInMenu(chatId, onlyAccount, false);
                     } else {
                         sessions.clearSelectedAccount(chatId);
-                        telegram.sendMessage(chatId, "Please choose an account to continue.");
+                        telegram.sendMessageWithKey(chatId, "ChooseAccountToContinue");
                         telegram.sendAccountPage(chatId, accounts, 0);
                     }
                 } else {
@@ -143,7 +142,7 @@ public class OAuthCallbackController {
             String msg = "Login ERROR: " + e.getMessage();
             log.error("Self-service login failed for chat {}", chatId, e);
             if (chatId > 0) {
-                telegram.sendMessage(chatId, "Login Failed");
+                telegram.sendMessageWithKey(chatId, "LoginFailed");
                 telegram.sendLoginMenu(chatId, oauth.buildAuthUrl(chatId));
             }
             return "<h3>" + msg + "</h3>";

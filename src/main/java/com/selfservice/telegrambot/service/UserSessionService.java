@@ -27,8 +27,11 @@ public class UserSessionService {
         }
     }
 
+    private static final String DEFAULT_LANGUAGE = "en";
+
     private final Map<Long, TokenInfo> byChat = new ConcurrentHashMap<>();
     private final Map<Long, List<ServiceSummary>> servicesByChat = new ConcurrentHashMap<>();
+    private final Map<Long, String> languageByChat = new ConcurrentHashMap<>();
 
     public void save(long chatId, String accessToken, long expiresInSeconds) {
         long exp = System.currentTimeMillis() + expiresInSeconds * 1000L;
@@ -132,5 +135,17 @@ public class UserSessionService {
 
     public void clearServices(long chatId) {
         servicesByChat.remove(chatId);
+    }
+
+    public String getLanguage(long chatId) {
+        return languageByChat.getOrDefault(chatId, DEFAULT_LANGUAGE);
+    }
+
+    public void setLanguage(long chatId, String language) {
+        if (language == null || language.isBlank()) {
+            languageByChat.remove(chatId);
+            return;
+        }
+        languageByChat.put(chatId, language);
     }
 }

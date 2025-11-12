@@ -1,11 +1,15 @@
 package com.selfservice.telegrambot.service;
 
 import com.selfservice.telegrambot.service.dto.AccountSummary;
+import com.selfservice.telegrambot.service.dto.ServiceSummary;
 import com.selfservice.telegrambot.service.dto.TroubleTicketSummary;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.*;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.RestTemplate;
@@ -19,40 +23,20 @@ import java.util.Objects;
 public class TelegramService {
     private static final Logger log = LoggerFactory.getLogger(TelegramService.class);
 
-    private final RestTemplate rest = new RestTemplate();
-    private final String baseUrl;
-    private final String publicBaseUrl;
+    public static final String KEY_BUTTON_SELF_SERVICE_LOGIN = "ButtonSelfServiceLogin";
+    public static final String KEY_BUTTON_DIRECT_LOGIN = "ButtonDirectLogin";
+    public static final String KEY_BUTTON_HELLO_WORLD = "ButtonHelloWorld";
+    public static final String KEY_BUTTON_HELLO_CERILLION = "ButtonHelloCerillion";
+    public static final String KEY_BUTTON_TROUBLE_TICKET = "ButtonTroubleTicket";
+    public static final String KEY_BUTTON_SELECT_SERVICE = "ButtonSelectService";
+    public static final String KEY_BUTTON_MY_ISSUES = "ButtonMyIssues";
+    public static final String KEY_BUTTON_CHANGE_ACCOUNT = "ButtonChangeAccount";
+    public static final String KEY_BUTTON_CHANGE_LANGUAGE = "ButtonChangeLanguage";
+    public static final String KEY_SHOW_MORE = "ShowMore";
+    public static final String KEY_SELECT_ACCOUNT_PROMPT = "SelectAccountPrompt";
 
-    public TelegramService(
-            @Value("${telegram.bot.token}") String token,
-            @Value("${app.public-base-url:}") String publicBaseUrl) {
-
-        // Enforce non-null token early (clear error if misconfigured)
-        String nonNullToken = Objects.requireNonNull(
-                token, "telegram.bot.token must be set in configuration");
-
-        this.baseUrl = "https://api.telegram.org/bot" + nonNullToken;
-        // Normalize possible null to empty so downstream calls (isBlank) are safe
-        this.publicBaseUrl = (publicBaseUrl == null) ? "" : publicBaseUrl;
-
-        // Mask the token when logging (don’t log secrets)
-        String masked = this.baseUrl.replaceFirst("/bot[^/]+", "/bot<token>");
-        log.info("Telegram baseUrl set to {}", masked);
-        if (!this.publicBaseUrl.isBlank()) {
-            log.info("Public base URL set to {}", this.publicBaseUrl);
-        }
-    }
-
-
-    public static final String BUTTON_SELF_SERVICE_LOGIN = "🔑 Self-service login (APIMAN)";
-    public static final String BUTTON_DIRECT_LOGIN = "⚙️ Client-credentials login (REST Server)";
     public static final String CALLBACK_SELF_SERVICE_LOGIN = "LOGIN_SELF_SERVICE";
     public static final String CALLBACK_DIRECT_LOGIN = "LOGIN_DIRECT";
-    public static final String BUTTON_HELLO_WORLD = "Hello World";
-    public static final String BUTTON_HELLO_CERILLION = "Hello Cerillion";
-    public static final String BUTTON_TROUBLE_TICKET = "🎫 View trouble ticket";
-    public static final String BUTTON_SELECT_SERVICE = "Select a Service";
-    public static final String BUTTON_MY_ISSUES = "📂 My Issues";
     public static final String CALLBACK_HELLO_WORLD = "HELLO_WORLD";
     public static final String CALLBACK_HELLO_CERILLION = "HELLO_CERILLION";
     public static final String CALLBACK_TROUBLE_TICKET = "VIEW_TROUBLE_TICKET";
@@ -62,9 +46,56 @@ public class TelegramService {
     public static final String CALLBACK_MY_ISSUES = "MY_ISSUES";
     public static final String CALLBACK_TROUBLE_TICKET_PREFIX = "TICKET:";
     public static final String CALLBACK_SELECT_SERVICE = "SELECT_SERVICE";
-    public static final String BUTTON_CHANGE_ACCOUNT = "Select a different account";
     public static final String CALLBACK_CHANGE_ACCOUNT = "CHANGE_ACCOUNT";
+    public static final String CALLBACK_LANGUAGE_MENU = "LANGUAGE_MENU";
+    public static final String CALLBACK_LANGUAGE_PREFIX = "LANGUAGE:";
 
+    private final RestTemplate rest = new RestTemplate();
+    private final String baseUrl;
+    private final String publicBaseUrl;
+    private final TranslationService translationService;
+    private final UserSessionService userSessionService;
+
+    public TelegramService(
+            @Value("${telegram.bot.token}") String token,
+            @Value("${app.public-base-url:}") String publicBaseUrl,
+            TranslationService translationService,
+            UserSessionService userSessionService) {
+
+        String nonNullToken = Objects.requireNonNull(
+                token, "telegram.bot.token must be set in configuration");
+
+        this.baseUrl = "https://api.telegram.org/bot" + nonNullToken;
+        this.publicBaseUrl = (publicBaseUrl == null) ? "" : publicBaseUrl;
+        this.translationService = translationService;
+        this.userSessionService = userSessionService;
+
+        String masked = this.baseUrl.replaceFirst("/bot[^/]+", "/bot<token>");
+        log.info("Telegram baseUrl set to {}", masked);
+        if (!this.publicBaseUrl.isBlank()) {
+            log.info("Public base URL set to {}", this.publicBaseUrl);
+        }
+    }
+
+    private String language(long chatId) {
+        return userSessionService.getLanguage(chatId);
+    }
+
+    public boolean isSupportedLanguage(String language) {
+        return translationService.isSupportedLanguage(language);
+    }
+
+    public String translate(long chatId, String key) {
+        return translationService.get(language(chatId), key);
+    }
+
+    public String format(long chatId, String key, Object... args) {
+        return translationService.format(language(chatId), key, args);
+    }
+
+    public void sendMessageWithKey(long chatId, String key, Object... args) {
+        sendMessage(chatId, format(chatId, key, args));
+    }
 
     public void sendMessage(long chatId, String text) {
         String url = baseUrl + "/sendMessage";
@@ -86,26 +117,25 @@ public class TelegramService {
         List<List<Map<String, Object>>> keyboard = new ArrayList<>();
         if (loginUrl != null && !loginUrl.isBlank()) {
             keyboard.add(List.of(Map.of(
-                    "text", BUTTON_SELF_SERVICE_LOGIN,
+                    "text", translate(chatId, KEY_BUTTON_SELF_SERVICE_LOGIN),
                     "url", loginUrl)));
         } else {
             keyboard.add(List.of(Map.of(
-                    "text", BUTTON_SELF_SERVICE_LOGIN,
+                    "text", translate(chatId, KEY_BUTTON_SELF_SERVICE_LOGIN),
                     "callback_data", CALLBACK_SELF_SERVICE_LOGIN)));
         }
         keyboard.add(List.of(Map.of(
-                "text", BUTTON_DIRECT_LOGIN,
+                "text", translate(chatId, KEY_BUTTON_DIRECT_LOGIN),
                 "callback_data", CALLBACK_DIRECT_LOGIN)));
+        keyboard.add(List.of(Map.of(
+                "text", translate(chatId, KEY_BUTTON_CHANGE_LANGUAGE),
+                "callback_data", CALLBACK_LANGUAGE_MENU)));
 
         Map<String, Object> replyMarkup = Map.of("inline_keyboard", keyboard);
 
-        String menuText = """
-                Please choose how you'd like to sign in:
-                """;
-
         Map<String, Object> body = Map.of(
                 "chat_id", chatId,
-                "text", menuText,
+                "text", translate(chatId, "PleaseChooseSignIn"),
                 "reply_markup", replyMarkup);
 
         post(url, body, headers);
@@ -118,47 +148,63 @@ public class TelegramService {
 
         List<List<Map<String, Object>>> keyboard = new ArrayList<>();
         keyboard.add(List.of(Map.of(
-                "text", BUTTON_HELLO_WORLD,
+                "text", translate(chatId, KEY_BUTTON_HELLO_WORLD),
                 "callback_data", CALLBACK_HELLO_WORLD)));
         keyboard.add(List.of(Map.of(
-                "text", BUTTON_HELLO_CERILLION,
+                "text", translate(chatId, KEY_BUTTON_HELLO_CERILLION),
                 "callback_data", CALLBACK_HELLO_CERILLION)));
         keyboard.add(List.of(Map.of(
-                "text", BUTTON_TROUBLE_TICKET,
+                "text", translate(chatId, KEY_BUTTON_TROUBLE_TICKET),
                 "callback_data", CALLBACK_TROUBLE_TICKET)));
         keyboard.add(List.of(Map.of(
-                "text", BUTTON_SELECT_SERVICE,
+                "text", translate(chatId, KEY_BUTTON_SELECT_SERVICE),
                 "callback_data", CALLBACK_SELECT_SERVICE)));
         keyboard.add(List.of(Map.of(
-                "text", BUTTON_MY_ISSUES,
+                "text", translate(chatId, KEY_BUTTON_MY_ISSUES),
                 "callback_data", CALLBACK_MY_ISSUES)));
         if (showChangeAccountOption) {
             keyboard.add(List.of(Map.of(
-                    "text", BUTTON_CHANGE_ACCOUNT,
+                    "text", translate(chatId, KEY_BUTTON_CHANGE_ACCOUNT),
                     "callback_data", CALLBACK_CHANGE_ACCOUNT)));
         }
 
         Map<String, Object> replyMarkup = Map.of("inline_keyboard", keyboard);
 
-        String menuText;
+        StringBuilder menuText = new StringBuilder(translate(chatId, "LoginWelcome"));
         if (selectedAccount != null) {
-            menuText = """
-                    Welcome! Choose an option:
-                    """ + "\nCurrent account: " + selectedAccount.displayLabel();
-        } else {
-            menuText = """
-                    Welcome! Choose an option:
-                    """;
+            menuText.append("\n").append(format(chatId, "CurrentAccount", selectedAccount.displayLabel()));
         }
 
         Map<String, Object> body = Map.of(
                 "chat_id", chatId,
-                "text", menuText,
+                "text", menuText.toString(),
                 "reply_markup", replyMarkup);
 
         post(url, body, headers);
     }
 
+    public void sendLanguageMenu(long chatId) {
+        String url = baseUrl + "/sendMessage";
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+
+        List<List<Map<String, Object>>> keyboard = new ArrayList<>();
+        keyboard.add(List.of(Map.of(
+                "text", translate(chatId, "LanguageEnglish"),
+                "callback_data", CALLBACK_LANGUAGE_PREFIX + "en")));
+        keyboard.add(List.of(Map.of(
+                "text", translate(chatId, "LanguageFrench"),
+                "callback_data", CALLBACK_LANGUAGE_PREFIX + "fr")));
+
+        Map<String, Object> replyMarkup = Map.of("inline_keyboard", keyboard);
+
+        Map<String, Object> body = Map.of(
+                "chat_id", chatId,
+                "text", translate(chatId, "ChooseLanguagePrompt"),
+                "reply_markup", replyMarkup);
+
+        post(url, body, headers);
+    }
 
     public void answerCallbackQuery(String callbackQueryId) {
         if (callbackQueryId == null || callbackQueryId.isBlank()) {
@@ -174,7 +220,6 @@ public class TelegramService {
         post(url, body, headers);
     }
 
-
     public String authHelloUrl() {
         return publicBaseUrl.isBlank() ? "/auth/hello" : publicBaseUrl + "/auth/hello";
     }
@@ -183,7 +228,7 @@ public class TelegramService {
         Objects.requireNonNull(accounts, "accounts must not be null");
 
         if (accounts.isEmpty()) {
-            sendMessage(chatId, "No accounts available for this user.");
+            sendMessageWithKey(chatId, "NoAccountsAvailable");
             return;
         }
 
@@ -212,7 +257,7 @@ public class TelegramService {
 
         if (end < accounts.size()) {
             rows.add(List.of(Map.of(
-                    "text", "Show more",
+                    "text", translate(chatId, KEY_SHOW_MORE),
                     "callback_data", CALLBACK_SHOW_MORE_PREFIX + end)));
         }
 
@@ -223,7 +268,7 @@ public class TelegramService {
         Map<String, Object> replyMarkup = Map.of("inline_keyboard", rows);
         Map<String, Object> body = Map.of(
                 "chat_id", chatId,
-                "text", "Select an account:",
+                "text", translate(chatId, KEY_SELECT_ACCOUNT_PROMPT),
                 "reply_markup", replyMarkup);
 
         post(url, body, headers);
@@ -231,7 +276,7 @@ public class TelegramService {
 
     public void sendTroubleTicketCards(long chatId, List<TroubleTicketSummary> tickets) {
         if (tickets == null || tickets.isEmpty()) {
-            sendMessage(chatId, "No trouble tickets were found for this account.");
+            sendMessageWithKey(chatId, "NoTroubleTickets");
             return;
         }
 
@@ -240,14 +285,14 @@ public class TelegramService {
         headers.setContentType(MediaType.APPLICATION_JSON);
 
         for (TroubleTicketSummary ticket : tickets) {
-            String cardText = "Ticket #" + ticket.id()
-                    + "\nStatus: " + (ticket.status() == null || ticket.status().isBlank()
-                    ? "<unknown>"
-                    : ticket.status())
-                    + "\nDescription: " + ticket.descriptionOrFallback();
+            String status = (ticket.status() == null || ticket.status().isBlank())
+                    ? translate(chatId, "UnknownValue")
+                    : ticket.status().strip();
+            String cardText = format(chatId, "TicketCardText",
+                    ticket.id(), status, ticket.descriptionOrFallback());
 
             List<List<Map<String, Object>>> keyboard = List.of(List.of(Map.of(
-                    "text", "Select #" + ticket.id(),
+                    "text", format(chatId, "TicketSelectButton", ticket.id()),
                     "callback_data", CALLBACK_TROUBLE_TICKET_PREFIX + ticket.id())));
 
             Map<String, Object> body = Map.of(
@@ -259,9 +304,9 @@ public class TelegramService {
         }
     }
 
-    public void sendServiceCards(long chatId, List<com.selfservice.telegrambot.service.dto.ServiceSummary> services) {
+    public void sendServiceCards(long chatId, List<ServiceSummary> services) {
         if (services == null || services.isEmpty()) {
-            sendMessage(chatId, "No services were found for this account.");
+            sendMessageWithKey(chatId, "NoServicesFound");
             return;
         }
 
@@ -272,13 +317,13 @@ public class TelegramService {
         for (int i = 0; i < services.size(); i++) {
             var service = services.get(i);
             String name = (service.productName() == null || service.productName().isBlank())
-                    ? "<unknown service>"
+                    ? translate(chatId, "UnknownService")
                     : service.productName().strip();
             String number = (service.accessNumber() == null || service.accessNumber().isBlank())
-                    ? "<no access number>"
+                    ? translate(chatId, "NoAccessNumber")
                     : service.accessNumber().strip();
 
-            String cardText = "Product Name: " + name + "\nAccess Number: " + number;
+            String cardText = format(chatId, "ServiceCardText", name, number);
 
             List<List<Map<String, Object>>> keyboard = List.of(List.of(Map.of(
                     "text", number,
@@ -294,7 +339,6 @@ public class TelegramService {
     }
 
     private void post(String url, Map<String, Object> body, HttpHeaders headers) {
-        // Defensive null checks to satisfy static analysis
         Objects.requireNonNull(url, "url must not be null");
         if (headers == null)
             headers = new HttpHeaders();
@@ -315,5 +359,4 @@ public class TelegramService {
             log.error("Telegram API call failed", ex);
         }
     }
-
 }
