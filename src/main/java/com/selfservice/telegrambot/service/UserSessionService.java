@@ -15,13 +15,15 @@ public class UserSessionService {
 
     public static final class TokenInfo {
         public final String accessToken;
+        public final String refreshToken;
         public final long expiryEpochMs;
         public final List<AccountSummary> accounts;
         public final AccountSummary selectedAccount;
 
-        public TokenInfo(String accessToken, long expiryEpochMs, List<AccountSummary> accounts,
-                AccountSummary selectedAccount) {
+        public TokenInfo(String accessToken, String refreshToken, long expiryEpochMs,
+                List<AccountSummary> accounts, AccountSummary selectedAccount) {
             this.accessToken = accessToken;
+            this.refreshToken = refreshToken;
             this.expiryEpochMs = expiryEpochMs;
             this.accounts = accounts;
             this.selectedAccount = selectedAccount;
@@ -35,9 +37,9 @@ public class UserSessionService {
     private final Map<Long, List<TroubleTicketSummary>> ticketsByChat = new ConcurrentHashMap<>();
     private final Map<Long, String> languageByChat = new ConcurrentHashMap<>();
 
-    public void save(long chatId, String accessToken, long expiresInSeconds) {
+    public void save(long chatId, String accessToken, String refreshToken, long expiresInSeconds) {
         long exp = System.currentTimeMillis() + expiresInSeconds * 1000L;
-        byChat.put(chatId, new TokenInfo(accessToken, exp, Collections.emptyList(), null));
+        byChat.put(chatId, new TokenInfo(accessToken, refreshToken, exp, Collections.emptyList(), null));
         clearServices(chatId);
         clearTroubleTickets(chatId);
     }
@@ -68,7 +70,7 @@ public class UserSessionService {
                         .findFirst()
                         .orElse(null);
             }
-            return new TokenInfo(existing.accessToken, existing.expiryEpochMs, copy, selected);
+            return new TokenInfo(existing.accessToken, existing.refreshToken, existing.expiryEpochMs, copy, selected);
         });
     }
 
@@ -111,7 +113,8 @@ public class UserSessionService {
             if (matched == null) {
                 return existing;
             }
-            return new TokenInfo(existing.accessToken, existing.expiryEpochMs, existing.accounts, matched);
+            return new TokenInfo(existing.accessToken, existing.refreshToken, existing.expiryEpochMs, existing.accounts,
+                    matched);
         });
         clearServices(chatId);
         clearTroubleTickets(chatId);
@@ -125,7 +128,8 @@ public class UserSessionService {
             if (existing.selectedAccount == null) {
                 return existing;
             }
-            return new TokenInfo(existing.accessToken, existing.expiryEpochMs, existing.accounts, null);
+            return new TokenInfo(existing.accessToken, existing.refreshToken, existing.expiryEpochMs, existing.accounts,
+                    null);
         });
         clearServices(chatId);
         clearTroubleTickets(chatId);
@@ -160,6 +164,18 @@ public class UserSessionService {
         servicesByChat.remove(chatId);
         ticketsByChat.remove(chatId);
         languageByChat.remove(chatId);
+    }
+
+    public String getRefreshToken(long chatId) {
+        TokenInfo info = byChat.get(chatId);
+        if (info == null) {
+            return null;
+        }
+        if (info.expiryEpochMs <= System.currentTimeMillis() + 30_000) {
+            byChat.remove(chatId);
+            return null;
+        }
+        return info.refreshToken;
     }
 
     public String getLanguage(long chatId) {

@@ -73,9 +73,10 @@ public class OAuthCallbackController {
             // 3) Store token for this chat
             Object at = tokens.get("access_token");
             Object exp = tokens.get("expires_in");
+            Object rt = tokens.get("refresh_token");
             if (chatId > 0 && at instanceof String) {
                 long expSecs = (exp instanceof Number) ? ((Number) exp).longValue() : 300L;
-                sessions.save(chatId, (String) at, expSecs);
+                sessions.save(chatId, (String) at, rt instanceof String ? (String) rt : null, expSecs);
             }
 
             // 4) Immediately call APIMAN with the user token
