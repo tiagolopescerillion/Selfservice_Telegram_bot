@@ -90,22 +90,38 @@ public class TelegramWebhookController {
 
                 telegramService.answerCallbackQuery((String) callbackQuery.get("id"));
             } else {
-            
+
 
                 return ResponseEntity.ok().build();
 
             }
 
+            if (text.equals(telegramService.translate(chatId, TelegramService.KEY_BUTTON_HELLO_WORLD))) {
+                text = TelegramService.CALLBACK_HELLO_WORLD;
+            } else if (text.equals(telegramService.translate(chatId, TelegramService.KEY_BUTTON_HELLO_CERILLION))) {
+                text = TelegramService.CALLBACK_HELLO_CERILLION;
+            } else if (text.equals(telegramService.translate(chatId, TelegramService.KEY_BUTTON_TROUBLE_TICKET))) {
+                text = TelegramService.CALLBACK_TROUBLE_TICKET;
+            } else if (text.equals(telegramService.translate(chatId, TelegramService.KEY_BUTTON_SELECT_SERVICE))) {
+                text = TelegramService.CALLBACK_SELECT_SERVICE;
+            } else if (text.equals(telegramService.translate(chatId, TelegramService.KEY_BUTTON_MY_ISSUES))) {
+                text = TelegramService.CALLBACK_MY_ISSUES;
+            } else if (text.equals(telegramService.translate(chatId, TelegramService.KEY_BUTTON_SELF_SERVICE_LOGIN))) {
+                text = TelegramService.CALLBACK_SELF_SERVICE_LOGIN;
+            } else if (text.equals(telegramService.translate(chatId, TelegramService.KEY_BUTTON_DIRECT_LOGIN))) {
+                text = TelegramService.CALLBACK_DIRECT_LOGIN;
+            }
+
             String existingToken = userSessionService.getValidAccessToken(chatId);
             boolean hasValidToken = existingToken != null;
-            String loginReminder = "Please login using the \"" + TelegramService.BUTTON_SELF_SERVICE_LOGIN
-                    + "\" button to access this feature.";
+            String loginReminder = telegramService.format(chatId, "LoginReminder",
+                    telegramService.translate(chatId, TelegramService.KEY_BUTTON_SELF_SERVICE_LOGIN));
 
             if (text.startsWith(TelegramService.CALLBACK_SHOW_MORE_PREFIX)) {
                 int offset = parseIndex(text, TelegramService.CALLBACK_SHOW_MORE_PREFIX);
                 var accounts = userSessionService.getAccounts(chatId);
                 if (accounts.isEmpty()) {
-                    telegramService.sendMessage(chatId, "No stored accounts. Please login again.");
+                    telegramService.sendMessageWithKey(chatId, "NoStoredAccounts");
                     telegramService.sendLoginMenu(chatId, oauthLoginService.buildAuthUrl(chatId));
                 } else {
                     telegramService.sendAccountPage(chatId, accounts, offset);
@@ -113,12 +129,41 @@ public class TelegramWebhookController {
                 return ResponseEntity.ok().build();
             }
 
+            if (TelegramService.CALLBACK_LANGUAGE_MENU.equals(text)) {
+                telegramService.sendLanguageMenu(chatId);
+                return ResponseEntity.ok().build();
+            }
+
+            if (text.startsWith(TelegramService.CALLBACK_LANGUAGE_PREFIX)) {
+                String languageCode = text.substring(TelegramService.CALLBACK_LANGUAGE_PREFIX.length()).toLowerCase();
+                if (!telegramService.isSupportedLanguage(languageCode)) {
+                    telegramService.sendMessageWithKey(chatId, "LanguageNotSupported");
+                } else {
+                    userSessionService.setLanguage(chatId, languageCode);
+                    String languageLabelKey = switch (languageCode) {
+                        case "fr" -> "LanguageFrench";
+                        case "en" -> "LanguageEnglish";
+                        default -> "LanguageEnglish";
+                    };
+                    telegramService.sendMessageWithKey(chatId, "LanguageUpdated",
+                            telegramService.translate(chatId, languageLabelKey));
+                    if (hasValidToken && ensureAccountSelected(chatId)) {
+                        AccountSummary selected = userSessionService.getSelectedAccount(chatId);
+                        telegramService.sendLoggedInMenu(chatId, selected,
+                                userSessionService.getAccounts(chatId).size() > 1);
+                    } else {
+                        telegramService.sendLoginMenu(chatId, oauthLoginService.buildAuthUrl(chatId));
+                    }
+                }
+                return ResponseEntity.ok().build();
+            }
+
             if (text.startsWith(TelegramService.CALLBACK_TROUBLE_TICKET_PREFIX)) {
                 String ticketId = text.substring(TelegramService.CALLBACK_TROUBLE_TICKET_PREFIX.length()).trim();
                 if (ticketId.isEmpty()) {
-                    telegramService.sendMessage(chatId, "That ticket is no longer available.");
+                    telegramService.sendMessageWithKey(chatId, "TicketNoLongerAvailable");
                 } else {
-                    telegramService.sendMessage(chatId, "Ticket selected: #" + ticketId);
+                    telegramService.sendMessageWithKey(chatId, "TicketSelected", ticketId);
                 }
 
                 if (hasValidToken && ensureAccountSelected(chatId)) {
@@ -135,18 +180,16 @@ public class TelegramWebhookController {
                 int index = parseIndex(text, TelegramService.CALLBACK_SERVICE_PREFIX);
                 List<ServiceSummary> services = userSessionService.getServices(chatId);
                 if (services.isEmpty() || index < 0 || index >= services.size()) {
-                    telegramService.sendMessage(chatId,
-                            "That service is no longer available. Please request the list again.");
+                    telegramService.sendMessageWithKey(chatId, "ServiceNoLongerAvailable");
                 } else {
                     ServiceSummary selectedService = services.get(index);
                     String name = (selectedService.productName() == null || selectedService.productName().isBlank())
-                            ? "<unknown service>"
+                            ? telegramService.translate(chatId, "UnknownService")
                             : selectedService.productName().strip();
                     String number = (selectedService.accessNumber() == null || selectedService.accessNumber().isBlank())
-                            ? "<no access number>"
+                            ? telegramService.translate(chatId, "NoAccessNumber")
                             : selectedService.accessNumber().strip();
-                    telegramService.sendMessage(chatId,
-                            "Service selected:\n" + name + "\nAccess number: " + number);
+                    telegramService.sendMessageWithKey(chatId, "ServiceSelected", name, number);
                 }
 
                 if (hasValidToken && ensureAccountSelected(chatId)) {
@@ -163,13 +206,12 @@ public class TelegramWebhookController {
                 int index = parseIndex(text, TelegramService.CALLBACK_ACCOUNT_PREFIX);
                 var accounts = userSessionService.getAccounts(chatId);
                 if (accounts.isEmpty() || index < 0 || index >= accounts.size()) {
-                    telegramService.sendMessage(chatId, "Account selection expired. Please login again.");
+                    telegramService.sendMessageWithKey(chatId, "AccountSelectionExpired");
                     telegramService.sendLoginMenu(chatId, oauthLoginService.buildAuthUrl(chatId));
                 } else {
                     var selected = accounts.get(index);
                     userSessionService.selectAccount(chatId, selected);
-                    telegramService.sendMessage(chatId,
-                            "Selected account: " + selected.displayLabel());
+                    telegramService.sendMessageWithKey(chatId, "SelectedAccount", selected.displayLabel());
                     telegramService.sendLoggedInMenu(chatId, selected, accounts.size() > 1);
                 }
                 return ResponseEntity.ok().build();
@@ -179,11 +221,11 @@ public class TelegramWebhookController {
                 var accounts = userSessionService.getAccounts(chatId);
                 if (accounts.isEmpty()) {
                     userSessionService.clearSelectedAccount(chatId);
-                    telegramService.sendMessage(chatId, "No stored accounts. Please login again.");
+                    telegramService.sendMessageWithKey(chatId, "NoStoredAccounts");
                     telegramService.sendLoginMenu(chatId, oauthLoginService.buildAuthUrl(chatId));
                 } else {
                     userSessionService.clearSelectedAccount(chatId);
-                    telegramService.sendMessage(chatId, "Please choose an account to continue.");
+                    telegramService.sendMessageWithKey(chatId, "ChooseAccountToContinue");
                     telegramService.sendAccountPage(chatId, accounts, 0);
                 }
                 return ResponseEntity.ok().build();
@@ -191,14 +233,13 @@ public class TelegramWebhookController {
 
             switch (text) {
                 case TelegramService.CALLBACK_HELLO_WORLD:
-                case TelegramService.BUTTON_HELLO_WORLD:
                 case "1":
                     if (hasValidToken) {
                         if (!ensureAccountSelected(chatId)) {
                             break;
                         }
                         AccountSummary selected = userSessionService.getSelectedAccount(chatId);
-                        telegramService.sendMessage(chatId, "Hello World 👋");
+                        telegramService.sendMessageWithKey(chatId, "HelloWorldMessage");
                         telegramService.sendLoggedInMenu(chatId, selected,
                                 userSessionService.getAccounts(chatId).size() > 1);
                     } else {
@@ -207,14 +248,13 @@ public class TelegramWebhookController {
                     }
                     break;
                 case TelegramService.CALLBACK_HELLO_CERILLION:
-                case TelegramService.BUTTON_HELLO_CERILLION:
                 case "2":
                     if (hasValidToken) {
                         if (!ensureAccountSelected(chatId)) {
                             break;
                         }
                         AccountSummary selected = userSessionService.getSelectedAccount(chatId);
-                        telegramService.sendMessage(chatId, "Hello Cerillion 🚀");
+                        telegramService.sendMessageWithKey(chatId, "HelloCerillionMessage");
                         telegramService.sendLoggedInMenu(chatId, selected,
                                 userSessionService.getAccounts(chatId).size() > 1);
                     } else {
@@ -223,7 +263,6 @@ public class TelegramWebhookController {
                     }
                     break;
                 case TelegramService.CALLBACK_TROUBLE_TICKET:
-                case TelegramService.BUTTON_TROUBLE_TICKET:
                 case "5":
                     if (hasValidToken) {
                         if (!ensureAccountSelected(chatId)) {
@@ -231,8 +270,7 @@ public class TelegramWebhookController {
                         }
                         AccountSummary selected = userSessionService.getSelectedAccount(chatId);
                         String ticketInfo = troubleTicketService.callTroubleTicket(existingToken);
-                        telegramService.sendMessage(chatId,
-                                "🎫 Trouble ticket information:\n" + ticketInfo);
+                        telegramService.sendMessageWithKey(chatId, "TroubleTicketInformation", ticketInfo);
                         telegramService.sendLoggedInMenu(chatId, selected,
                                 userSessionService.getAccounts(chatId).size() > 1);
                     } else {
@@ -241,7 +279,6 @@ public class TelegramWebhookController {
                     }
                     break;
                 case TelegramService.CALLBACK_SELECT_SERVICE:
-                case TelegramService.BUTTON_SELECT_SERVICE:
                     if (hasValidToken) {
                         if (!ensureAccountSelected(chatId)) {
                             break;
@@ -251,20 +288,17 @@ public class TelegramWebhookController {
                                 .getMainServices(existingToken, selected.accountId());
                         if (services.hasError()) {
                             userSessionService.clearServices(chatId);
-                            telegramService.sendMessage(chatId,
-                                    "Unable to retrieve services: " + services.errorMessage());
+                            telegramService.sendMessageWithKey(chatId, "UnableToRetrieveServices", services.errorMessage());
                             telegramService.sendLoggedInMenu(chatId, selected,
                                     userSessionService.getAccounts(chatId).size() > 1);
                         } else if (services.services().isEmpty()) {
                             userSessionService.clearServices(chatId);
-                            telegramService.sendMessage(chatId,
-                                    "No services were found for account " + selected.accountId() + ".");
+                            telegramService.sendMessageWithKey(chatId, "NoServicesForAccount", selected.accountId());
                             telegramService.sendLoggedInMenu(chatId, selected,
                                     userSessionService.getAccounts(chatId).size() > 1);
                         } else {
                             userSessionService.saveServices(chatId, services.services());
-                            telegramService.sendMessage(chatId,
-                                    "Select a service below to continue.");
+                            telegramService.sendMessageWithKey(chatId, "SelectServicePrompt");
                             telegramService.sendServiceCards(chatId, services.services());
                         }
                     } else {
@@ -273,7 +307,6 @@ public class TelegramWebhookController {
                     }
                     break;
                 case TelegramService.CALLBACK_MY_ISSUES:
-                case TelegramService.BUTTON_MY_ISSUES:
                     if (hasValidToken) {
                         if (!ensureAccountSelected(chatId)) {
                             break;
@@ -282,18 +315,15 @@ public class TelegramWebhookController {
                         TroubleTicketListResult result = troubleTicketService
                                 .getTroubleTicketsByAccountId(existingToken, selected.accountId());
                         if (result.hasError()) {
-                            telegramService.sendMessage(chatId,
-                                    "Unable to retrieve trouble tickets: " + result.errorMessage());
+                            telegramService.sendMessageWithKey(chatId, "UnableToRetrieveTroubleTickets", result.errorMessage());
                             telegramService.sendLoggedInMenu(chatId, selected,
                                     userSessionService.getAccounts(chatId).size() > 1);
                         } else if (result.tickets().isEmpty()) {
-                            telegramService.sendMessage(chatId,
-                                    "No trouble tickets were found for account " + selected.accountId() + ".");
+                            telegramService.sendMessageWithKey(chatId, "NoTroubleTicketsForAccount", selected.accountId());
                             telegramService.sendLoggedInMenu(chatId, selected,
                                     userSessionService.getAccounts(chatId).size() > 1);
                         } else {
-                            telegramService.sendMessage(chatId,
-                                    "Select a ticket below to continue.");
+                            telegramService.sendMessageWithKey(chatId, "SelectTicketPrompt");
                             telegramService.sendTroubleTicketCards(chatId, result.tickets());
                         }
                     } else {
@@ -302,7 +332,6 @@ public class TelegramWebhookController {
                     }
                     break;
                 case TelegramService.CALLBACK_SELF_SERVICE_LOGIN:
-                case TelegramService.BUTTON_SELF_SERVICE_LOGIN:
                 case "3":
                     if (hasValidToken) {
                         if (!ensureAccountSelected(chatId)) {
@@ -310,39 +339,37 @@ public class TelegramWebhookController {
                         }
                         AccountSummary selected = userSessionService.getSelectedAccount(chatId);
                         String apiResult = troubleTicketService.callTroubleTicket(existingToken);
-                        telegramService.sendMessage(chatId, "Using existing login ✅\n\nAPIMAN trouble ticket result:\n" + apiResult);
+                        telegramService.sendMessageWithKey(chatId, "UsingExistingLogin", apiResult);
                         telegramService.sendLoggedInMenu(chatId, selected,
                                 userSessionService.getAccounts(chatId).size() > 1);
                     } else {
                         String loginUrl = oauthLoginService.buildAuthUrl(chatId);
                         log.info("Login URL for chat {}: {}", chatId, loginUrl);
                         telegramService.sendLoginMenu(chatId, loginUrl);
-                        telegramService.sendMessage(chatId, "Tap the login button above to continue.");
+                        telegramService.sendMessageWithKey(chatId, "TapLoginButton");
                     }
                     break;
                 case TelegramService.CALLBACK_DIRECT_LOGIN:
-                case TelegramService.BUTTON_DIRECT_LOGIN:
                 case "4":
                     // Step 1: Authenticate and get token
                     String token = null;
                     String authMessage;
                     try {
                         token = keycloakAuthService.getAccessToken();
-                        authMessage = "Auth OK ✅\nToken retrieved successfully.";
+                        authMessage = telegramService.translate(chatId, "AuthOk");
                     } catch (Exception e) {
-                        authMessage = "Auth ERROR ❌: " + e.getMessage();
+                        authMessage = telegramService.format(chatId, "AuthError", e.getMessage());
                     }
 
                     // Step 2: Call the external API using the token
-                    String apiResponse = "No API response.";
+                    String apiResponse = telegramService.translate(chatId, "NoApiResponse");
                     if (token != null) {
                         apiResponse = externalApiService.callTroubleTicketApi(token);
                     }
 
                     // Step 3: Combine and send to Telegram
-                    telegramService.sendMessage(chatId,
-                            authMessage + "\n\n" +
-                                    "External API result:\n" + apiResponse);
+                    String externalApiMessage = telegramService.format(chatId, "ExternalApiResult", apiResponse);
+                    telegramService.sendMessage(chatId, authMessage + "\n\n" + externalApiMessage);
                     telegramService.sendLoginMenu(chatId, oauthLoginService.buildAuthUrl(chatId));
                     break;
                 case "/start":
@@ -379,11 +406,11 @@ public class TelegramWebhookController {
         }
         var accounts = userSessionService.getAccounts(chatId);
         if (accounts.isEmpty()) {
-            telegramService.sendMessage(chatId, "No stored accounts. Please login again.");
+            telegramService.sendMessageWithKey(chatId, "NoStoredAccounts");
             telegramService.sendLoginMenu(chatId, oauthLoginService.buildAuthUrl(chatId));
             return false;
         }
-        telegramService.sendMessage(chatId, "Please select an account to continue.");
+        telegramService.sendMessageWithKey(chatId, "ChooseAccountToContinue");
         telegramService.sendAccountPage(chatId, accounts, 0);
         return false;
     }
