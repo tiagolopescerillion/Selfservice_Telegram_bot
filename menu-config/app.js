@@ -212,9 +212,8 @@ function downloadConfig() {
   });
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement("a");
-  const dateSuffix = new Date().toISOString().replace(/[:.]/g, "-");
   anchor.href = url;
-  anchor.download = `business-menu-${dateSuffix}.json`;
+  anchor.download = "business-menu.override.json";
   anchor.click();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }

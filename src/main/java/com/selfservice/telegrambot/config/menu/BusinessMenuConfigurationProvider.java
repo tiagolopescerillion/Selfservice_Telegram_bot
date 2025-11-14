@@ -3,40 +3,48 @@ package com.selfservice.telegrambot.config.menu;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.ResourceLoader;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Collections;
 import java.util.List;
-import java.util.Objects;
 
 @Component
 public class BusinessMenuConfigurationProvider {
     private static final Logger log = LoggerFactory.getLogger(BusinessMenuConfigurationProvider.class);
-    private static final String DEFAULT_RESOURCE = "classpath:config/business-menu.default.json";
+    private static final Path CONFIG_DIR = Paths.get("CONFIGURATIONS");
+    private static final Path DEFAULT_FILE = CONFIG_DIR.resolve("business-menu.default.json");
+    private static final Path OVERRIDE_FILE = CONFIG_DIR.resolve("business-menu.override.json");
+    private static final String PACKAGED_DEFAULT = "classpath:config/business-menu.default.json";
 
     private final List<BusinessMenuItem> menuItems;
 
     public BusinessMenuConfigurationProvider(
             ObjectMapper objectMapper,
-            ResourceLoader resourceLoader,
-            @Value("${business-menu.config-path:classpath:config/business-menu.default.json}") String configPath) {
+            ResourceLoader resourceLoader) {
 
-        List<BusinessMenuItem> loadedMenu = tryLoadMenu(configPath, objectMapper, resourceLoader);
-        String effectiveSource = configPath;
+        String effectiveSource = OVERRIDE_FILE.toString();
+        List<BusinessMenuItem> loadedMenu = tryLoadMenu(toFileResource(OVERRIDE_FILE), objectMapper, resourceLoader);
 
-        if (loadedMenu.isEmpty() && !Objects.equals(configPath, DEFAULT_RESOURCE)) {
-            log.warn("Falling back to default business menu configuration at {}", DEFAULT_RESOURCE);
-            loadedMenu = tryLoadMenu(DEFAULT_RESOURCE, objectMapper, resourceLoader);
-            effectiveSource = DEFAULT_RESOURCE;
+        if (loadedMenu.isEmpty()) {
+            effectiveSource = DEFAULT_FILE.toString();
+            log.info("Business menu override not found, falling back to {}", effectiveSource);
+            loadedMenu = tryLoadMenu(toFileResource(DEFAULT_FILE), objectMapper, resourceLoader);
         }
 
         if (loadedMenu.isEmpty()) {
-            throw new IllegalStateException("Business menu configuration could not be loaded from " + configPath);
+            effectiveSource = PACKAGED_DEFAULT;
+            log.warn("Business menu default file missing, loading packaged fallback {}", PACKAGED_DEFAULT);
+            loadedMenu = tryLoadMenu(PACKAGED_DEFAULT, objectMapper, resourceLoader);
+        }
+
+        if (loadedMenu.isEmpty()) {
+            throw new IllegalStateException("Business menu configuration could not be loaded from CONFIGURATIONS");
         }
 
         this.menuItems = Collections.unmodifiableList(loadedMenu);
@@ -69,5 +77,9 @@ public class BusinessMenuConfigurationProvider {
             log.debug("Failed to load business menu configuration", e);
             return List.of();
         }
+    }
+
+    private String toFileResource(Path path) {
+        return "file:" + path.toAbsolutePath();
     }
 }
