@@ -54,3 +54,19 @@ BUSINESS_MENU_CONFIG_PATH=file:/opt/selfservice/CONFIGURATIONS/business-menu.jso
 
 Once configured, the Telegram bot will render the buttons in the specified
 order, using the translation key or label you defined in the no-code tool.
+
+### Step-by-step: applying a custom layout
+
+1. Open the **Business Menu Builder** (see the “How to run it” section above)
+   and click **Download JSON** once you are happy with the menu.
+2. Copy the downloaded file to the server that runs the Telegram bot. The
+   default project keeps configuration files under `CONFIGURATIONS/`, but any
+   readable location on disk works.
+3. Tell the bot to read that file by setting the
+   `business-menu.config-path` property (or `BUSINESS_MENU_CONFIG_PATH`
+   environment variable) to the absolute path you just copied, e.g.
+   `file:/opt/selfservice/CONFIGURATIONS/business-menu.json`.
+4. Restart the application so Spring reloads the menu definition.
+
+If you later delete or rename the override file, the bot automatically falls
+back to the packaged default without requiring any other changes.
