@@ -3,6 +3,8 @@ package com.selfservice.telegrambot.service;
 import com.selfservice.application.dto.AccountSummary;
 import com.selfservice.application.dto.ServiceSummary;
 import com.selfservice.application.dto.TroubleTicketSummary;
+import com.selfservice.telegrambot.config.menu.BusinessMenuConfigurationProvider;
+import com.selfservice.telegrambot.config.menu.BusinessMenuItem;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -59,12 +61,14 @@ public class TelegramService {
     private final String publicBaseUrl;
     private final TranslationService translationService;
     private final UserSessionService userSessionService;
+    private final BusinessMenuConfigurationProvider menuConfigurationProvider;
 
     public TelegramService(
             @Value("${telegram.bot.token}") String token,
             @Value("${app.public-base-url:}") String publicBaseUrl,
             TranslationService translationService,
-            UserSessionService userSessionService) {
+            UserSessionService userSessionService,
+            BusinessMenuConfigurationProvider menuConfigurationProvider) {
 
         String nonNullToken = Objects.requireNonNull(
                 token, "telegram.bot.token must be set in configuration");
@@ -73,6 +77,7 @@ public class TelegramService {
         this.publicBaseUrl = (publicBaseUrl == null) ? "" : publicBaseUrl;
         this.translationService = translationService;
         this.userSessionService = userSessionService;
+        this.menuConfigurationProvider = menuConfigurationProvider;
 
         String masked = this.baseUrl.replaceFirst("/bot[^/]+", "/bot<token>");
         log.info("Telegram baseUrl set to {}", masked);
@@ -155,21 +160,11 @@ public class TelegramService {
         headers.setContentType(MediaType.APPLICATION_JSON);
 
         List<List<Map<String, Object>>> keyboard = new ArrayList<>();
-        keyboard.add(List.of(Map.of(
-                "text", translate(chatId, KEY_BUTTON_HELLO_WORLD),
-                "callback_data", CALLBACK_HELLO_WORLD)));
-        keyboard.add(List.of(Map.of(
-                "text", translate(chatId, KEY_BUTTON_HELLO_CERILLION),
-                "callback_data", CALLBACK_HELLO_CERILLION)));
-        keyboard.add(List.of(Map.of(
-                "text", translate(chatId, KEY_BUTTON_TROUBLE_TICKET),
-                "callback_data", CALLBACK_TROUBLE_TICKET)));
-        keyboard.add(List.of(Map.of(
-                "text", translate(chatId, KEY_BUTTON_SELECT_SERVICE),
-                "callback_data", CALLBACK_SELECT_SERVICE)));
-        keyboard.add(List.of(Map.of(
-                "text", translate(chatId, KEY_BUTTON_MY_ISSUES),
-                "callback_data", CALLBACK_MY_ISSUES)));
+        for (BusinessMenuItem item : menuConfigurationProvider.getMenuItems()) {
+            keyboard.add(List.of(Map.of(
+                    "text", resolveMenuLabel(chatId, item),
+                    "callback_data", resolveCallback(item))));
+        }
         if (showChangeAccountOption) {
             keyboard.add(List.of(Map.of(
                     "text", translate(chatId, KEY_BUTTON_CHANGE_ACCOUNT),
@@ -223,6 +218,23 @@ public class TelegramService {
                 "reply_markup", replyMarkup);
 
         post(url, body, headers);
+    }
+
+    private String resolveMenuLabel(long chatId, BusinessMenuItem item) {
+        if (item.translationKey() != null && !item.translationKey().isBlank()) {
+            return translate(chatId, item.translationKey());
+        }
+        if (item.label() != null && !item.label().isBlank()) {
+            return item.label();
+        }
+        return item.function();
+    }
+
+    private String resolveCallback(BusinessMenuItem item) {
+        if (item.callbackData() != null && !item.callbackData().isBlank()) {
+            return item.callbackData();
+        }
+        return item.function();
     }
 
     public void answerCallbackQuery(String callbackQueryId) {

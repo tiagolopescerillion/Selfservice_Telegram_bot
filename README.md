@@ -29,3 +29,28 @@ business menu without touching the Java source.
 The default configuration file used by the tool lives at
 `CONFIGURATIONS/business-menu.default.json` and represents the same order the
 Telegram bot ships with today.
+
+### Wiring the generated configuration into the Telegram bot
+
+The Java application now reads the business menu layout from a JSON file at
+startup. By default it falls back to the baked-in resource
+`classpath:config/business-menu.default.json`, which mirrors the hard-coded
+order, so existing deployments keep their current behaviour.
+
+To override the menu, point the `business-menu.config-path` property to the file
+exported by the web app. Any Spring-supported location works:
+
+```properties
+# application.properties
+business-menu.config-path=file:/opt/selfservice/CONFIGURATIONS/business-menu.json
+```
+
+Or via an environment variable:
+
+```bash
+BUSINESS_MENU_CONFIG_PATH=file:/opt/selfservice/CONFIGURATIONS/business-menu.json \
+  java -jar selfservice-telegram-bot.jar
+```
+
+Once configured, the Telegram bot will render the buttons in the specified
+order, using the translation key or label you defined in the no-code tool.
