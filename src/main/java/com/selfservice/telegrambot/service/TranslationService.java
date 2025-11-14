@@ -74,6 +74,20 @@ public class TranslationService {
         return key;
     }
 
+    public boolean hasTranslation(String language, String key) {
+        if (key == null || key.isBlank()) {
+            return false;
+        }
+        if (language != null) {
+            Map<String, String> map = translations.get(language);
+            if (map != null && map.containsKey(key)) {
+                return true;
+            }
+        }
+        Map<String, String> defaultMap = translations.get(DEFAULT_LANGUAGE);
+        return defaultMap != null && defaultMap.containsKey(key);
+    }
+
     public String format(String language, String key, Object... args) {
         String template = get(language, key);
         Locale locale = Locale.forLanguageTag(language == null ? DEFAULT_LANGUAGE : language);

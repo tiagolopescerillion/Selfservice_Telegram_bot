@@ -1,0 +1,52 @@
+{
+  "version": 1,
+  "generatedAt": "2024-01-01T00:00:00.000Z",
+  "menus": [
+    {
+      "id": "home",
+      "name": "Home",
+      "items": [
+        {
+          "order": 1,
+          "label": "Hello World",
+          "function": "HELLO_WORLD",
+          "callbackData": "HELLO_WORLD",
+          "translationKey": "ButtonHelloWorld",
+          "submenuId": null
+        },
+        {
+          "order": 2,
+          "label": "Hello Cerillion",
+          "function": "HELLO_CERILLION",
+          "callbackData": "HELLO_CERILLION",
+          "translationKey": "ButtonHelloCerillion",
+          "submenuId": null
+        },
+        {
+          "order": 3,
+          "label": "Trouble Ticket",
+          "function": "VIEW_TROUBLE_TICKET",
+          "callbackData": "VIEW_TROUBLE_TICKET",
+          "translationKey": "ButtonTroubleTicket",
+          "submenuId": null
+        },
+        {
+          "order": 4,
+          "label": "Select a Service",
+          "function": "SELECT_SERVICE",
+          "callbackData": "SELECT_SERVICE",
+          "translationKey": "ButtonSelectService",
+          "submenuId": null
+        },
+        {
+          "order": 5,
+          "label": "My Issues",
+          "function": "MY_ISSUES",
+          "callbackData": "MY_ISSUES",
+          "translationKey": "ButtonMyIssues",
+          "submenuId": null
+        }
+      ]
+    }
+  ]
+}

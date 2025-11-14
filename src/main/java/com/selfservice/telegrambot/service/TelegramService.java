@@ -3,6 +3,8 @@ package com.selfservice.telegrambot.service;
 import com.selfservice.application.dto.AccountSummary;
 import com.selfservice.application.dto.ServiceSummary;
 import com.selfservice.application.dto.TroubleTicketSummary;
+import com.selfservice.telegrambot.config.menu.BusinessMenuConfigurationProvider;
+import com.selfservice.telegrambot.config.menu.BusinessMenuItem;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -33,6 +35,8 @@ public class TelegramService {
     public static final String KEY_BUTTON_CHANGE_ACCOUNT = "ButtonChangeAccount";
     public static final String KEY_BUTTON_CHANGE_LANGUAGE = "ButtonChangeLanguage";
     public static final String KEY_BUTTON_LOGOUT = "ButtonLogout";
+    public static final String KEY_BUTTON_BUSINESS_MENU_HOME = "BusinessMenuHome";
+    public static final String KEY_BUTTON_BUSINESS_MENU_UP = "BusinessMenuUp";
     public static final String KEY_SHOW_MORE = "ShowMore";
     public static final String KEY_SELECT_ACCOUNT_PROMPT = "SelectAccountPrompt";
 
@@ -53,18 +57,23 @@ public class TelegramService {
     public static final String CALLBACK_SHOW_MORE_ACCOUNTS_PREFIX = "SHOW_MORE_ACCOUNTS:";
     public static final String CALLBACK_SHOW_MORE_SERVICES_PREFIX = "SHOW_MORE_SERVICES:";
     public static final String CALLBACK_SHOW_MORE_TICKETS_PREFIX = "SHOW_MORE_TICKETS:";
+    public static final String CALLBACK_BUSINESS_MENU_HOME = "BUSINESS_MENU_HOME";
+    public static final String CALLBACK_BUSINESS_MENU_UP = "BUSINESS_MENU_UP";
+    public static final String CALLBACK_BUSINESS_MENU_PREFIX = "BUSINESS_MENU:";
 
     private final RestTemplate rest = new RestTemplate();
     private final String baseUrl;
     private final String publicBaseUrl;
     private final TranslationService translationService;
     private final UserSessionService userSessionService;
+    private final BusinessMenuConfigurationProvider menuConfigurationProvider;
 
     public TelegramService(
             @Value("${telegram.bot.token}") String token,
             @Value("${app.public-base-url:}") String publicBaseUrl,
             TranslationService translationService,
-            UserSessionService userSessionService) {
+            UserSessionService userSessionService,
+            BusinessMenuConfigurationProvider menuConfigurationProvider) {
 
         String nonNullToken = Objects.requireNonNull(
                 token, "telegram.bot.token must be set in configuration");
@@ -73,6 +82,7 @@ public class TelegramService {
         this.publicBaseUrl = (publicBaseUrl == null) ? "" : publicBaseUrl;
         this.translationService = translationService;
         this.userSessionService = userSessionService;
+        this.menuConfigurationProvider = menuConfigurationProvider;
 
         String masked = this.baseUrl.replaceFirst("/bot[^/]+", "/bot<token>");
         log.info("Telegram baseUrl set to {}", masked);
@@ -155,21 +165,31 @@ public class TelegramService {
         headers.setContentType(MediaType.APPLICATION_JSON);
 
         List<List<Map<String, Object>>> keyboard = new ArrayList<>();
-        keyboard.add(List.of(Map.of(
-                "text", translate(chatId, KEY_BUTTON_HELLO_WORLD),
-                "callback_data", CALLBACK_HELLO_WORLD)));
-        keyboard.add(List.of(Map.of(
-                "text", translate(chatId, KEY_BUTTON_HELLO_CERILLION),
-                "callback_data", CALLBACK_HELLO_CERILLION)));
-        keyboard.add(List.of(Map.of(
-                "text", translate(chatId, KEY_BUTTON_TROUBLE_TICKET),
-                "callback_data", CALLBACK_TROUBLE_TICKET)));
-        keyboard.add(List.of(Map.of(
-                "text", translate(chatId, KEY_BUTTON_SELECT_SERVICE),
-                "callback_data", CALLBACK_SELECT_SERVICE)));
-        keyboard.add(List.of(Map.of(
-                "text", translate(chatId, KEY_BUTTON_MY_ISSUES),
-                "callback_data", CALLBACK_MY_ISSUES)));
+        String menuId = resolveCurrentMenuId(chatId);
+        List<BusinessMenuItem> menuItems = menuConfigurationProvider.getMenuItems(menuId);
+        for (BusinessMenuItem item : menuItems) {
+            if (item.isSubMenu() && !menuConfigurationProvider.menuExists(item.submenuId())) {
+                log.warn("Chat {} attempted to render missing submenu {}", chatId, item.submenuId());
+                continue;
+            }
+            keyboard.add(List.of(Map.of(
+                    "text", resolveMenuLabel(chatId, item),
+                    "callback_data", resolveCallback(item))));
+        }
+
+        int depth = userSessionService.getBusinessMenuDepth(chatId, menuConfigurationProvider.getRootMenuId());
+        if (depth >= 1) {
+            List<Map<String, Object>> navigationRow = new ArrayList<>();
+            navigationRow.add(Map.of(
+                    "text", translate(chatId, KEY_BUTTON_BUSINESS_MENU_HOME),
+                    "callback_data", CALLBACK_BUSINESS_MENU_HOME));
+            if (depth >= 2) {
+                navigationRow.add(Map.of(
+                        "text", translate(chatId, KEY_BUTTON_BUSINESS_MENU_UP),
+                        "callback_data", CALLBACK_BUSINESS_MENU_UP));
+            }
+            keyboard.add(navigationRow);
+        }
         if (showChangeAccountOption) {
             keyboard.add(List.of(Map.of(
                     "text", translate(chatId, KEY_BUTTON_CHANGE_ACCOUNT),
@@ -223,6 +243,55 @@ public class TelegramService {
                 "reply_markup", replyMarkup);
 
         post(url, body, headers);
+    }
+
+    private String resolveMenuLabel(long chatId, BusinessMenuItem item) {
+        String translationKey = item.translationKey();
+        if (translationKey != null
+                && !translationKey.isBlank()
+                && translationService.hasTranslation(language(chatId), translationKey)) {
+            return translate(chatId, translationKey);
+        }
+        if (item.label() != null && !item.label().isBlank()) {
+            return item.label();
+        }
+        return item.function();
+    }
+
+    private String resolveCallback(BusinessMenuItem item) {
+        if (item.callbackData() != null && !item.callbackData().isBlank()) {
+            return item.callbackData();
+        }
+        if (item.isSubMenu()) {
+            return CALLBACK_BUSINESS_MENU_PREFIX + item.submenuId();
+        }
+        return item.function();
+    }
+
+    private String resolveCurrentMenuId(long chatId) {
+        String menuId = userSessionService.currentBusinessMenu(chatId, menuConfigurationProvider.getRootMenuId());
+        if (!menuConfigurationProvider.menuExists(menuId)) {
+            log.warn("Chat {} had stale menu id {}, resetting to root", chatId, menuId);
+            userSessionService.resetBusinessMenu(chatId, menuConfigurationProvider.getRootMenuId());
+            menuId = menuConfigurationProvider.getRootMenuId();
+        }
+        return menuId;
+    }
+
+    public boolean goToBusinessMenu(long chatId, String menuId) {
+        if (menuId == null || menuId.isBlank() || !menuConfigurationProvider.menuExists(menuId)) {
+            return false;
+        }
+        userSessionService.enterBusinessMenu(chatId, menuId, menuConfigurationProvider.getRootMenuId());
+        return true;
+    }
+
+    public void goHomeBusinessMenu(long chatId) {
+        userSessionService.resetBusinessMenu(chatId, menuConfigurationProvider.getRootMenuId());
+    }
+
+    public boolean goUpBusinessMenu(long chatId) {
+        return userSessionService.goUpBusinessMenu(chatId, menuConfigurationProvider.getRootMenuId());
     }
 
     public void answerCallbackQuery(String callbackQueryId) {
