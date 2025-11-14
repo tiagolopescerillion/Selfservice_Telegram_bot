@@ -30,8 +30,9 @@ sub-menus—without touching the Java source.
 - Toggle the **Use built-in translation** switch per function button to either
   keep the localized label or force the exact custom text you typed.
 - Import an existing JSON configuration file for further adjustments.
-- Download a ready-to-use JSON file. Rename it to
-  `business-menu.override.json` and copy it to the
+- Download a ready-to-use JSON file. The download is already named
+  `business-menu.override.json` (older screenshots may still show a
+  timestamped `business-menu-*.json`). Copy it to the
   `CONFIGURATIONS/` folder alongside the Telegram bot to override the menu.
 
 The default configuration file used by the tool lives at
@@ -46,7 +47,10 @@ define the order and labels of the logged-in menu. If it is missing, unreadable,
 or empty, the bot automatically falls back to
 `CONFIGURATIONS/business-menu.default.json`. As a last resort it will use the
 packaged resource at `classpath:config/business-menu.default.json`, which keeps
-the legacy hard-coded order alive.
+the legacy hard-coded order alive. This loading chain lives in
+`BusinessMenuConfigurationProvider`, and `TelegramService.sendLoggedInMenu`
+builds every inline keyboard by calling that provider so your exported
+configuration always drives the live experience after a restart.
 
 ### Step-by-step: applying a custom layout
 
