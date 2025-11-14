@@ -130,13 +130,32 @@ button:disabled {
 
 .menu-item {
     display: grid;
-    grid-template-columns: 2fr 1.5fr auto;
+    grid-template-columns: 2fr 1.5fr 2fr auto;
     gap: 0.75rem;
     align-items: center;
     padding: 0.75rem;
     border-radius: 0.75rem;
     border: 1px solid var(--border);
     background: var(--accent-light);
+}
+
+.translation-toggle {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.translation-checkbox {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-weight: 600;
+}
+
+.translation-toggle p {
+    margin: 0;
+    font-size: 0.85rem;
+    color: #475569;
 }
 
 .menu-item input[type="text"],
@@ -194,6 +213,10 @@ button:disabled {
 
     .menu-item {
         grid-template-columns: 1fr;
+    }
+
+    .translation-toggle {
+        order: 3;
     }
 
     .menu-item-actions {

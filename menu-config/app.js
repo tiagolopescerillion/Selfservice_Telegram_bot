@@ -37,11 +37,11 @@ const FUNCTION_OPTIONS = [
 ];
 
 const DEFAULT_MENU = [
-  { label: "Hello World", function: "HELLO_WORLD" },
-  { label: "Hello Cerillion", function: "HELLO_CERILLION" },
-  { label: "Trouble Ticket", function: "VIEW_TROUBLE_TICKET" },
-  { label: "Select a Service", function: "SELECT_SERVICE" },
-  { label: "My Issues", function: "MY_ISSUES" }
+  { label: "Hello World", function: "HELLO_WORLD", useTranslation: true },
+  { label: "Hello Cerillion", function: "HELLO_CERILLION", useTranslation: true },
+  { label: "Trouble Ticket", function: "VIEW_TROUBLE_TICKET", useTranslation: true },
+  { label: "Select a Service", function: "SELECT_SERVICE", useTranslation: true },
+  { label: "My Issues", function: "MY_ISSUES", useTranslation: true }
 ];
 
 const functionDictionary = FUNCTION_OPTIONS.reduce((acc, option) => {
@@ -111,6 +111,28 @@ function renderMenu() {
     });
     functionWrapper.append(functionDropdown);
 
+    const translationToggle = document.createElement("div");
+    translationToggle.className = "translation-toggle";
+
+    const translationLabel = document.createElement("label");
+    translationLabel.className = "translation-checkbox";
+    const translationCheckbox = document.createElement("input");
+    translationCheckbox.type = "checkbox";
+    translationCheckbox.checked = Boolean(item.useTranslation);
+    translationCheckbox.addEventListener("change", (event) => {
+      menuItems[index].useTranslation = event.target.checked;
+      updatePreview();
+    });
+    const checkboxText = document.createElement("span");
+    checkboxText.textContent = "Use built-in translation";
+    translationLabel.append(translationCheckbox, checkboxText);
+
+    const translationHint = document.createElement("p");
+    translationHint.textContent =
+      "Keeps the original multilingual text for this function. Turn it off to always display the custom label.";
+
+    translationToggle.append(translationLabel, translationHint);
+
     const actions = document.createElement("div");
     actions.className = "menu-item-actions";
 
@@ -135,7 +157,7 @@ function renderMenu() {
     deleteButton.addEventListener("click", () => deleteItem(index));
 
     actions.append(upButton, downButton, deleteButton);
-    row.append(labelWrapper, functionWrapper, actions);
+    row.append(labelWrapper, functionWrapper, translationToggle, actions);
     menuContainer.append(row);
   });
 
@@ -165,7 +187,7 @@ addItemForm.addEventListener("submit", (event) => {
   if (!label || !func) {
     return;
   }
-  menuItems.push({ label, function: func });
+  menuItems.push({ label, function: func, useTranslation: false });
   nameInput.value = "";
   functionSelect.selectedIndex = 0;
   renderMenu();
@@ -190,7 +212,8 @@ function buildConfig() {
         label: item.label,
         function: item.function,
         callbackData: meta?.callbackData ?? item.function,
-        translationKey: meta?.translationKey ?? null
+        translationKey:
+          item.useTranslation && meta?.translationKey ? meta.translationKey : null
       };
     })
   };
@@ -246,7 +269,8 @@ importInput.addEventListener("change", (event) => {
         .filter((item) => functionDictionary[item.function])
         .map((item) => ({
           label: item.label ?? functionDictionary[item.function].label,
-          function: item.function
+          function: item.function,
+          useTranslation: Boolean(item.translationKey)
         }));
       if (!mapped.length) {
         throw new Error("The configuration file did not contain valid menu entries.");

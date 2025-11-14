@@ -21,6 +21,8 @@ business menu without touching the Java source.
 - Start from the default configuration that mirrors the menu currently hard
   coded inside `TelegramService`.
 - Edit labels, reorder items, or assign different functions from the dropdown.
+- Toggle the **Use built-in translation** switch per item to either keep the
+  localized label or force the exact custom text you typed.
 - Import an existing JSON configuration file for further adjustments.
 - Download a ready-to-use JSON file. Rename it to
   `business-menu.override.json` and copy it to the
@@ -42,8 +44,10 @@ the legacy hard-coded order alive.
 
 ### Step-by-step: applying a custom layout
 
-1. Open the **Business Menu Builder** (see the “How to run it” section above)
-   and click **Download JSON** once you are happy with the menu.
+1. Open the **Business Menu Builder** (see the “How to run it” section above),
+   adjust the labels/functions, and uncheck **Use built-in translation** for any
+   button that should always display the custom text instead of the translated
+   label. Click **Download JSON** once you are happy with the menu.
 2. Rename the downloaded file to `business-menu.override.json`.
 3. Copy that file into the `CONFIGURATIONS/` directory that sits next to the
    Telegram bot jar.

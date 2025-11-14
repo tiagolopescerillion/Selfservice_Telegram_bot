@@ -221,8 +221,11 @@ public class TelegramService {
     }
 
     private String resolveMenuLabel(long chatId, BusinessMenuItem item) {
-        if (item.translationKey() != null && !item.translationKey().isBlank()) {
-            return translate(chatId, item.translationKey());
+        String translationKey = item.translationKey();
+        if (translationKey != null
+                && !translationKey.isBlank()
+                && translationService.hasTranslation(language(chatId), translationKey)) {
+            return translate(chatId, translationKey);
         }
         if (item.label() != null && !item.label().isBlank()) {
             return item.label();
