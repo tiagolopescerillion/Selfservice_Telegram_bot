@@ -9,6 +9,7 @@ import java.util.List;
 public class BusinessMenuConfiguration {
     private int version;
     private String generatedAt;
+    private List<BusinessMenuDefinition> menus;
     private List<BusinessMenuItem> menu;
 
     public int getVersion() {
@@ -27,6 +28,14 @@ public class BusinessMenuConfiguration {
         this.generatedAt = generatedAt;
     }
 
+    public List<BusinessMenuDefinition> getMenus() {
+        return menus;
+    }
+
+    public void setMenus(List<BusinessMenuDefinition> menus) {
+        this.menus = menus;
+    }
+
     public List<BusinessMenuItem> getMenu() {
         return menu;
     }
@@ -35,12 +44,19 @@ public class BusinessMenuConfiguration {
         this.menu = menu;
     }
 
-    public List<BusinessMenuItem> sortedMenuItems() {
-        if (menu == null) {
+    public List<BusinessMenuDefinition> normalizedMenus() {
+        if (menus != null && !menus.isEmpty()) {
+            return menus;
+        }
+        if (menu == null || menu.isEmpty()) {
             return List.of();
         }
-        return menu.stream()
+        BusinessMenuDefinition root = new BusinessMenuDefinition();
+        root.setId(BusinessMenuDefinition.ROOT_MENU_ID);
+        root.setName("Home");
+        root.setItems(menu.stream()
                 .sorted(Comparator.comparingInt(BusinessMenuItem::order))
-                .toList();
+                .toList());
+        return List.of(root);
     }
 }

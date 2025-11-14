@@ -35,6 +35,8 @@ public class TelegramService {
     public static final String KEY_BUTTON_CHANGE_ACCOUNT = "ButtonChangeAccount";
     public static final String KEY_BUTTON_CHANGE_LANGUAGE = "ButtonChangeLanguage";
     public static final String KEY_BUTTON_LOGOUT = "ButtonLogout";
+    public static final String KEY_BUTTON_BUSINESS_MENU_HOME = "BusinessMenuHome";
+    public static final String KEY_BUTTON_BUSINESS_MENU_UP = "BusinessMenuUp";
     public static final String KEY_SHOW_MORE = "ShowMore";
     public static final String KEY_SELECT_ACCOUNT_PROMPT = "SelectAccountPrompt";
 
@@ -55,6 +57,9 @@ public class TelegramService {
     public static final String CALLBACK_SHOW_MORE_ACCOUNTS_PREFIX = "SHOW_MORE_ACCOUNTS:";
     public static final String CALLBACK_SHOW_MORE_SERVICES_PREFIX = "SHOW_MORE_SERVICES:";
     public static final String CALLBACK_SHOW_MORE_TICKETS_PREFIX = "SHOW_MORE_TICKETS:";
+    public static final String CALLBACK_BUSINESS_MENU_HOME = "BUSINESS_MENU_HOME";
+    public static final String CALLBACK_BUSINESS_MENU_UP = "BUSINESS_MENU_UP";
+    public static final String CALLBACK_BUSINESS_MENU_PREFIX = "BUSINESS_MENU:";
 
     private final RestTemplate rest = new RestTemplate();
     private final String baseUrl;
@@ -160,10 +165,30 @@ public class TelegramService {
         headers.setContentType(MediaType.APPLICATION_JSON);
 
         List<List<Map<String, Object>>> keyboard = new ArrayList<>();
-        for (BusinessMenuItem item : menuConfigurationProvider.getMenuItems()) {
+        String menuId = resolveCurrentMenuId(chatId);
+        List<BusinessMenuItem> menuItems = menuConfigurationProvider.getMenuItems(menuId);
+        for (BusinessMenuItem item : menuItems) {
+            if (item.isSubMenu() && !menuConfigurationProvider.menuExists(item.submenuId())) {
+                log.warn("Chat {} attempted to render missing submenu {}", chatId, item.submenuId());
+                continue;
+            }
             keyboard.add(List.of(Map.of(
                     "text", resolveMenuLabel(chatId, item),
                     "callback_data", resolveCallback(item))));
+        }
+
+        int depth = userSessionService.getBusinessMenuDepth(chatId, menuConfigurationProvider.getRootMenuId());
+        if (depth >= 1) {
+            List<Map<String, Object>> navigationRow = new ArrayList<>();
+            navigationRow.add(Map.of(
+                    "text", translate(chatId, KEY_BUTTON_BUSINESS_MENU_HOME),
+                    "callback_data", CALLBACK_BUSINESS_MENU_HOME));
+            if (depth >= 2) {
+                navigationRow.add(Map.of(
+                        "text", translate(chatId, KEY_BUTTON_BUSINESS_MENU_UP),
+                        "callback_data", CALLBACK_BUSINESS_MENU_UP));
+            }
+            keyboard.add(navigationRow);
         }
         if (showChangeAccountOption) {
             keyboard.add(List.of(Map.of(
@@ -237,7 +262,36 @@ public class TelegramService {
         if (item.callbackData() != null && !item.callbackData().isBlank()) {
             return item.callbackData();
         }
+        if (item.isSubMenu()) {
+            return CALLBACK_BUSINESS_MENU_PREFIX + item.submenuId();
+        }
         return item.function();
+    }
+
+    private String resolveCurrentMenuId(long chatId) {
+        String menuId = userSessionService.currentBusinessMenu(chatId, menuConfigurationProvider.getRootMenuId());
+        if (!menuConfigurationProvider.menuExists(menuId)) {
+            log.warn("Chat {} had stale menu id {}, resetting to root", chatId, menuId);
+            userSessionService.resetBusinessMenu(chatId, menuConfigurationProvider.getRootMenuId());
+            menuId = menuConfigurationProvider.getRootMenuId();
+        }
+        return menuId;
+    }
+
+    public boolean goToBusinessMenu(long chatId, String menuId) {
+        if (menuId == null || menuId.isBlank() || !menuConfigurationProvider.menuExists(menuId)) {
+            return false;
+        }
+        userSessionService.enterBusinessMenu(chatId, menuId, menuConfigurationProvider.getRootMenuId());
+        return true;
+    }
+
+    public void goHomeBusinessMenu(long chatId) {
+        userSessionService.resetBusinessMenu(chatId, menuConfigurationProvider.getRootMenuId());
+    }
+
+    public boolean goUpBusinessMenu(long chatId) {
+        return userSessionService.goUpBusinessMenu(chatId, menuConfigurationProvider.getRootMenuId());
     }
 
     public void answerCallbackQuery(String callbackQueryId) {

@@ -118,6 +118,45 @@ public class TelegramWebhookController {
             String loginReminder = telegramService.format(chatId, "LoginReminder",
                     telegramService.translate(chatId, TelegramService.KEY_BUTTON_SELF_SERVICE_LOGIN));
 
+            if (text.equals(TelegramService.CALLBACK_BUSINESS_MENU_HOME)) {
+                telegramService.goHomeBusinessMenu(chatId);
+                if (hasValidToken && ensureAccountSelected(chatId)) {
+                    AccountSummary selected = userSessionService.getSelectedAccount(chatId);
+                    telegramService.sendLoggedInMenu(chatId, selected,
+                            userSessionService.getAccounts(chatId).size() > 1);
+                } else {
+                    telegramService.sendLoginMenu(chatId, oauthSessionService.buildAuthUrl(chatId));
+                }
+                return ResponseEntity.ok().build();
+            }
+
+            if (text.equals(TelegramService.CALLBACK_BUSINESS_MENU_UP)) {
+                telegramService.goUpBusinessMenu(chatId);
+                if (hasValidToken && ensureAccountSelected(chatId)) {
+                    AccountSummary selected = userSessionService.getSelectedAccount(chatId);
+                    telegramService.sendLoggedInMenu(chatId, selected,
+                            userSessionService.getAccounts(chatId).size() > 1);
+                } else {
+                    telegramService.sendLoginMenu(chatId, oauthSessionService.buildAuthUrl(chatId));
+                }
+                return ResponseEntity.ok().build();
+            }
+
+            if (text.startsWith(TelegramService.CALLBACK_BUSINESS_MENU_PREFIX)) {
+                String menuId = text.substring(TelegramService.CALLBACK_BUSINESS_MENU_PREFIX.length()).trim();
+                if (!telegramService.goToBusinessMenu(chatId, menuId)) {
+                    telegramService.sendMessageWithKey(chatId, "BusinessMenuUnavailable");
+                }
+                if (hasValidToken && ensureAccountSelected(chatId)) {
+                    AccountSummary selected = userSessionService.getSelectedAccount(chatId);
+                    telegramService.sendLoggedInMenu(chatId, selected,
+                            userSessionService.getAccounts(chatId).size() > 1);
+                } else {
+                    telegramService.sendLoginMenu(chatId, oauthSessionService.buildAuthUrl(chatId));
+                }
+                return ResponseEntity.ok().build();
+            }
+
             if (text.startsWith(TelegramService.CALLBACK_SHOW_MORE_ACCOUNTS_PREFIX)) {
                 int offset = parseIndex(text, TelegramService.CALLBACK_SHOW_MORE_ACCOUNTS_PREFIX);
                 var accounts = userSessionService.getAccounts(chatId);

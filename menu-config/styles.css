@@ -56,6 +56,18 @@ main {
     margin-top: 1rem;
 }
 
+.menu-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    align-items: flex-end;
+}
+
+.menu-toolbar-actions {
+    display: flex;
+    gap: 0.75rem;
+}
+
 label {
     display: flex;
     flex-direction: column;
@@ -93,6 +105,11 @@ button.secondary {
     border: 1px solid var(--accent);
 }
 
+button.danger {
+    background: #c02626;
+    border: 1px solid #c02626;
+}
+
 button:hover {
     transform: translateY(-1px);
     box-shadow: 0 8px 20px rgba(0, 86, 179, 0.2);
@@ -112,13 +129,30 @@ button:disabled {
     align-items: end;
 }
 
-#addItemForm button {
+#addItemForm button[type="submit"] {
     justify-self: start;
+}
+
+.checkbox {
+    flex-direction: row;
+    align-items: center;
+    font-weight: 500;
 }
 
 .hint {
     margin-top: 1rem;
     color: #475569;
+}
+
+.conditional-field {
+    border: 1px dashed var(--border);
+    border-radius: 0.75rem;
+    padding: 0.75rem;
+    background: #fdfefe;
+}
+
+.hidden {
+    display: none;
 }
 
 .menu-list {
@@ -129,33 +163,35 @@ button:disabled {
 }
 
 .menu-item {
-    display: grid;
-    grid-template-columns: 2fr 1.5fr 2fr auto;
+    display: flex;
+    flex-direction: column;
     gap: 0.75rem;
-    align-items: center;
     padding: 0.75rem;
     border-radius: 0.75rem;
     border: 1px solid var(--border);
     background: var(--accent-light);
 }
 
-.translation-toggle {
+.menu-item-fields {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 0.75rem;
+}
+
+
+.menu-item-type {
+    align-self: flex-start;
+}
+
+.menu-item-details {
+    grid-column: 1 / -1;
     display: flex;
     flex-direction: column;
-    gap: 0.25rem;
-}
-
-.translation-checkbox {
-    display: flex;
-    align-items: center;
     gap: 0.5rem;
-    font-weight: 600;
 }
 
-.translation-toggle p {
-    margin: 0;
-    font-size: 0.85rem;
-    color: #475569;
+.menu-item-details .checkbox {
+    margin-top: 0.25rem;
 }
 
 .menu-item input[type="text"],
@@ -212,11 +248,7 @@ button:disabled {
     }
 
     .menu-item {
-        grid-template-columns: 1fr;
-    }
-
-    .translation-toggle {
-        order: 3;
+        padding: 1rem;
     }
 
     .menu-item-actions {

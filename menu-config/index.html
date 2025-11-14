@@ -17,11 +17,25 @@
 </header>
 <main>
     <section class="panel">
-        <h2>Current Menu Structure</h2>
+        <h2>Menu explorer</h2>
         <p>
-            Edit the label or change the function assigned to each entry. Use the
-            arrows to reorder the menu exactly as you want it to appear in the bot.
+            Choose a menu to edit, tweak its items, or create nested sub-menus. The
+            root menu is called <strong>Home</strong> and cannot be renamed or removed.
         </p>
+        <div class="menu-toolbar">
+            <label>
+                Edit menu
+                <select id="menuSelect"></select>
+            </label>
+            <div class="menu-toolbar-actions">
+                <button id="createMenuButton" type="button" class="secondary">Create sub-menu</button>
+                <button id="deleteMenuButton" type="button" class="danger">Delete selected sub-menu</button>
+            </div>
+        </div>
+        <label>
+            Menu name
+            <input id="menuNameEditor" type="text" placeholder="Menu title" />
+        </label>
         <div id="menuContainer" class="menu-list" aria-live="polite"></div>
         <div class="panel-actions">
             <button id="resetButton" type="button" class="secondary">Reset to default</button>
@@ -32,19 +46,48 @@
         <h2>Add a menu item</h2>
         <form id="addItemForm" autocomplete="off">
             <label>
-                Menu item name
-                <input id="menuNameInput" name="label" type="text" placeholder="e.g. Hello World" required />
+                Place this item inside
+                <select id="parentMenuSelect" required></select>
             </label>
             <label>
-                Menu item function
-                <select id="menuFunctionSelect" name="function" required></select>
+                Menu item name
+                <input id="itemLabelInput" name="label" type="text" placeholder="e.g. Manage My Services" required />
             </label>
+            <label>
+                Menu item type
+                <select id="itemTypeSelect" required>
+                    <option value="function">Function</option>
+                    <option value="submenu">Sub-menu</option>
+                </select>
+            </label>
+            <div id="functionFields" class="conditional-field">
+                <label>
+                    Menu item function
+                    <select id="menuFunctionSelect" name="function"></select>
+                </label>
+                <label class="checkbox">
+                    <input type="checkbox" id="useTranslationInput" />
+                    <span>Use built-in translation</span>
+                </label>
+                <p class="hint">
+                    Keeps the original multilingual text for this function. Turn it off to always display the custom label.
+                </p>
+            </div>
+            <div id="submenuFields" class="conditional-field hidden">
+                <label>
+                    Target sub-menu
+                    <select id="submenuSelect"></select>
+                </label>
+                <button id="inlineCreateSubmenu" type="button" class="secondary">Create new sub-menu</button>
+                <p class="hint">
+                    Sub-menus can be nested infinitely. When you delete a sub-menu, all of its child items and menus are removed.
+                </p>
+            </div>
             <button type="submit">Add item</button>
         </form>
         <p class="hint">
-            The function list mirrors the services available in the current
-            Telegram bot. As new services are developed they can be appended here
-            without changing the Java backend.
+            The function list mirrors the services available in the current Telegram bot. As new services are developed they can
+            be appended here without changing the Java backend.
         </p>
     </section>
 
@@ -54,7 +97,8 @@
             Download the JSON file, rename it to
             <code>business-menu.override.json</code>, and copy it into the
             <code>CONFIGURATIONS/</code> directory next to the Telegram bot to
-            override the default order.
+            override the default order. When no override exists the bot keeps the packaged
+            <code>business-menu.default.json</code>.
         </p>
         <div class="panel-actions">
             <label class="file-input">

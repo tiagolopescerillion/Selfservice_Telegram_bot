@@ -12,7 +12,9 @@ import java.io.InputStream;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 @Component
 public class BusinessMenuConfigurationProvider {
@@ -22,40 +24,73 @@ public class BusinessMenuConfigurationProvider {
     private static final Path OVERRIDE_FILE = CONFIG_DIR.resolve("business-menu.override.json");
     private static final String PACKAGED_DEFAULT = "classpath:config/business-menu.default.json";
 
-    private final List<BusinessMenuItem> menuItems;
+    private final Map<String, BusinessMenuDefinition> menusById;
 
     public BusinessMenuConfigurationProvider(
             ObjectMapper objectMapper,
             ResourceLoader resourceLoader) {
 
         String effectiveSource = OVERRIDE_FILE.toString();
-        List<BusinessMenuItem> loadedMenu = tryLoadMenu(toFileResource(OVERRIDE_FILE), objectMapper, resourceLoader);
+        List<BusinessMenuDefinition> loadedMenus = tryLoadMenus(toFileResource(OVERRIDE_FILE), objectMapper, resourceLoader);
 
-        if (loadedMenu.isEmpty()) {
+        if (loadedMenus.isEmpty()) {
             effectiveSource = DEFAULT_FILE.toString();
             log.info("Business menu override not found, falling back to {}", effectiveSource);
-            loadedMenu = tryLoadMenu(toFileResource(DEFAULT_FILE), objectMapper, resourceLoader);
+            loadedMenus = tryLoadMenus(toFileResource(DEFAULT_FILE), objectMapper, resourceLoader);
         }
 
-        if (loadedMenu.isEmpty()) {
+        if (loadedMenus.isEmpty()) {
             effectiveSource = PACKAGED_DEFAULT;
             log.warn("Business menu default file missing, loading packaged fallback {}", PACKAGED_DEFAULT);
-            loadedMenu = tryLoadMenu(PACKAGED_DEFAULT, objectMapper, resourceLoader);
+            loadedMenus = tryLoadMenus(PACKAGED_DEFAULT, objectMapper, resourceLoader);
         }
 
-        if (loadedMenu.isEmpty()) {
+        if (loadedMenus.isEmpty()) {
             throw new IllegalStateException("Business menu configuration could not be loaded from CONFIGURATIONS");
         }
 
-        this.menuItems = Collections.unmodifiableList(loadedMenu);
-        log.info("Business menu configuration loaded from {}", effectiveSource);
+        Map<String, BusinessMenuDefinition> mapped = new LinkedHashMap<>();
+        for (BusinessMenuDefinition definition : loadedMenus) {
+            if (definition == null || definition.getId() == null || definition.getId().isBlank()) {
+                log.warn("Skipping business menu without an id");
+                continue;
+            }
+            BusinessMenuDefinition copy = new BusinessMenuDefinition();
+            copy.setId(definition.getId());
+            String resolvedName = definition.getName();
+            if (resolvedName == null || resolvedName.isBlank()) {
+                resolvedName = BusinessMenuDefinition.ROOT_MENU_ID.equals(definition.getId()) ? "Home" : definition.getId();
+            }
+            copy.setName(resolvedName);
+            copy.setItems(definition.sortedItems());
+            mapped.put(copy.getId(), copy);
+        }
+
+        if (!mapped.containsKey(BusinessMenuDefinition.ROOT_MENU_ID)) {
+            throw new IllegalStateException("Business menu configuration must include a root menu with id 'home'");
+        }
+
+        this.menusById = Collections.unmodifiableMap(mapped);
+        log.info("Business menu configuration loaded from {} with {} menus", effectiveSource, menusById.size());
     }
 
-    public List<BusinessMenuItem> getMenuItems() {
-        return menuItems;
+    public String getRootMenuId() {
+        return BusinessMenuDefinition.ROOT_MENU_ID;
     }
 
-    private List<BusinessMenuItem> tryLoadMenu(
+    public boolean menuExists(String menuId) {
+        return menuId != null && menusById.containsKey(menuId);
+    }
+
+    public List<BusinessMenuItem> getMenuItems(String menuId) {
+        BusinessMenuDefinition definition = menusById.getOrDefault(menuId, menusById.get(getRootMenuId()));
+        if (definition == null) {
+            return List.of();
+        }
+        return definition.sortedItems();
+    }
+
+    private List<BusinessMenuDefinition> tryLoadMenus(
             String configPath,
             ObjectMapper objectMapper,
             ResourceLoader resourceLoader) {
@@ -67,11 +102,11 @@ public class BusinessMenuConfigurationProvider {
 
         try (InputStream inputStream = resource.getInputStream()) {
             BusinessMenuConfiguration configuration = objectMapper.readValue(inputStream, BusinessMenuConfiguration.class);
-            List<BusinessMenuItem> menu = configuration.sortedMenuItems();
-            if (menu.isEmpty()) {
+            List<BusinessMenuDefinition> menus = configuration.normalizedMenus();
+            if (menus.isEmpty()) {
                 log.warn("Business menu configuration at {} contains no menu entries", configPath);
             }
-            return menu;
+            return menus;
         } catch (IOException e) {
             log.error("Failed to load business menu configuration from {}: {}", configPath, e.getMessage());
             log.debug("Failed to load business menu configuration", e);

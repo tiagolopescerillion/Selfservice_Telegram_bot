@@ -5,6 +5,7 @@ import com.selfservice.application.dto.ServiceSummary;
 import com.selfservice.application.dto.TroubleTicketSummary;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -38,6 +39,7 @@ public class UserSessionService {
     private final Map<Long, List<ServiceSummary>> servicesByChat = new ConcurrentHashMap<>();
     private final Map<Long, List<TroubleTicketSummary>> ticketsByChat = new ConcurrentHashMap<>();
     private final Map<Long, String> languageByChat = new ConcurrentHashMap<>();
+    private final Map<Long, List<String>> menuPathByChat = new ConcurrentHashMap<>();
 
     public void save(long chatId, String accessToken, String refreshToken, String idToken, long expiresInSeconds) {
         long exp = System.currentTimeMillis() + expiresInSeconds * 1000L;
@@ -166,6 +168,7 @@ public class UserSessionService {
         servicesByChat.remove(chatId);
         ticketsByChat.remove(chatId);
         languageByChat.remove(chatId);
+        menuPathByChat.remove(chatId);
     }
 
     public String getRefreshToken(long chatId) {
@@ -202,5 +205,53 @@ public class UserSessionService {
             return;
         }
         languageByChat.put(chatId, language);
+    }
+
+    public void resetBusinessMenu(long chatId, String rootMenuId) {
+        menuPathByChat.put(chatId, new ArrayList<>(List.of(rootMenuId)));
+    }
+
+    public String currentBusinessMenu(long chatId, String rootMenuId) {
+        List<String> path = ensureMenuPath(chatId, rootMenuId);
+        return path.get(path.size() - 1);
+    }
+
+    public void enterBusinessMenu(long chatId, String menuId, String rootMenuId) {
+        menuPathByChat.compute(chatId, (id, existing) -> {
+            List<String> path = (existing == null || existing.isEmpty())
+                    ? new ArrayList<>(List.of(rootMenuId))
+                    : new ArrayList<>(existing);
+            path.add(menuId);
+            return path;
+        });
+    }
+
+    public boolean goUpBusinessMenu(long chatId, String rootMenuId) {
+        final boolean[] moved = {false};
+        menuPathByChat.compute(chatId, (id, existing) -> {
+            List<String> path = (existing == null || existing.isEmpty())
+                    ? new ArrayList<>(List.of(rootMenuId))
+                    : new ArrayList<>(existing);
+            if (path.size() > 1) {
+                path.remove(path.size() - 1);
+                moved[0] = true;
+            }
+            return path;
+        });
+        return moved[0];
+    }
+
+    public int getBusinessMenuDepth(long chatId, String rootMenuId) {
+        List<String> path = ensureMenuPath(chatId, rootMenuId);
+        return Math.max(0, path.size() - 1);
+    }
+
+    private List<String> ensureMenuPath(long chatId, String rootMenuId) {
+        return menuPathByChat.compute(chatId, (id, existing) -> {
+            if (existing == null || existing.isEmpty()) {
+                return new ArrayList<>(List.of(rootMenuId));
+            }
+            return existing;
+        });
     }
 }
