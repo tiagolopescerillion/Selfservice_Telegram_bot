@@ -21,3 +21,8 @@ whatsapp:
   verify-token: digital-whatsapp-bot-verify-123
   phone-number-id: YOUR_PHONE_NUMBER_ID
   access-token: YOUR_WHATSAPP_ACCESS_TOKEN
+
+messenger:
+  callback-url: https://solaris-probe-lucy-ventures.trycloudflare.com/messenger/webhook
+  verify-token: digital-facebook-bot-verify-123
+  page-access-token: YOUR_FACEBOOK_PAGE_ACCESS_TOKEN
