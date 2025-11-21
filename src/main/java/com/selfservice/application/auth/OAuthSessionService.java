@@ -64,8 +64,9 @@ public class OAuthSessionService {
         log.info("OAuthSessionService ready, redirectUri={}", redirectUri);
     }
 
-    /** Build the browser URL for Keycloak login (with PKCE). State carries chatId and nonce. */
-    public String buildAuthUrl(long chatId) {
+    /** Build the browser URL for Keycloak login (with PKCE). State carries the session key and nonce. */
+    public String buildAuthUrl(String sessionKey) {
+        Objects.requireNonNull(sessionKey, "sessionKey");
         // PKCE: code_verifier (43-128 chars allowed); we use 64 URL-safe chars
         String codeVerifier = randomUrlSafe(64);
         String codeChallenge = s256(codeVerifier);
@@ -73,7 +74,7 @@ public class OAuthSessionService {
         String nonce = UUID.randomUUID().toString();
         pkceStore.put(nonce, codeVerifier);
 
-        String state = chatId + ":" + nonce;
+        String state = sessionKey + ":" + nonce;
         String scope = url("openid profile email");
 
         String url = authEndpoint +
@@ -85,8 +86,13 @@ public class OAuthSessionService {
                 "&code_challenge_method=S256" +
                 "&code_challenge=" + url(codeChallenge);
 
-        log.info("Auth URL generated for chatId={} nonce={} at {}", chatId, nonce, Instant.now());
+        log.info("Auth URL generated for sessionKey={} nonce={} at {}", sessionKey, nonce, Instant.now());
         return url;
+    }
+
+    /** Convenience overload for Telegram (numeric chat IDs). */
+    public String buildAuthUrl(long chatId) {
+        return buildAuthUrl(Long.toString(chatId));
     }
 
     /** Exchange the authorization code for tokens (with PKCE code_verifier). */
@@ -240,11 +246,16 @@ public class OAuthSessionService {
         return sb.toString();
     }
 
-    public long parseChatIdFromState(String state) {
-        if (state == null) return -1;
+    public String parseSessionKeyFromState(String state) {
+        if (state == null) return null;
         int idx = state.indexOf(':');
-        String first = (idx >= 0) ? state.substring(0, idx) : state;
-        try { return Long.parseLong(first); } catch (Exception e) { return -1; }
+        return (idx >= 0) ? state.substring(0, idx) : state;
+    }
+
+    public long parseChatIdFromState(String state) {
+        String sessionKey = parseSessionKeyFromState(state);
+        if (sessionKey == null) return -1;
+        try { return Long.parseLong(sessionKey); } catch (Exception e) { return -1; }
     }
     private String parseNonceFromState(String state) {
         if (state == null) return null;

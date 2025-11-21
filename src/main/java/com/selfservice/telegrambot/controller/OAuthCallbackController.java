@@ -6,6 +6,8 @@ import com.selfservice.application.dto.FindUserResult;
 import com.selfservice.application.service.FindUserService;
 import com.selfservice.telegrambot.service.TelegramService;
 import com.selfservice.telegrambot.service.UserSessionService;
+import com.selfservice.whatsapp.service.WhatsappService;
+import com.selfservice.whatsapp.service.WhatsappSessionService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.MediaType;
@@ -22,15 +24,21 @@ public class OAuthCallbackController {
     private final TelegramService telegram;
     private final UserSessionService sessions;
     private final FindUserService findUserService;
+    private final WhatsappService whatsappService;
+    private final WhatsappSessionService whatsappSessions;
 
     public OAuthCallbackController(OAuthSessionService oauth,
                                    TelegramService telegram,
                                    UserSessionService sessions,
-                                   FindUserService findUserService) {
+                                   FindUserService findUserService,
+                                   WhatsappService whatsappService,
+                                   WhatsappSessionService whatsappSessions) {
         this.oauth = oauth;
         this.telegram = telegram;
         this.sessions = sessions;
         this.findUserService = findUserService;
+        this.whatsappService = whatsappService;
+        this.whatsappSessions = whatsappSessions;
     }
 
     @GetMapping(value = "/oauth/callback", produces = MediaType.TEXT_HTML_VALUE)
@@ -39,23 +47,32 @@ public class OAuthCallbackController {
                            @RequestParam(required = false, name = "error") String error,
                            @RequestParam(required = false, name = "error_description") String errorDescription) {
 
+        String sessionKey = oauth.parseSessionKeyFromState(state);
         long chatId = oauth.parseChatIdFromState(state);
+        boolean whatsappUser = sessionKey != null && sessionKey.startsWith("wa-");
+        String whatsappChatId = whatsappUser ? sessionKey.substring(3) : null;
         try {
             if (error != null) {
                 String msg = "Login ERROR: " + error + (errorDescription != null ? " - " + errorDescription : "");
-                log.error("Self-service login failed for chat {}: {}", chatId, msg);
+                log.error("Self-service login failed for session {}: {}", sessionKey, msg);
                 if (chatId > 0) {
                     telegram.sendMessageWithKey(chatId, "LoginFailed");
                     telegram.sendLoginMenu(chatId, oauth.buildAuthUrl(chatId));
+                }
+                if (whatsappUser && whatsappChatId != null) {
+                    whatsappService.sendText(whatsappChatId, msg);
                 }
                 return "<h3>" + msg + "</h3>";
             }
             if (code == null) {
                 String msg = "Login ERROR: missing authorization code";
-                log.error("Self-service login failed for chat {}: {}", chatId, msg);
+                log.error("Self-service login failed for session {}: {}", sessionKey, msg);
                 if (chatId > 0) {
                     telegram.sendMessageWithKey(chatId, "LoginFailed");
                     telegram.sendLoginMenu(chatId, oauth.buildAuthUrl(chatId));
+                }
+                if (whatsappUser && whatsappChatId != null) {
+                    whatsappService.sendText(whatsappChatId, msg);
                 }
                 return "<h3>Missing authorization code</h3>";
             }
@@ -68,7 +85,7 @@ public class OAuthCallbackController {
             if (tokenSummary == null) {
                 tokenSummary = "No token body.";
             }
-            log.info("Login token summary for chat {}:\n{}", chatId, tokenSummary);
+            log.info("Login token summary for session {} (chatId={}):\n{}", sessionKey, chatId, tokenSummary);
 
             // 3) Store token for this chat
             Object at = tokens.get("access_token");
@@ -78,6 +95,14 @@ public class OAuthCallbackController {
             if (chatId > 0 && at instanceof String) {
                 long expSecs = (exp instanceof Number) ? ((Number) exp).longValue() : 300L;
                 sessions.save(chatId,
+                        (String) at,
+                        rt instanceof String ? (String) rt : null,
+                        id instanceof String ? (String) id : null,
+                        expSecs);
+            }
+            if (whatsappUser && sessionKey != null && at instanceof String) {
+                long expSecs = (exp instanceof Number) ? ((Number) exp).longValue() : 300L;
+                whatsappSessions.save(sessionKey,
                         (String) at,
                         rt instanceof String ? (String) rt : null,
                         id instanceof String ? (String) id : null,
@@ -98,6 +123,9 @@ public class OAuthCallbackController {
             if (findUserResult.success()) {
                 if (chatId > 0) {
                     sessions.saveAccounts(chatId, accounts);
+                }
+                if (whatsappUser && sessionKey != null) {
+                    whatsappSessions.saveAccounts(sessionKey, accounts);
                 }
                 String noAccountsMessage = (chatId > 0)
                         ? telegram.translate(chatId, "NoBillingAccountsFound")
@@ -141,17 +169,40 @@ public class OAuthCallbackController {
                 }
             }
 
+            if (whatsappUser && whatsappChatId != null) {
+                String greeting = (findUserResult.givenName() != null && !findUserResult.givenName().isBlank())
+                        ? "Welcome " + findUserResult.givenName() + "!"
+                        : null;
+
+                StringBuilder waMessage = new StringBuilder();
+                if (findUserResult.success()) {
+                    if (greeting != null) {
+                        waMessage.append(greeting).append("\n\n");
+                    }
+                    waMessage.append("Login OK ✅\nBearer token:\n");
+                    waMessage.append(at instanceof String ? (String) at : "<missing token>");
+                    waMessage.append("\n\nAPIMAN findUser summary:\n").append(accountListMessage);
+                } else {
+                    waMessage.append("Login failed 😞\n").append(accountListMessage);
+                }
+
+                whatsappService.sendText(whatsappChatId, waMessage.toString());
+            }
+
             return """
                    <html><body>
-                   <h3>Login successful. You can return to Telegram.</h3>
+                   <h3>Login successful. You can return to your chat.</h3>
                    <pre>""" + (("Login OK ✅\n" + tokenSummary) + "\n\nAPIMAN findUser summary:\n" + accountListMessage)
                         .replace("&","&amp;").replace("<","&lt;") + "</pre></body></html>";
         } catch (Exception e) {
             String msg = "Login ERROR: " + e.getMessage();
-            log.error("Self-service login failed for chat {}", chatId, e);
+            log.error("Self-service login failed for session {}", sessionKey, e);
             if (chatId > 0) {
                 telegram.sendMessageWithKey(chatId, "LoginFailed");
                 telegram.sendLoginMenu(chatId, oauth.buildAuthUrl(chatId));
+            }
+            if (whatsappUser && whatsappChatId != null) {
+                whatsappService.sendText(whatsappChatId, msg);
             }
             return "<h3>" + msg + "</h3>";
         }

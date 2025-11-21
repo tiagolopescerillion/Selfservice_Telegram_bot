@@ -42,6 +42,8 @@ public class WhatsappService {
                 "Welcome to Cerillion Bot!\n" +
                 "Please choose an option:\n" +
                 "1) Hello Cerillion\n" +
+                "2) Login (Keycloak)\n" +
+                "3) Logout\n" +
                 "(Reply with the number)");
     }
 
