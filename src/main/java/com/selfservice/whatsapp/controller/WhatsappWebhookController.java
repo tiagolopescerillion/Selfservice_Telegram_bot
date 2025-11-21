@@ -2,6 +2,7 @@ package com.selfservice.whatsapp.controller;
 
 import com.selfservice.application.auth.OAuthSessionService;
 import com.selfservice.application.service.GreetingService;
+import com.selfservice.application.auth.KeycloakAuthService;
 import com.selfservice.whatsapp.service.WhatsappService;
 import com.selfservice.whatsapp.service.WhatsappSessionService;
 import org.slf4j.Logger;
