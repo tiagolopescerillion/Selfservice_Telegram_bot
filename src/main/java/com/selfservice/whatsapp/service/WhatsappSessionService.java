@@ -92,5 +92,9 @@ public class WhatsappSessionService {
         }
         return info.refreshToken;
     }
+
+    public boolean clear(String userId) {
+        return byUser.remove(userId) != null;
+    }
 }
 

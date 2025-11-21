@@ -125,10 +125,31 @@ public class WhatsappWebhookController {
                         if (existing != null) {
                             response.append("You are already logged in. Token still valid.\n\n");
                         }
-                        response.append("Login via Keycloak: \n").append(loginUrl)
+                        response.append("Login via Keycloak (copy/paste):\n")
+                                .append(loginUrl)
                                 .append("\n\nAfter login you will receive a confirmation message here.");
 
                         whatsappService.sendText(from, response.toString());
+                        whatsappService.sendText(from, "Tap this link to login: " + loginUrl);
+
+                    } else if ("3".equals(body) || body.equalsIgnoreCase("logout")) {
+                        String sessionKey = "wa-" + from;
+
+                        String refreshToken = sessionService.getRefreshToken(sessionKey);
+                        String idToken = sessionService.getIdToken(sessionKey);
+                        boolean hadSession = sessionService.clear(sessionKey);
+
+                        if (hadSession) {
+                            try {
+                                oauthSessionService.logout(refreshToken, idToken);
+                                whatsappService.sendText(from, "You have been logged out successfully.");
+                            } catch (Exception ex) {
+                                log.warn("Logout failed for WhatsApp user {}", sessionKey, ex);
+                                whatsappService.sendText(from, "Logout encountered a problem: " + ex.getMessage());
+                            }
+                        } else {
+                            whatsappService.sendText(from, "No active session found. You're already logged out.");
+                        }
 
                     } else {
                         // Default: resend the menu as plain text
