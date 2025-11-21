@@ -1,7 +1,9 @@
 package com.selfservice.whatsapp.controller;
 
+import com.selfservice.application.auth.OAuthSessionService;
 import com.selfservice.application.service.GreetingService;
 import com.selfservice.whatsapp.service.WhatsappService;
+import com.selfservice.whatsapp.service.WhatsappSessionService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -25,14 +27,20 @@ public class WhatsappWebhookController {
 
     private final WhatsappService whatsappService;
     private final GreetingService greetingService;
+    private final OAuthSessionService oauthSessionService;
+    private final WhatsappSessionService sessionService;
     private final String verifyToken;
 
     public WhatsappWebhookController(
             WhatsappService whatsappService,
             GreetingService greetingService,
+            OAuthSessionService oauthSessionService,
+            WhatsappSessionService sessionService,
             @Value("${whatsapp.verify-token}") String verifyToken) {
         this.whatsappService = whatsappService;
         this.greetingService = greetingService;
+        this.oauthSessionService = oauthSessionService;
+        this.sessionService = sessionService;
         this.verifyToken = Objects.requireNonNull(verifyToken, "whatsapp.verify-token must be set");
     }
 
@@ -106,6 +114,20 @@ public class WhatsappWebhookController {
                             body.equalsIgnoreCase("hello")) {
 
                         whatsappService.sendText(from, greetingService.helloCerillion());
+
+                    } else if ("2".equals(body) || body.equalsIgnoreCase("login")) {
+                        String sessionKey = "wa-" + from;
+                        String loginUrl = oauthSessionService.buildAuthUrl(sessionKey);
+
+                        StringBuilder response = new StringBuilder();
+                        String existing = sessionService.getValidAccessToken(sessionKey);
+                        if (existing != null) {
+                            response.append("You are already logged in. Token still valid.\n\n");
+                        }
+                        response.append("Login via Keycloak: \n").append(loginUrl)
+                                .append("\n\nAfter login you will receive a confirmation message here.");
+
+                        whatsappService.sendText(from, response.toString());
 
                     } else {
                         // Default: resend the menu as plain text
