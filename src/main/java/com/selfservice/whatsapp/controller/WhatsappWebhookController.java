@@ -1,6 +1,7 @@
 package com.selfservice.whatsapp.controller;
 
 import com.selfservice.application.service.GreetingService;
+import com.selfservice.application.auth.KeycloakAuthService;
 import com.selfservice.whatsapp.service.WhatsappService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -25,14 +26,17 @@ public class WhatsappWebhookController {
 
     private final WhatsappService whatsappService;
     private final GreetingService greetingService;
+    private final KeycloakAuthService keycloakAuthService;
     private final String verifyToken;
 
     public WhatsappWebhookController(
             WhatsappService whatsappService,
             GreetingService greetingService,
+            KeycloakAuthService keycloakAuthService,
             @Value("${whatsapp.verify-token}") String verifyToken) {
         this.whatsappService = whatsappService;
         this.greetingService = greetingService;
+        this.keycloakAuthService = keycloakAuthService;
         this.verifyToken = Objects.requireNonNull(verifyToken, "whatsapp.verify-token must be set");
     }
 
@@ -106,6 +110,18 @@ public class WhatsappWebhookController {
                             body.equalsIgnoreCase("hello")) {
 
                         whatsappService.sendText(from, greetingService.helloCerillion());
+
+                    } else if ("2".equals(body) || body.equalsIgnoreCase("login")) {
+                        String response;
+                        try {
+                            String token = keycloakAuthService.getAccessToken();
+                            response = "Login success. Bearer token: " + token;
+                        } catch (Exception ex) {
+                            response = "Login failed: " +
+                                    (ex.getMessage() == null ? ex.getClass().getSimpleName() : ex.getMessage());
+                        }
+
+                        whatsappService.sendText(from, response);
 
                     } else {
                         // Default: resend the menu as plain text
