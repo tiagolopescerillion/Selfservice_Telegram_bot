@@ -1,7 +1,7 @@
 package com.selfservice.whatsapp.controller;
 
 import com.selfservice.application.service.GreetingService;
-import com.selfservice.whatsapp.service.WhatsappService;
+import com.selfservice.whatsapp.service.WhatsappService_backup;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -19,16 +19,16 @@ import java.util.Objects;
 
 @RestController
 @RequestMapping("/webhook/whatsapp")
-public class WhatsappWebhookController {
+public class WhatsappWebhookController_backup {
 
-    private static final Logger log = LoggerFactory.getLogger(WhatsappWebhookController.class);
+    private static final Logger log = LoggerFactory.getLogger(WhatsappWebhookController_backup.class);
 
-    private final WhatsappService whatsappService;
+    private final WhatsappService_backup whatsappService;
     private final GreetingService greetingService;
     private final String verifyToken;
 
-    public WhatsappWebhookController(
-            WhatsappService whatsappService,
+    public WhatsappWebhookController_backup(
+            WhatsappService_backup whatsappService,
             GreetingService greetingService,
             @Value("${whatsapp.verify-token}") String verifyToken) {
         this.whatsappService = whatsappService;
@@ -65,52 +65,35 @@ public class WhatsappWebhookController {
             if (changes == null) {
                 continue;
             }
-
             for (Map<String, Object> change : changes) {
                 Map<String, Object> value = (Map<String, Object>) change.get("value");
                 if (value == null) {
                     continue;
                 }
-
-                List<Map<String, Object>> messages =
-                        (List<Map<String, Object>>) value.get("messages");
+                List<Map<String, Object>> messages = (List<Map<String, Object>>) value.get("messages");
                 if (messages == null) {
                     continue;
                 }
-
                 for (Map<String, Object> message : messages) {
                     String from = (String) message.get("from");
                     if (from == null || from.isBlank()) {
                         continue;
                     }
 
-                    String type = (String) message.get("type");
-                    if (!"text".equals(type)) {
-                        // For now we only handle text messages; everything else gets the menu.
-                        whatsappService.sendHelloCerillionMenu(from);
-                        continue;
+                    Map<String, Object> interactive = (Map<String, Object>) message.get("interactive");
+                    if (interactive != null) {
+                        Map<String, Object> buttonReply = (Map<String, Object>) interactive.get("button_reply");
+                        if (buttonReply != null) {
+                            String buttonId = (String) buttonReply.get("id");
+                            if (WhatsappService_backup.HELLO_CERILLION_BUTTON_ID.equals(buttonId)) {
+                                whatsappService.sendText(from, greetingService.helloCerillion());
+                                continue;
+                            }
+                        }
                     }
 
-                    Map<String, Object> text = (Map<String, Object>) message.get("text");
-                    String body = text == null ? null : (String) text.get("body");
-                    if (body == null) {
-                        whatsappService.sendHelloCerillionMenu(from);
-                        continue;
-                    }
-
-                    body = body.trim();
-
-                    // Simple "menu" based on plain text input
-                    if ("1".equals(body) ||
-                            body.equalsIgnoreCase("hello cerillion") ||
-                            body.equalsIgnoreCase("hello")) {
-
-                        whatsappService.sendText(from, greetingService.helloCerillion());
-
-                    } else {
-                        // Default: resend the menu as plain text
-                        whatsappService.sendHelloCerillionMenu(from);
-                    }
+                    // Default: send a minimal menu with a single Hello Cerillion option
+                    whatsappService.sendHelloCerillionMenu(from);
                 }
             }
         }

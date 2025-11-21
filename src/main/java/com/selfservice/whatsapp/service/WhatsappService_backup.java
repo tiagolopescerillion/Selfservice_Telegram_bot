@@ -11,18 +11,20 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.RestTemplate;
 
+import java.util.List;
 import java.util.Map;
 
 @Service
-public class WhatsappService {
+public class WhatsappService_backup {
 
-    private static final Logger log = LoggerFactory.getLogger(WhatsappService.class);
+    private static final Logger log = LoggerFactory.getLogger(WhatsappService_backup.class);
+    public static final String HELLO_CERILLION_BUTTON_ID = "HELLO_CERILLION";
 
     private final RestTemplate restTemplate = new RestTemplate();
     private final String phoneNumberId;
     private final String accessToken;
 
-    public WhatsappService(
+    public WhatsappService_backup(
             @Value("${whatsapp.phone-number-id:}") String phoneNumberId,
             @Value("${whatsapp.access-token:}") String accessToken) {
         this.phoneNumberId = phoneNumberId == null ? "" : phoneNumberId.trim();
@@ -33,16 +35,30 @@ public class WhatsappService {
         }
     }
 
-    /**
-     * Plain text version of the previous menu.
-     * Safe for WhatsApp Web — no buttons, no interactive message types.
-     */
     public void sendHelloCerillionMenu(String to) {
-        sendText(to,
-                "Welcome to Cerillion Bot!\n" +
-                "Please choose an option:\n" +
-                "1) Hello Cerillion\n" +
-                "(Reply with the number)");
+        if (!isConfigured()) {
+            log.warn("WhatsApp messaging is not fully configured; cannot send menu");
+            return;
+        }
+
+        Map<String, Object> payload = Map.of(
+                "messaging_product", "whatsapp",
+                "to", to,
+                "type", "interactive",
+                "interactive", Map.of(
+                        "type", "button",
+                        "body", Map.of("text", "Choose an option"),
+                        "action", Map.of(
+                                "buttons", List.of(Map.of(
+                                        "type", "reply",
+                                        "reply", Map.of(
+                                                "id", HELLO_CERILLION_BUTTON_ID,
+                                                "title", "Hello Cerillion"
+                                        )
+                                ))))
+        );
+
+        postToWhatsapp(payload);
     }
 
     public void sendText(String to, String message) {
@@ -53,9 +69,8 @@ public class WhatsappService {
 
         Map<String, Object> payload = Map.of(
                 "messaging_product", "whatsapp",
-                "to",           to,
-                "type",         "text",
-                "text",         Map.of("body", message)
+                "to", to,
+                "text", Map.of("body", message)
         );
 
         postToWhatsapp(payload);
