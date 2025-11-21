@@ -1,0 +1,23 @@
+spring:
+  profiles:
+    active: local
+
+---
+spring:
+  config:
+    activate:
+      on-profile: local
+
+# Public URL used for webhook callbacks when the server is exposed via tunnelling
+app:
+  public-base-url: https://solaris-probe-lucy-ventures.trycloudflare.com
+
+telegram:
+  bot:
+    token: YOUR_TELEGRAM_BOT_TOKEN
+
+whatsapp:
+  callback-url: https://solaris-probe-lucy-ventures.trycloudflare.com/webhook/whatsapp
+  verify-token: digital-whatsapp-bot-verify-123
+  phone-number-id: YOUR_PHONE_NUMBER_ID
+  access-token: YOUR_WHATSAPP_ACCESS_TOKEN
