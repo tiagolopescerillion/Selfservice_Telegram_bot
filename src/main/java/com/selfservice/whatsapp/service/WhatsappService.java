@@ -1,11 +1,13 @@
 package com.selfservice.whatsapp.service;
 
+import com.selfservice.application.config.LoginMenuProperties;
 import com.selfservice.application.dto.AccountSummary;
 import com.selfservice.application.dto.ServiceSummary;
 import com.selfservice.application.dto.TroubleTicketSummary;
 import com.selfservice.telegrambot.config.menu.BusinessMenuConfigurationProvider;
 import com.selfservice.telegrambot.config.menu.BusinessMenuItem;
 import com.selfservice.telegrambot.service.TranslationService;
+import com.selfservice.whatsapp.config.WhatsappProperties;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -33,24 +35,40 @@ public class WhatsappService {
     public static final String COMMAND_UP = "up";
     public static final String COMMAND_MENU = "menu";
 
+    public static final String INTERACTIVE_ID_DIGITAL_LOGIN = "DIGITAL_LOGIN";
+    public static final String INTERACTIVE_ID_CRM_LOGIN = "CRM_LOGIN";
+    public static final String INTERACTIVE_ID_CHANGE_LANGUAGE = "CHANGE_LANGUAGE";
+
+    public enum LoginMenuOption {
+        DIGITAL_LOGIN,
+        CRM_LOGIN,
+        CHANGE_LANGUAGE
+    }
+
     private final RestTemplate restTemplate = new RestTemplate();
     private final String phoneNumberId;
     private final String accessToken;
     private final TranslationService translationService;
     private final WhatsappSessionService sessionService;
     private final BusinessMenuConfigurationProvider menuConfigurationProvider;
+    private final LoginMenuProperties loginMenuProperties;
+    private final WhatsappProperties whatsappProperties;
 
     public WhatsappService(
             @Value("${whatsapp.phone-number-id:}") String phoneNumberId,
             @Value("${whatsapp.access-token:}") String accessToken,
             TranslationService translationService,
             WhatsappSessionService sessionService,
-            BusinessMenuConfigurationProvider menuConfigurationProvider) {
+            BusinessMenuConfigurationProvider menuConfigurationProvider,
+            LoginMenuProperties loginMenuProperties,
+            WhatsappProperties whatsappProperties) {
         this.phoneNumberId = phoneNumberId == null ? "" : phoneNumberId.trim();
         this.accessToken = accessToken == null ? "" : accessToken.trim();
         this.translationService = translationService;
         this.sessionService = sessionService;
         this.menuConfigurationProvider = menuConfigurationProvider;
+        this.loginMenuProperties = loginMenuProperties;
+        this.whatsappProperties = whatsappProperties;
 
         if (!this.phoneNumberId.isBlank()) {
             log.info("WhatsApp phone-number-id configured");
@@ -89,17 +107,99 @@ public class WhatsappService {
         postToWhatsapp(payload);
     }
 
+    public List<LoginMenuOption> loginMenuOptions() {
+        List<LoginMenuOption> options = new ArrayList<>();
+        if (loginMenuProperties.isDigitalLoginEnabled()) {
+            options.add(LoginMenuOption.DIGITAL_LOGIN);
+        }
+        if (loginMenuProperties.isCrmLoginEnabled()) {
+            options.add(LoginMenuOption.CRM_LOGIN);
+        }
+        options.add(LoginMenuOption.CHANGE_LANGUAGE);
+        return options;
+    }
+
     public void sendLoginMenu(String to, String loginUrl) {
         sessionService.setSelectionContext(to, WhatsappSessionService.SelectionContext.NONE);
-        StringBuilder menu = new StringBuilder();
-        menu.append("1) ").append(translate(to, TelegramKey.BUTTON_SELF_SERVICE_LOGIN.toString())).append("\n");
-        menu.append("2) ").append(translate(to, TelegramKey.BUTTON_DIRECT_LOGIN.toString())).append("\n");
-        menu.append("3) ").append(translate(to, TelegramKey.BUTTON_CHANGE_LANGUAGE.toString())).append("\n");
-        if (loginUrl != null && !loginUrl.isBlank()) {
-            menu.append("\n").append(format(to, "LoginUrlHint", loginUrl));
+        List<LoginMenuOption> options = loginMenuOptions();
+        if (whatsappProperties.isBasicUxEnabled()) {
+            StringBuilder menu = new StringBuilder();
+            int index = 1;
+            for (LoginMenuOption option : options) {
+                if (option == LoginMenuOption.DIGITAL_LOGIN) {
+                    menu.append(index).append(") ")
+                            .append(translate(to, TelegramKey.BUTTON_SELF_SERVICE_LOGIN.toString()))
+                            .append("\n");
+                } else if (option == LoginMenuOption.CRM_LOGIN) {
+                    menu.append(index).append(") ")
+                            .append(translate(to, TelegramKey.BUTTON_DIRECT_LOGIN.toString()))
+                            .append("\n");
+                } else {
+                    menu.append(index).append(") ")
+                            .append(translate(to, TelegramKey.BUTTON_CHANGE_LANGUAGE.toString()))
+                            .append("\n");
+                }
+                index++;
+            }
+            if (loginUrl != null && !loginUrl.isBlank()) {
+                menu.append("\n").append(format(to, "LoginUrlHint", loginUrl));
+            }
+            menu.append("\n").append(translate(to, "PleaseChooseSignIn"));
+            sendText(to, menu.toString());
         }
-        menu.append("\n").append(translate(to, "PleaseChooseSignIn"));
-        sendText(to, menu.toString());
+
+        if (whatsappProperties.isInteractiveUxEnabled()) {
+            sendLoginMenuCards(to, loginUrl, options);
+        }
+    }
+
+    private void sendLoginMenuCards(String to, String loginUrl, List<LoginMenuOption> options) {
+        if (!isConfigured()) {
+            log.warn("WhatsApp messaging is not fully configured; cannot send login menu cards");
+            return;
+        }
+
+        List<Map<String, Object>> buttons = new ArrayList<>();
+        for (LoginMenuOption option : options) {
+            if (option == LoginMenuOption.DIGITAL_LOGIN) {
+                buttons.add(buildReplyButton(INTERACTIVE_ID_DIGITAL_LOGIN,
+                        translate(to, TelegramKey.BUTTON_SELF_SERVICE_LOGIN.toString())));
+            } else if (option == LoginMenuOption.CRM_LOGIN) {
+                buttons.add(buildReplyButton(INTERACTIVE_ID_CRM_LOGIN,
+                        translate(to, TelegramKey.BUTTON_DIRECT_LOGIN.toString())));
+            } else {
+                buttons.add(buildReplyButton(INTERACTIVE_ID_CHANGE_LANGUAGE,
+                        translate(to, TelegramKey.BUTTON_CHANGE_LANGUAGE.toString())));
+            }
+        }
+
+        StringBuilder body = new StringBuilder(translate(to, "PleaseChooseSignIn"));
+        if (loginUrl != null && !loginUrl.isBlank()) {
+            body.append("\n\n").append(format(to, "LoginUrlHint", loginUrl));
+        }
+
+        Map<String, Object> payload = Map.of(
+                "messaging_product", "whatsapp",
+                "to", to,
+                "type", "interactive",
+                "interactive", Map.of(
+                        "type", "button",
+                        "body", Map.of("text", body.toString()),
+                        "action", Map.of("buttons", buttons)
+                )
+        );
+
+        postToWhatsapp(payload);
+    }
+
+    private Map<String, Object> buildReplyButton(String id, String title) {
+        return Map.of(
+                "type", "reply",
+                "reply", Map.of(
+                        "id", id,
+                        "title", title
+                )
+        );
     }
 
     public void sendLanguageMenu(String to) {

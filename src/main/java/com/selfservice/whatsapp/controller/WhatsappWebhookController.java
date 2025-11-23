@@ -112,6 +112,17 @@ public class WhatsappWebhookController {
                     }
 
                     String type = (String) message.get("type");
+                    if ("interactive".equals(type)) {
+                        Map<String, Object> interactive = (Map<String, Object>) message.get("interactive");
+                        String id = extractInteractiveId(interactive);
+                        if (id == null) {
+                            dispatchFallback(from);
+                            continue;
+                        }
+                        handleCommand(from, id.trim());
+                        continue;
+                    }
+
                     if (!"text".equals(type)) {
                         dispatchFallback(from);
                         continue;
@@ -140,6 +151,18 @@ public class WhatsappWebhookController {
         String token = sessionService.getValidAccessToken(userId);
         boolean hasValidToken = token != null;
         WhatsappSessionService.SelectionContext selectionContext = sessionService.getSelectionContext(userId);
+        WhatsappService.LoginMenuOption numericLoginSelection = parseLoginMenuSelection(body);
+
+        boolean isDigitalLogin = numericLoginSelection == WhatsappService.LoginMenuOption.DIGITAL_LOGIN
+                || lower.equals(WhatsappService.INTERACTIVE_ID_DIGITAL_LOGIN.toLowerCase())
+                || lower.contains(TelegramService.CALLBACK_SELF_SERVICE_LOGIN.toLowerCase())
+                || lower.contains("login");
+        boolean isCrmLogin = numericLoginSelection == WhatsappService.LoginMenuOption.CRM_LOGIN
+                || lower.equals(WhatsappService.INTERACTIVE_ID_CRM_LOGIN.toLowerCase())
+                || lower.contains(TelegramService.CALLBACK_DIRECT_LOGIN.toLowerCase());
+        boolean isChangeLanguage = numericLoginSelection == WhatsappService.LoginMenuOption.CHANGE_LANGUAGE
+                || lower.equals(WhatsappService.INTERACTIVE_ID_CHANGE_LANGUAGE.toLowerCase())
+                || lower.equals(WhatsappService.COMMAND_CHANGE_LANGUAGE);
 
         if (lower.equals(WhatsappService.COMMAND_MENU)) {
             sessionService.setAwaitingLanguageSelection(userId, false);
@@ -165,8 +188,7 @@ public class WhatsappWebhookController {
             return;
         }
 
-        if (lower.equals("1") || lower.contains(TelegramService.CALLBACK_SELF_SERVICE_LOGIN.toLowerCase()) ||
-                lower.contains("login")) {
+        if (isDigitalLogin) {
             if (!hasValidToken) {
                 sendLoginPrompt(from, sessionKey);
                 return;
@@ -174,7 +196,7 @@ public class WhatsappWebhookController {
             // Logged-in users should treat numeric options as business menu selections, not login shortcuts.
         }
 
-        if (lower.equals("2") || lower.contains(TelegramService.CALLBACK_DIRECT_LOGIN.toLowerCase())) {
+        if (isCrmLogin) {
             if (!hasValidToken) {
                 String authMessage;
                 String accessToken = null;
@@ -197,7 +219,7 @@ public class WhatsappWebhookController {
         }
 
         if (!hasValidToken) {
-            if (lower.equals("3") || lower.equals(WhatsappService.COMMAND_CHANGE_LANGUAGE)) {
+            if (isChangeLanguage) {
                 sessionService.setAwaitingLanguageSelection(userId, true);
                 whatsappService.sendLanguageMenu(from);
                 return;
@@ -629,5 +651,33 @@ public class WhatsappWebhookController {
         } catch (Exception ex) {
             return -1;
         }
+    }
+
+    private WhatsappService.LoginMenuOption parseLoginMenuSelection(String text) {
+        int numeric = parseIndex(text);
+        if (numeric <= 0) {
+            return null;
+        }
+        List<WhatsappService.LoginMenuOption> options = whatsappService.loginMenuOptions();
+        if (numeric > options.size()) {
+            return null;
+        }
+        return options.get(numeric - 1);
+    }
+
+    private String extractInteractiveId(Map<String, Object> interactive) {
+        if (interactive == null) {
+            return null;
+        }
+        Map<String, Object> button = (Map<String, Object>) interactive.get("button");
+        if (button != null) {
+            Map<String, Object> reply = (Map<String, Object>) button.get("reply");
+            return reply == null ? null : (String) reply.get("id");
+        }
+        Map<String, Object> listReply = (Map<String, Object>) interactive.get("list_reply");
+        if (listReply != null) {
+            return (String) listReply.get("id");
+        }
+        return null;
     }
 }

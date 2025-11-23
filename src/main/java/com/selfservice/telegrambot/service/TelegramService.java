@@ -1,5 +1,6 @@
 package com.selfservice.telegrambot.service;
 
+import com.selfservice.application.config.LoginMenuProperties;
 import com.selfservice.application.dto.AccountSummary;
 import com.selfservice.application.dto.ServiceSummary;
 import com.selfservice.application.dto.TroubleTicketSummary;
@@ -67,13 +68,15 @@ public class TelegramService {
     private final TranslationService translationService;
     private final UserSessionService userSessionService;
     private final BusinessMenuConfigurationProvider menuConfigurationProvider;
+    private final LoginMenuProperties loginMenuProperties;
 
     public TelegramService(
             @Value("${telegram.bot.token}") String token,
             @Value("${app.public-base-url:}") String publicBaseUrl,
             TranslationService translationService,
             UserSessionService userSessionService,
-            BusinessMenuConfigurationProvider menuConfigurationProvider) {
+            BusinessMenuConfigurationProvider menuConfigurationProvider,
+            LoginMenuProperties loginMenuProperties) {
 
         String nonNullToken = Objects.requireNonNull(
                 token, "telegram.bot.token must be set in configuration");
@@ -83,6 +86,7 @@ public class TelegramService {
         this.translationService = translationService;
         this.userSessionService = userSessionService;
         this.menuConfigurationProvider = menuConfigurationProvider;
+        this.loginMenuProperties = loginMenuProperties;
 
         String masked = this.baseUrl.replaceFirst("/bot[^/]+", "/bot<token>");
         log.info("Telegram baseUrl set to {}", masked);
@@ -129,18 +133,22 @@ public class TelegramService {
         headers.setContentType(MediaType.APPLICATION_JSON);
 
         List<List<Map<String, Object>>> keyboard = new ArrayList<>();
-        if (loginUrl != null && !loginUrl.isBlank()) {
-            keyboard.add(List.of(Map.of(
-                    "text", translate(chatId, KEY_BUTTON_SELF_SERVICE_LOGIN),
-                    "url", loginUrl)));
-        } else {
-            keyboard.add(List.of(Map.of(
-                    "text", translate(chatId, KEY_BUTTON_SELF_SERVICE_LOGIN),
-                    "callback_data", CALLBACK_SELF_SERVICE_LOGIN)));
+        if (loginMenuProperties.isDigitalLoginEnabled()) {
+            if (loginUrl != null && !loginUrl.isBlank()) {
+                keyboard.add(List.of(Map.of(
+                        "text", translate(chatId, KEY_BUTTON_SELF_SERVICE_LOGIN),
+                        "url", loginUrl)));
+            } else {
+                keyboard.add(List.of(Map.of(
+                        "text", translate(chatId, KEY_BUTTON_SELF_SERVICE_LOGIN),
+                        "callback_data", CALLBACK_SELF_SERVICE_LOGIN)));
+            }
         }
-        keyboard.add(List.of(Map.of(
-                "text", translate(chatId, KEY_BUTTON_DIRECT_LOGIN),
-                "callback_data", CALLBACK_DIRECT_LOGIN)));
+        if (loginMenuProperties.isCrmLoginEnabled()) {
+            keyboard.add(List.of(Map.of(
+                    "text", translate(chatId, KEY_BUTTON_DIRECT_LOGIN),
+                    "callback_data", CALLBACK_DIRECT_LOGIN)));
+        }
         keyboard.add(List.of(Map.of(
                 "text", translate(chatId, KEY_BUTTON_CHANGE_LANGUAGE),
                 "callback_data", CALLBACK_LANGUAGE_MENU)));
