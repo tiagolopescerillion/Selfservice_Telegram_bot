@@ -135,15 +135,27 @@ public class WhatsappWebhookController {
         String sessionKey = "wa-" + from;
         String userId = from;
         String lower = body.toLowerCase();
+        boolean awaitingLanguage = sessionService.isAwaitingLanguageSelection(userId);
         String token = sessionService.getValidAccessToken(userId);
         boolean hasValidToken = token != null;
 
         if (lower.equals(WhatsappService.COMMAND_MENU)) {
+            sessionService.setAwaitingLanguageSelection(userId, false);
             if (!hasValidToken) {
                 sendLoginPrompt(from, sessionKey);
                 return;
             }
             sendBusinessMenu(from, userId);
+            return;
+        }
+
+        if (awaitingLanguage && tryHandleLanguageSelection(sessionKey, userId, lower, hasValidToken)) {
+            return;
+        }
+
+        if (lower.startsWith("lang")) {
+            sessionService.setAwaitingLanguageSelection(userId, true);
+            handleLanguageChange(sessionKey, userId, lower, hasValidToken);
             return;
         }
 
@@ -153,37 +165,37 @@ public class WhatsappWebhookController {
                 sendLoginPrompt(from, sessionKey);
                 return;
             }
-            whatsappService.sendText(from, whatsappService.translate(from, "UsingExistingLogin"));
-            sendBusinessMenu(from, userId);
-            return;
+            // Logged-in users should treat numeric options as business menu selections, not login shortcuts.
         }
 
         if (lower.equals("2") || lower.contains(TelegramService.CALLBACK_DIRECT_LOGIN.toLowerCase())) {
-            String authMessage;
-            String accessToken = null;
-            try {
-                accessToken = keycloakAuthService.getAccessToken();
-                authMessage = whatsappService.translate(from, "AuthOk");
-            } catch (Exception e) {
-                authMessage = whatsappService.format(from, "AuthError", e.getMessage());
-            }
+            if (!hasValidToken) {
+                String authMessage;
+                String accessToken = null;
+                try {
+                    accessToken = keycloakAuthService.getAccessToken();
+                    authMessage = whatsappService.translate(from, "AuthOk");
+                } catch (Exception e) {
+                    authMessage = whatsappService.format(from, "AuthError", e.getMessage());
+                }
 
-            String apiResponse = whatsappService.translate(from, "NoApiResponse");
-            if (accessToken != null) {
-                apiResponse = externalApiService.callTroubleTicketApi(accessToken);
+                String apiResponse = whatsappService.translate(from, "NoApiResponse");
+                if (accessToken != null) {
+                    apiResponse = externalApiService.callTroubleTicketApi(accessToken);
+                }
+                whatsappService.sendText(from, authMessage + "\n\n" +
+                        whatsappService.format(from, "ExternalApiResult", apiResponse));
+                sendLoginPrompt(from, sessionKey);
+                return;
             }
-            whatsappService.sendText(from, authMessage + "\n\n" +
-                    whatsappService.format(from, "ExternalApiResult", apiResponse));
-            sendLoginPrompt(from, sessionKey);
-            return;
-        }
-
-        if (lower.startsWith("lang")) {
-            handleLanguageChange(sessionKey, userId, lower);
-            return;
         }
 
         if (!hasValidToken) {
+            if (lower.equals("3") || lower.equals(WhatsappService.COMMAND_CHANGE_LANGUAGE)) {
+                sessionService.setAwaitingLanguageSelection(userId, true);
+                whatsappService.sendLanguageMenu(from);
+                return;
+            }
             sendLoginPrompt(from, sessionKey);
             return;
         }
@@ -228,7 +240,7 @@ public class WhatsappWebhookController {
             return;
         }
 
-        if (lower.equals(WhatsappService.COMMAND_LOGOUT) || lower.equals("3")) {
+        if (lower.equals(WhatsappService.COMMAND_LOGOUT)) {
             String refreshToken = sessionService.getRefreshToken(userId);
             String idToken = sessionService.getIdToken(userId);
             try {
@@ -322,7 +334,7 @@ public class WhatsappWebhookController {
         sendBusinessMenu(from, userId);
     }
 
-    private void handleLanguageChange(String sessionKey, String userId, String lower) {
+    private void handleLanguageChange(String sessionKey, String userId, String lower, boolean hasValidToken) {
         if (lower.equals("lang") || lower.equals("lang?")) {
             whatsappService.sendLanguageMenu(userId);
             return;
@@ -332,17 +344,21 @@ public class WhatsappWebhookController {
             whatsappService.sendLanguageMenu(userId);
             return;
         }
-        String code = switch (parts[1]) {
-            case "1", "en" -> "en";
-            case "2", "fr" -> "fr";
-            case "3", "pt" -> "pt";
-            case "4", "ru" -> "ru";
-            default -> parts[1];
-        };
+        tryHandleLanguageSelection(sessionKey, userId, parts[1], hasValidToken);
+    }
+
+    private boolean tryHandleLanguageSelection(String sessionKey, String userId, String selection, boolean hasValidToken) {
+        String code = mapLanguageCode(selection);
+        if (code == null || code.isBlank()) {
+            whatsappService.sendLanguageMenu(userId);
+            return true;
+        }
         if (!whatsappService.isSupportedLanguage(code)) {
             whatsappService.sendText(userId, whatsappService.translate(userId, "LanguageNotSupported"));
-            return;
+            whatsappService.sendLanguageMenu(userId);
+            return true;
         }
+        sessionService.setAwaitingLanguageSelection(userId, false);
         sessionService.setLanguage(userId, code);
         String labelKey = switch (code) {
             case "fr" -> "LanguageFrench";
@@ -353,11 +369,25 @@ public class WhatsappWebhookController {
         };
         whatsappService.sendText(userId,
                 whatsappService.format(userId, "LanguageUpdated", whatsappService.translate(userId, labelKey)));
-        if (sessionService.getValidAccessToken(userId) != null && ensureAccountSelected(sessionKey, userId)) {
+        if (hasValidToken && ensureAccountSelected(sessionKey, userId)) {
             sendBusinessMenu(userId, userId);
         } else {
             sendLoginPrompt(userId, sessionKey);
         }
+        return true;
+    }
+
+    private String mapLanguageCode(String input) {
+        if (input == null || input.isBlank()) {
+            return null;
+        }
+        return switch (input.trim()) {
+            case "1", "en" -> "en";
+            case "2", "fr" -> "fr";
+            case "3", "pt" -> "pt";
+            case "4", "ru" -> "ru";
+            default -> input.trim();
+        };
     }
 
     private void handleAccountSelection(String sessionKey, String userId, String lower) {

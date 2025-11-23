@@ -38,6 +38,7 @@ public class WhatsappSessionService {
     private final Map<String, List<TroubleTicketSummary>> ticketsByUser = new ConcurrentHashMap<>();
     private final Map<String, String> languageByUser = new ConcurrentHashMap<>();
     private final Map<String, List<String>> menuPathByUser = new ConcurrentHashMap<>();
+    private final Map<String, Boolean> awaitingLanguageSelectionByUser = new ConcurrentHashMap<>();
 
     public void save(String userId, String accessToken, String refreshToken, String idToken, long expiresInSeconds) {
         long exp = System.currentTimeMillis() + expiresInSeconds * 1000L;
@@ -170,6 +171,7 @@ public class WhatsappSessionService {
         ticketsByUser.remove(userId);
         languageByUser.remove(userId);
         menuPathByUser.remove(userId);
+        awaitingLanguageSelectionByUser.remove(userId);
     }
 
     public String getIdToken(String userId) {
@@ -201,6 +203,7 @@ public class WhatsappSessionService {
         clearTroubleTickets(userId);
         languageByUser.remove(userId);
         menuPathByUser.remove(userId);
+        awaitingLanguageSelectionByUser.remove(userId);
         return byUser.remove(userId) != null;
     }
 
@@ -214,6 +217,18 @@ public class WhatsappSessionService {
             return;
         }
         languageByUser.put(userId, language);
+    }
+
+    public void setAwaitingLanguageSelection(String userId, boolean awaiting) {
+        if (!awaiting) {
+            awaitingLanguageSelectionByUser.remove(userId);
+            return;
+        }
+        awaitingLanguageSelectionByUser.put(userId, true);
+    }
+
+    public boolean isAwaitingLanguageSelection(String userId) {
+        return awaitingLanguageSelectionByUser.getOrDefault(userId, false);
     }
 
     public void resetBusinessMenu(String userId, String rootMenuId) {
