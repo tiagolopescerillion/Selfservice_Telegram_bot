@@ -73,5 +73,13 @@
   "ExternalApiResult": "External API result:\n%s",
   "LoginFailed": "Login Failed",
   "LoginGreeting": "Hi %s, welcome to Cerillion and thank you for using our Telegram channel.",
-  "NoBillingAccountsFound": "No billing accounts were found."
+  "NoBillingAccountsFound": "No billing accounts were found.",
+  "LoginUrlHint": "Login link: %s",
+  "WhatsappMenuInstruction": "Reply with the number shown to navigate, change account, or log out.",
+  "WhatsappMoreAccountsInstruction": "Type 'more accounts %d' to see more accounts.\n",
+  "WhatsappAccountSelectionInstruction": "Reply with 'account <number>' to select an account.",
+  "WhatsappMoreServicesInstruction": "Type 'more services %d' to see more services.\n",
+  "WhatsappServiceSelectionInstruction": "Reply with 'service <number>' to select a service.",
+  "WhatsappMoreTicketsInstruction": "Type 'more tickets %d' to see more tickets.\n",
+  "WhatsappTicketSelectionInstruction": "Reply with 'ticket <id>' to view a ticket."
 }
