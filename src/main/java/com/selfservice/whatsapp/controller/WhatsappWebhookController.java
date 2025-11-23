@@ -112,14 +112,14 @@ public class WhatsappWebhookController {
 
                     String type = (String) message.get("type");
                     if (!"text".equals(type)) {
-                        whatsappService.sendLoginMenu(from, oauthSessionService.buildAuthUrl("wa-" + from));
+                        dispatchFallback(from);
                         continue;
                     }
 
                     Map<String, Object> text = (Map<String, Object>) message.get("text");
                     String body = text == null ? null : (String) text.get("body");
                     if (body == null) {
-                        whatsappService.sendLoginMenu(from, oauthSessionService.buildAuthUrl("wa-" + from));
+                        dispatchFallback(from);
                         continue;
                     }
 
@@ -139,27 +139,22 @@ public class WhatsappWebhookController {
         boolean hasValidToken = token != null;
 
         if (lower.equals(WhatsappService.COMMAND_MENU)) {
-            if (hasValidToken && ensureAccountSelected(sessionKey, userId)) {
-                AccountSummary selected = sessionService.getSelectedAccount(userId);
-                whatsappService.sendLoggedInMenu(from, selected, sessionService.getAccounts(userId).size() > 1);
-            } else {
-                whatsappService.sendLoginMenu(from, oauthSessionService.buildAuthUrl(sessionKey));
+            if (!hasValidToken) {
+                sendLoginPrompt(from, sessionKey);
+                return;
             }
+            sendBusinessMenu(from, userId);
             return;
         }
 
         if (lower.equals("1") || lower.contains(TelegramService.CALLBACK_SELF_SERVICE_LOGIN.toLowerCase()) ||
                 lower.contains("login")) {
-            if (hasValidToken) {
-                whatsappService.sendText(from, whatsappService.translate(from, "UsingExistingLogin"));
-                if (ensureAccountSelected(sessionKey, userId)) {
-                    AccountSummary selected = sessionService.getSelectedAccount(userId);
-                    whatsappService.sendLoggedInMenu(from, selected, sessionService.getAccounts(userId).size() > 1);
-                }
-            } else {
-                String loginUrl = oauthSessionService.buildAuthUrl(sessionKey);
-                whatsappService.sendLoginMenu(from, loginUrl);
+            if (!hasValidToken) {
+                sendLoginPrompt(from, sessionKey);
+                return;
             }
+            whatsappService.sendText(from, whatsappService.translate(from, "UsingExistingLogin"));
+            sendBusinessMenu(from, userId);
             return;
         }
 
@@ -179,7 +174,7 @@ public class WhatsappWebhookController {
             }
             whatsappService.sendText(from, authMessage + "\n\n" +
                     whatsappService.format(from, "ExternalApiResult", apiResponse));
-            whatsappService.sendLoginMenu(from, oauthSessionService.buildAuthUrl(sessionKey));
+            sendLoginPrompt(from, sessionKey);
             return;
         }
 
@@ -189,7 +184,7 @@ public class WhatsappWebhookController {
         }
 
         if (!hasValidToken) {
-            whatsappService.sendLoginMenu(from, oauthSessionService.buildAuthUrl(sessionKey));
+            sendLoginPrompt(from, sessionKey);
             return;
         }
 
@@ -243,7 +238,7 @@ public class WhatsappWebhookController {
             }
             sessionService.clearSession(userId);
             whatsappService.sendText(from, whatsappService.translate(from, "LoggedOutMessage"));
-            whatsappService.sendLoginMenu(from, oauthSessionService.buildAuthUrl(sessionKey));
+            sendLoginPrompt(from, sessionKey);
             return;
         }
 
@@ -257,7 +252,7 @@ public class WhatsappWebhookController {
             if (accounts.isEmpty()) {
                 sessionService.clearSelectedAccount(userId);
                 whatsappService.sendText(from, whatsappService.translate(from, "NoStoredAccounts"));
-                whatsappService.sendLoginMenu(from, oauthSessionService.buildAuthUrl(sessionKey));
+                sendLoginPrompt(from, sessionKey);
             } else {
                 sessionService.clearSelectedAccount(userId);
                 whatsappService.sendText(from, whatsappService.translate(from, "ChooseAccountToContinue"));
@@ -319,14 +314,12 @@ public class WhatsappWebhookController {
                 }
                 case TelegramService.CALLBACK_SELECT_SERVICE -> handleServiceLookup(sessionKey, userId, token);
                 case TelegramService.CALLBACK_MY_ISSUES -> handleTroubleTickets(sessionKey, userId, token);
-                default -> whatsappService.sendLoggedInMenu(from, sessionService.getSelectedAccount(userId),
-                        sessionService.getAccounts(userId).size() > 1);
+                default -> sendBusinessMenu(from, userId);
             }
             return;
         }
 
-        whatsappService.sendLoggedInMenu(from, sessionService.getSelectedAccount(userId),
-                sessionService.getAccounts(userId).size() > 1);
+        sendBusinessMenu(from, userId);
     }
 
     private void handleLanguageChange(String sessionKey, String userId, String lower) {
@@ -361,10 +354,9 @@ public class WhatsappWebhookController {
         whatsappService.sendText(userId,
                 whatsappService.format(userId, "LanguageUpdated", whatsappService.translate(userId, labelKey)));
         if (sessionService.getValidAccessToken(userId) != null && ensureAccountSelected(sessionKey, userId)) {
-            AccountSummary selected = sessionService.getSelectedAccount(userId);
-            whatsappService.sendLoggedInMenu(userId, selected, sessionService.getAccounts(userId).size() > 1);
+            sendBusinessMenu(userId, userId);
         } else {
-            whatsappService.sendLoginMenu(userId, oauthSessionService.buildAuthUrl(sessionKey));
+            sendLoginPrompt(userId, sessionKey);
         }
     }
 
@@ -373,7 +365,7 @@ public class WhatsappWebhookController {
         int index = parseIndex(lower.replace("account", "").trim()) - 1;
         if (accounts.isEmpty() || index < 0 || index >= accounts.size()) {
             whatsappService.sendText(userId, whatsappService.translate(userId, "AccountSelectionExpired"));
-            whatsappService.sendLoginMenu(userId, oauthSessionService.buildAuthUrl(sessionKey));
+            whatsappService.sendAccountPage(userId, accounts, 0);
             return;
         }
         AccountSummary selected = accounts.get(index);
@@ -397,8 +389,7 @@ public class WhatsappWebhookController {
                     : selectedService.accessNumber().strip();
             whatsappService.sendText(from, whatsappService.format(userId, "ServiceSelected", name, number));
         }
-        AccountSummary selected = sessionService.getSelectedAccount(userId);
-        whatsappService.sendLoggedInMenu(from, selected, sessionService.getAccounts(userId).size() > 1);
+        sendBusinessMenu(from, userId);
     }
 
     private void handleServiceLookup(String sessionKey, String userId, String token) {
@@ -452,12 +443,34 @@ public class WhatsappWebhookController {
         List<AccountSummary> accounts = sessionService.getAccounts(userId);
         if (accounts.isEmpty()) {
             whatsappService.sendText(userId, whatsappService.translate(userId, "NoStoredAccounts"));
-            whatsappService.sendLoginMenu(userId, oauthSessionService.buildAuthUrl(sessionKey));
+            sendLoginPrompt(userId, sessionKey);
             return false;
         }
         whatsappService.sendText(userId, whatsappService.translate(userId, "ChooseAccountToContinue"));
         whatsappService.sendAccountPage(userId, accounts, 0);
         return false;
+    }
+
+    private void dispatchFallback(String from) {
+        String sessionKey = "wa-" + from;
+        boolean hasValidToken = sessionService.getValidAccessToken(from) != null;
+        if (hasValidToken) {
+            sendBusinessMenu(from, from);
+        } else {
+            sendLoginPrompt(from, sessionKey);
+        }
+    }
+
+    private void sendBusinessMenu(String to, String userId) {
+        if (!ensureAccountSelected("wa-" + userId, userId)) {
+            return;
+        }
+        AccountSummary selected = sessionService.getSelectedAccount(userId);
+        whatsappService.sendLoggedInMenu(to, selected, sessionService.getAccounts(userId).size() > 1);
+    }
+
+    private void sendLoginPrompt(String to, String sessionKey) {
+        whatsappService.sendLoginMenu(to, oauthSessionService.buildAuthUrl(sessionKey));
     }
 
     private int parseIndex(String text) {
