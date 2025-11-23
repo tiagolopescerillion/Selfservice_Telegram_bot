@@ -212,8 +212,20 @@ public class WhatsappWebhookController {
         }
 
         if (selectionContext == WhatsappSessionService.SelectionContext.ACCOUNT && parseIndex(lower) >= 1) {
-            handleAccountSelection(sessionKey, userId, "account " + lower);
-            return;
+            int selection = parseIndex(lower);
+            List<AccountSummary> accounts = sessionService.getAccounts(userId);
+            int start = sessionService.getSelectionPageStart(userId);
+            int end = Math.min(accounts.size(), start + 5);
+            int moreIndex = end + 1;
+            if (selection == moreIndex && end < accounts.size()) {
+                whatsappService.sendAccountPage(from, accounts, end);
+                return;
+            }
+            int accountIndex = selection - 1;
+            if (accountIndex >= start && accountIndex < end) {
+                handleAccountSelection(sessionKey, userId, "account " + lower);
+                return;
+            }
         }
 
         if (lower.startsWith("more accounts")) {
@@ -228,8 +240,20 @@ public class WhatsappWebhookController {
         }
 
         if (selectionContext == WhatsappSessionService.SelectionContext.SERVICE && parseIndex(lower) >= 1) {
-            handleServiceSelection(userId, from, "service " + lower);
-            return;
+            int selection = parseIndex(lower);
+            List<ServiceSummary> services = sessionService.getServices(userId);
+            int start = sessionService.getSelectionPageStart(userId);
+            int end = Math.min(services.size(), start + 5);
+            int moreIndex = end + 1;
+            if (selection == moreIndex && end < services.size()) {
+                whatsappService.sendServicePage(from, services, end);
+                return;
+            }
+            int serviceIndex = selection - 1;
+            if (serviceIndex >= start && serviceIndex < end) {
+                handleServiceSelection(userId, from, "service " + lower);
+                return;
+            }
         }
 
         if (lower.startsWith("more services")) {
@@ -251,8 +275,20 @@ public class WhatsappWebhookController {
         }
 
         if (selectionContext == WhatsappSessionService.SelectionContext.TICKET && parseIndex(lower) >= 1) {
-            handleTicketSelection(userId, from, parseIndex(lower));
-            return;
+            int selection = parseIndex(lower);
+            List<TroubleTicketSummary> tickets = sessionService.getTroubleTickets(userId);
+            int start = sessionService.getSelectionPageStart(userId);
+            int end = Math.min(tickets.size(), start + 5);
+            int moreIndex = end + 1;
+            if (selection == moreIndex && end < tickets.size()) {
+                whatsappService.sendTroubleTicketPage(from, tickets, end);
+                return;
+            }
+            int ticketIndex = selection - 1;
+            if (ticketIndex >= start && ticketIndex < end) {
+                handleTicketSelection(userId, from, selection);
+                return;
+            }
         }
 
         if (lower.startsWith("more tickets")) {

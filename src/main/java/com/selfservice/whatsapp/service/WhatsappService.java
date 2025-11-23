@@ -200,7 +200,7 @@ public class WhatsappService {
             body.append(translate(to, "WhatsappMoreAccountsInstruction").formatted(end + 1));
         }
         body.append(translate(to, "WhatsappAccountSelectionInstruction"));
-        sessionService.setSelectionContext(to, WhatsappSessionService.SelectionContext.ACCOUNT);
+        sessionService.setSelectionContext(to, WhatsappSessionService.SelectionContext.ACCOUNT, safeStart);
         sendText(to, body.toString());
     }
 
@@ -233,7 +233,7 @@ public class WhatsappService {
             body.append(translate(to, "WhatsappMoreServicesInstruction").formatted(end + 1));
         }
         body.append(translate(to, "WhatsappServiceSelectionInstruction"));
-        sessionService.setSelectionContext(to, WhatsappSessionService.SelectionContext.SERVICE);
+        sessionService.setSelectionContext(to, WhatsappSessionService.SelectionContext.SERVICE, safeStart);
         sendText(to, body.toString());
     }
 
@@ -263,7 +263,7 @@ public class WhatsappService {
             body.append(translate(to, "WhatsappMoreTicketsInstruction").formatted(end + 1));
         }
         body.append(translate(to, "WhatsappTicketSelectionInstruction"));
-        sessionService.setSelectionContext(to, WhatsappSessionService.SelectionContext.TICKET);
+        sessionService.setSelectionContext(to, WhatsappSessionService.SelectionContext.TICKET, safeStart);
         sendText(to, body.toString());
     }
 

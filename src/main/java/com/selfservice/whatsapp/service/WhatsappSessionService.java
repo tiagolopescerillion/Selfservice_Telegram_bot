@@ -40,6 +40,7 @@ public class WhatsappSessionService {
     private final Map<String, List<String>> menuPathByUser = new ConcurrentHashMap<>();
     private final Map<String, Boolean> awaitingLanguageSelectionByUser = new ConcurrentHashMap<>();
     private final Map<String, SelectionContext> selectionContextByUser = new ConcurrentHashMap<>();
+    private final Map<String, Integer> selectionPageStartByUser = new ConcurrentHashMap<>();
 
     public enum SelectionContext {
         NONE,
@@ -181,6 +182,7 @@ public class WhatsappSessionService {
         menuPathByUser.remove(userId);
         awaitingLanguageSelectionByUser.remove(userId);
         selectionContextByUser.remove(userId);
+        selectionPageStartByUser.remove(userId);
     }
 
     public String getIdToken(String userId) {
@@ -214,6 +216,7 @@ public class WhatsappSessionService {
         menuPathByUser.remove(userId);
         awaitingLanguageSelectionByUser.remove(userId);
         selectionContextByUser.remove(userId);
+        selectionPageStartByUser.remove(userId);
         return byUser.remove(userId) != null;
     }
 
@@ -242,15 +245,25 @@ public class WhatsappSessionService {
     }
 
     public void setSelectionContext(String userId, SelectionContext context) {
+        setSelectionContext(userId, context, 0);
+    }
+
+    public void setSelectionContext(String userId, SelectionContext context, int pageStartIndex) {
         if (context == null || context == SelectionContext.NONE) {
             selectionContextByUser.remove(userId);
+            selectionPageStartByUser.remove(userId);
             return;
         }
         selectionContextByUser.put(userId, context);
+        selectionPageStartByUser.put(userId, Math.max(0, pageStartIndex));
     }
 
     public SelectionContext getSelectionContext(String userId) {
         return selectionContextByUser.getOrDefault(userId, SelectionContext.NONE);
+    }
+
+    public int getSelectionPageStart(String userId) {
+        return selectionPageStartByUser.getOrDefault(userId, 0);
     }
 
     public void resetBusinessMenu(String userId, String rootMenuId) {
