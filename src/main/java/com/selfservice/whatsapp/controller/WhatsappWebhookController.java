@@ -190,7 +190,7 @@ public class WhatsappWebhookController {
 
         if (isDigitalLogin) {
             if (!hasValidToken) {
-                sendLoginPrompt(from, sessionKey);
+                whatsappService.sendDigitalLoginLink(from, oauthSessionService.buildAuthUrl(sessionKey));
                 return;
             }
             // Logged-in users should treat numeric options as business menu selections, not login shortcuts.
@@ -642,7 +642,7 @@ public class WhatsappWebhookController {
     }
 
     private void sendLoginPrompt(String to, String sessionKey) {
-        whatsappService.sendLoginMenu(to, oauthSessionService.buildAuthUrl(sessionKey));
+        whatsappService.sendLoginMenu(to);
     }
 
     private int parseIndex(String text) {
