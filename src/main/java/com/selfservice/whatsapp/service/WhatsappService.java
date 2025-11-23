@@ -293,12 +293,12 @@ public class WhatsappService {
                 rowIndex++;
             }
 
-            int depth = sessionService.getBusinessMenuDepth(to, menuConfigurationProvider.getRootMenuId());
-            if (depth >= 1) {
+            int depthLevel = sessionService.getBusinessMenuDepth(to, menuConfigurationProvider.getRootMenuId());
+            if (depthLevel >= 1) {
                 rows.add(buildListRow(String.valueOf(rowIndex),
                         translate(to, TelegramKey.BUTTON_BUSINESS_MENU_HOME.toString())));
                 rowIndex++;
-                if (depth >= 2) {
+                if (depthLevel >= 2) {
                     rows.add(buildListRow(String.valueOf(rowIndex),
                             translate(to, TelegramKey.BUTTON_BUSINESS_MENU_UP.toString())));
                     rowIndex++;

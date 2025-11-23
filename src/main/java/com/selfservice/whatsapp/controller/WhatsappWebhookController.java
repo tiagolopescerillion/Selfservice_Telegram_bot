@@ -153,13 +153,13 @@ public class WhatsappWebhookController {
         WhatsappSessionService.SelectionContext selectionContext = sessionService.getSelectionContext(userId);
         WhatsappService.LoginMenuOption numericLoginSelection = parseLoginMenuSelection(body);
 
-        boolean isDigitalLogin = numericLoginSelection == WhatsappService.LoginMenuOption.DIGITAL_LOGIN
-                || lower.equals(WhatsappService.INTERACTIVE_ID_DIGITAL_LOGIN.toLowerCase())
-                || lower.contains(TelegramService.CALLBACK_SELF_SERVICE_LOGIN.toLowerCase())
-                || lower.contains("login");
         boolean isCrmLogin = numericLoginSelection == WhatsappService.LoginMenuOption.CRM_LOGIN
                 || lower.equals(WhatsappService.INTERACTIVE_ID_CRM_LOGIN.toLowerCase())
                 || lower.contains(TelegramService.CALLBACK_DIRECT_LOGIN.toLowerCase());
+        boolean isDigitalLogin = !isCrmLogin && (numericLoginSelection == WhatsappService.LoginMenuOption.DIGITAL_LOGIN
+                || lower.equals(WhatsappService.INTERACTIVE_ID_DIGITAL_LOGIN.toLowerCase())
+                || lower.contains(TelegramService.CALLBACK_SELF_SERVICE_LOGIN.toLowerCase())
+                || lower.equals("login"));
         boolean isChangeLanguage = numericLoginSelection == WhatsappService.LoginMenuOption.CHANGE_LANGUAGE
                 || lower.equals(WhatsappService.INTERACTIVE_ID_CHANGE_LANGUAGE.toLowerCase())
                 || lower.equals(WhatsappService.COMMAND_CHANGE_LANGUAGE);
