@@ -138,18 +138,28 @@ public class WhatsappService {
         }
 
         int depth = sessionService.getBusinessMenuDepth(to, menuConfigurationProvider.getRootMenuId());
+        int actionIndex = index;
         if (depth >= 1) {
-            body.append("H) ").append(translate(to, TelegramKey.BUTTON_BUSINESS_MENU_HOME.toString())).append("  ");
+            body.append(actionIndex).append(") ")
+                    .append(translate(to, TelegramKey.BUTTON_BUSINESS_MENU_HOME.toString()))
+                    .append("\n");
+            actionIndex++;
             if (depth >= 2) {
-                body.append("U) ").append(translate(to, TelegramKey.BUTTON_BUSINESS_MENU_UP.toString())).append("  ");
+                body.append(actionIndex).append(") ")
+                        .append(translate(to, TelegramKey.BUTTON_BUSINESS_MENU_UP.toString()))
+                        .append("\n");
+                actionIndex++;
             }
-            body.append("\n");
         }
         if (showChangeAccountOption) {
-            body.append("C) ").append(translate(to, TelegramKey.BUTTON_CHANGE_ACCOUNT.toString())).append("\n");
+            body.append(actionIndex).append(") ")
+                    .append(translate(to, TelegramKey.BUTTON_CHANGE_ACCOUNT.toString()))
+                    .append("\n");
+            actionIndex++;
         }
-        body.append("L) ").append(translate(to, TelegramKey.BUTTON_LOGOUT.toString())).append("\n");
-        body.append("Lang) ").append(translate(to, TelegramKey.BUTTON_CHANGE_LANGUAGE.toString())).append("\n");
+        body.append(actionIndex).append(") ")
+                .append(translate(to, TelegramKey.BUTTON_LOGOUT.toString()))
+                .append("\n");
         body.append(translate(to, "WhatsappMenuInstruction"));
         sendText(to, body.toString());
     }
@@ -251,6 +261,10 @@ public class WhatsappService {
     public List<BusinessMenuItem> currentMenuItems(String userId) {
         String menuId = resolveCurrentMenuId(userId);
         return new ArrayList<>(menuConfigurationProvider.getMenuItems(menuId));
+    }
+
+    public int currentMenuDepth(String userId) {
+        return sessionService.getBusinessMenuDepth(userId, menuConfigurationProvider.getRootMenuId());
     }
 
     public boolean goToBusinessMenu(String userId, String menuId) {

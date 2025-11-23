@@ -75,7 +75,7 @@
   "LoginGreeting": "Hi %s, welcome to Cerillion and thank you for using our Telegram channel.",
   "NoBillingAccountsFound": "No billing accounts were found.",
   "LoginUrlHint": "Login link: %s",
-  "WhatsappMenuInstruction": "Reply with the number above or type home/up/c/language/logout as shown.",
+  "WhatsappMenuInstruction": "Reply with the number shown to navigate, change account, or log out.",
   "WhatsappMoreAccountsInstruction": "Type 'more accounts %d' to see more accounts.\n",
   "WhatsappAccountSelectionInstruction": "Reply with 'account <number>' to select an account.",
   "WhatsappMoreServicesInstruction": "Type 'more services %d' to see more services.\n",

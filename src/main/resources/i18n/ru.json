@@ -75,7 +75,7 @@
   "LoginGreeting": "Здравствуйте, %s! Добро пожаловать в Cerillion и спасибо, что используете наш канал в Telegram.",
   "NoBillingAccountsFound": "Учётные записи для выставления счетов не найдены.",
   "LoginUrlHint": "Ссылка для входа: %s",
-  "WhatsappMenuInstruction": "Ответьте номером выше или введите home/up/c/language/logout как показано.",
+  "WhatsappMenuInstruction": "Ответьте указанным номером, чтобы перейти по меню, сменить аккаунт или выйти.",
   "WhatsappMoreAccountsInstruction": "Введите 'more accounts %d', чтобы увидеть больше счетов.\n",
   "WhatsappAccountSelectionInstruction": "Ответьте 'account <number>', чтобы выбрать учётную запись.",
   "WhatsappMoreServicesInstruction": "Введите 'more services %d', чтобы увидеть больше услуг.\n",

@@ -154,6 +154,10 @@ public class WhatsappWebhookController {
         }
 
         if (lower.startsWith("lang")) {
+            if (hasValidToken) {
+                sendBusinessMenu(from, userId);
+                return;
+            }
             sessionService.setAwaitingLanguageSelection(userId, true);
             handleLanguageChange(sessionKey, userId, lower, hasValidToken);
             return;
@@ -254,11 +258,6 @@ public class WhatsappWebhookController {
             return;
         }
 
-        if (lower.equals(WhatsappService.COMMAND_CHANGE_LANGUAGE)) {
-            whatsappService.sendLanguageMenu(from);
-            return;
-        }
-
         if (lower.equals(WhatsappService.COMMAND_CHANGE_ACCOUNT) || lower.equals("c")) {
             List<AccountSummary> accounts = sessionService.getAccounts(userId);
             if (accounts.isEmpty()) {
@@ -288,6 +287,8 @@ public class WhatsappWebhookController {
         }
 
         List<BusinessMenuItem> menuItems = whatsappService.currentMenuItems(userId);
+        int depth = whatsappService.currentMenuDepth(userId);
+        boolean showChangeAccountOption = sessionService.getAccounts(userId).size() > 1;
         int numeric = parseIndex(lower);
         if (numeric >= 1 && numeric <= menuItems.size()) {
             BusinessMenuItem item = menuItems.get(numeric - 1);
@@ -328,6 +329,57 @@ public class WhatsappWebhookController {
                 case TelegramService.CALLBACK_MY_ISSUES -> handleTroubleTickets(sessionKey, userId, token);
                 default -> sendBusinessMenu(from, userId);
             }
+            return;
+        }
+
+        int actionIndex = menuItems.size();
+        if (depth >= 1) {
+            actionIndex++;
+            if (numeric == actionIndex) {
+                whatsappService.goHomeBusinessMenu(userId);
+                AccountSummary selected = sessionService.getSelectedAccount(userId);
+                whatsappService.sendLoggedInMenu(from, selected, showChangeAccountOption);
+                return;
+            }
+            if (depth >= 2) {
+                actionIndex++;
+                if (numeric == actionIndex) {
+                    whatsappService.goUpBusinessMenu(userId);
+                    AccountSummary selected = sessionService.getSelectedAccount(userId);
+                    whatsappService.sendLoggedInMenu(from, selected, showChangeAccountOption);
+                    return;
+                }
+            }
+        }
+        if (showChangeAccountOption) {
+            actionIndex++;
+            if (numeric == actionIndex) {
+                List<AccountSummary> accounts = sessionService.getAccounts(userId);
+                if (accounts.isEmpty()) {
+                    sessionService.clearSelectedAccount(userId);
+                    whatsappService.sendText(from, whatsappService.translate(from, "NoStoredAccounts"));
+                    sendLoginPrompt(from, sessionKey);
+                } else {
+                    sessionService.clearSelectedAccount(userId);
+                    whatsappService.sendText(from, whatsappService.translate(from, "ChooseAccountToContinue"));
+                    whatsappService.sendAccountPage(from, accounts, 0);
+                }
+                return;
+            }
+        }
+
+        actionIndex++;
+        if (numeric == actionIndex) {
+            String refreshToken = sessionService.getRefreshToken(userId);
+            String idToken = sessionService.getIdToken(userId);
+            try {
+                oauthSessionService.logout(refreshToken, idToken);
+            } catch (Exception ex) {
+                log.warn("Logout failed for WhatsApp user {}", sessionKey, ex);
+            }
+            sessionService.clearSession(userId);
+            whatsappService.sendText(from, whatsappService.translate(from, "LoggedOutMessage"));
+            sendLoginPrompt(from, sessionKey);
             return;
         }
 
