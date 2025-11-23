@@ -73,5 +73,13 @@
   "ExternalApiResult": "Результат внешнего API:\n%s",
   "LoginFailed": "Ошибка входа",
   "LoginGreeting": "Здравствуйте, %s! Добро пожаловать в Cerillion и спасибо, что используете наш канал в Telegram.",
-  "NoBillingAccountsFound": "Учётные записи для выставления счетов не найдены."
+  "NoBillingAccountsFound": "Учётные записи для выставления счетов не найдены.",
+  "LoginUrlHint": "Ссылка для входа: %s",
+  "WhatsappMenuInstruction": "Ответьте номером выше или введите home/up/c/language/logout как показано.",
+  "WhatsappMoreAccountsInstruction": "Введите 'more accounts %d', чтобы увидеть больше счетов.\n",
+  "WhatsappAccountSelectionInstruction": "Ответьте 'account <number>', чтобы выбрать учётную запись.",
+  "WhatsappMoreServicesInstruction": "Введите 'more services %d', чтобы увидеть больше услуг.\n",
+  "WhatsappServiceSelectionInstruction": "Ответьте 'service <number>', чтобы выбрать услугу.",
+  "WhatsappMoreTicketsInstruction": "Введите 'more tickets %d', чтобы увидеть больше тикетов.\n",
+  "WhatsappTicketSelectionInstruction": "Ответьте 'ticket <id>', чтобы открыть тикет."
 }

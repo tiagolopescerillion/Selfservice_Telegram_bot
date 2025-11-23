@@ -100,9 +100,9 @@ public class OAuthCallbackController {
                         id instanceof String ? (String) id : null,
                         expSecs);
             }
-            if (whatsappUser && sessionKey != null && at instanceof String) {
+            if (whatsappUser && whatsappChatId != null && at instanceof String) {
                 long expSecs = (exp instanceof Number) ? ((Number) exp).longValue() : 300L;
-                whatsappSessions.save(sessionKey,
+                whatsappSessions.save(whatsappChatId,
                         (String) at,
                         rt instanceof String ? (String) rt : null,
                         id instanceof String ? (String) id : null,
@@ -124,8 +124,8 @@ public class OAuthCallbackController {
                 if (chatId > 0) {
                     sessions.saveAccounts(chatId, accounts);
                 }
-                if (whatsappUser && sessionKey != null) {
-                    whatsappSessions.saveAccounts(sessionKey, accounts);
+                if (whatsappUser && whatsappChatId != null) {
+                    whatsappSessions.saveAccounts(whatsappChatId, accounts);
                 }
                 String noAccountsMessage = (chatId > 0)
                         ? telegram.translate(chatId, "NoBillingAccountsFound")
@@ -174,19 +174,26 @@ public class OAuthCallbackController {
                         ? "Welcome " + findUserResult.givenName() + "!"
                         : null;
 
-                StringBuilder waMessage = new StringBuilder();
                 if (findUserResult.success()) {
                     if (greeting != null) {
-                        waMessage.append(greeting).append("\n\n");
+                        whatsappService.sendText(whatsappChatId, greeting);
                     }
-                    waMessage.append("Login OK ✅\nBearer token:\n");
-                    waMessage.append(at instanceof String ? (String) at : "<missing token>");
-                    waMessage.append("\n\nAPIMAN findUser summary:\n").append(accountListMessage);
+                    if (accounts.isEmpty()) {
+                        whatsappSessions.clearSelectedAccount(whatsappChatId);
+                        whatsappService.sendText(whatsappChatId, whatsappService.translate(whatsappChatId,
+                                "NoBillingAccountsFound"));
+                        whatsappService.sendLoginMenu(whatsappChatId, oauth.buildAuthUrl(sessionKey));
+                    } else if (accounts.size() == 1) {
+                        var onlyAccount = accounts.get(0);
+                        whatsappSessions.selectAccount(whatsappChatId, onlyAccount);
+                        whatsappService.sendLoggedInMenu(whatsappChatId, onlyAccount, false, greeting);
+                    } else {
+                        whatsappSessions.clearSelectedAccount(whatsappChatId);
+                        whatsappService.sendAccountPage(whatsappChatId, accounts, 0, greeting);
+                    }
                 } else {
-                    waMessage.append("Login failed 😞\n").append(accountListMessage);
+                    whatsappService.sendText(whatsappChatId, accountListMessage);
                 }
-
-                whatsappService.sendText(whatsappChatId, waMessage.toString());
             }
 
             return """
