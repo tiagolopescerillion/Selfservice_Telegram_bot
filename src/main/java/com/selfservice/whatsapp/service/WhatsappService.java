@@ -91,9 +91,9 @@ public class WhatsappService {
 
     public void sendLoginMenu(String to, String loginUrl) {
         StringBuilder menu = new StringBuilder();
-        menu.append("1) ").append(translate(to, TelegramKey.BUTTON_SELF_SERVICE_LOGIN)).append("\n");
-        menu.append("2) ").append(translate(to, TelegramKey.BUTTON_DIRECT_LOGIN)).append("\n");
-        menu.append("3) ").append(translate(to, TelegramKey.BUTTON_CHANGE_LANGUAGE)).append("\n");
+        menu.append("1) ").append(translate(to, TelegramKey.BUTTON_SELF_SERVICE_LOGIN.toString())).append("\n");
+        menu.append("2) ").append(translate(to, TelegramKey.BUTTON_DIRECT_LOGIN.toString())).append("\n");
+        menu.append("3) ").append(translate(to, TelegramKey.BUTTON_CHANGE_LANGUAGE.toString())).append("\n");
         if (loginUrl != null && !loginUrl.isBlank()) {
             menu.append("\n").append(format(to, "LoginUrlHint", loginUrl));
         }
@@ -139,17 +139,17 @@ public class WhatsappService {
 
         int depth = sessionService.getBusinessMenuDepth(to, menuConfigurationProvider.getRootMenuId());
         if (depth >= 1) {
-            body.append("H) ").append(translate(to, TelegramKey.BUTTON_BUSINESS_MENU_HOME)).append("  ");
+            body.append("H) ").append(translate(to, TelegramKey.BUTTON_BUSINESS_MENU_HOME.toString())).append("  ");
             if (depth >= 2) {
-                body.append("U) ").append(translate(to, TelegramKey.BUTTON_BUSINESS_MENU_UP)).append("  ");
+                body.append("U) ").append(translate(to, TelegramKey.BUTTON_BUSINESS_MENU_UP.toString())).append("  ");
             }
             body.append("\n");
         }
         if (showChangeAccountOption) {
-            body.append("C) ").append(translate(to, TelegramKey.BUTTON_CHANGE_ACCOUNT)).append("\n");
+            body.append("C) ").append(translate(to, TelegramKey.BUTTON_CHANGE_ACCOUNT.toString())).append("\n");
         }
-        body.append("L) ").append(translate(to, TelegramKey.BUTTON_LOGOUT)).append("\n");
-        body.append("Lang) ").append(translate(to, TelegramKey.BUTTON_CHANGE_LANGUAGE)).append("\n");
+        body.append("L) ").append(translate(to, TelegramKey.BUTTON_LOGOUT.toString())).append("\n");
+        body.append("Lang) ").append(translate(to, TelegramKey.BUTTON_CHANGE_LANGUAGE.toString())).append("\n");
         body.append(translate(to, "WhatsappMenuInstruction"));
         sendText(to, body.toString());
     }
@@ -174,7 +174,7 @@ public class WhatsappService {
         if (header != null && !header.isBlank()) {
             appendParagraph(body, header);
         }
-        body.append(buildPagedPrompt(to, TelegramKey.SELECT_ACCOUNT_PROMPT, safeStart, end, accounts.size()))
+        body.append(buildPagedPrompt(to, TelegramKey.SELECT_ACCOUNT_PROMPT.toString(), safeStart, end, accounts.size()))
                 .append("\n");
         for (int i = safeStart; i < end; i++) {
             AccountSummary summary = accounts.get(i);
