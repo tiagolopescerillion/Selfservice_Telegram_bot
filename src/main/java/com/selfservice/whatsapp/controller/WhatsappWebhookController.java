@@ -6,6 +6,7 @@ import com.selfservice.application.dto.AccountSummary;
 import com.selfservice.application.dto.ServiceListResult;
 import com.selfservice.application.dto.ServiceSummary;
 import com.selfservice.application.dto.TroubleTicketListResult;
+import com.selfservice.application.dto.TroubleTicketSummary;
 import com.selfservice.application.service.ExternalApiService;
 import com.selfservice.application.service.MainServiceCatalogService;
 import com.selfservice.application.service.TroubleTicketService;
@@ -138,6 +139,7 @@ public class WhatsappWebhookController {
         boolean awaitingLanguage = sessionService.isAwaitingLanguageSelection(userId);
         String token = sessionService.getValidAccessToken(userId);
         boolean hasValidToken = token != null;
+        WhatsappSessionService.SelectionContext selectionContext = sessionService.getSelectionContext(userId);
 
         if (lower.equals(WhatsappService.COMMAND_MENU)) {
             sessionService.setAwaitingLanguageSelection(userId, false);
@@ -209,6 +211,11 @@ public class WhatsappWebhookController {
             return;
         }
 
+        if (selectionContext == WhatsappSessionService.SelectionContext.ACCOUNT && parseIndex(lower) >= 1) {
+            handleAccountSelection(sessionKey, userId, "account " + lower);
+            return;
+        }
+
         if (lower.startsWith("more accounts")) {
             int offset = parseIndex(lower.replace("more accounts", "").trim());
             whatsappService.sendAccountPage(from, sessionService.getAccounts(userId), offset);
@@ -217,6 +224,11 @@ public class WhatsappWebhookController {
 
         if (lower.startsWith("service")) {
             handleServiceSelection(userId, from, lower);
+            return;
+        }
+
+        if (selectionContext == WhatsappSessionService.SelectionContext.SERVICE && parseIndex(lower) >= 1) {
+            handleServiceSelection(userId, from, "service " + lower);
             return;
         }
 
@@ -235,6 +247,11 @@ public class WhatsappWebhookController {
             }
             AccountSummary selected = sessionService.getSelectedAccount(userId);
             whatsappService.sendLoggedInMenu(from, selected, sessionService.getAccounts(userId).size() > 1);
+            return;
+        }
+
+        if (selectionContext == WhatsappSessionService.SelectionContext.TICKET && parseIndex(lower) >= 1) {
+            handleTicketSelection(userId, from, parseIndex(lower));
             return;
         }
 
@@ -471,6 +488,7 @@ public class WhatsappWebhookController {
                     : selectedService.accessNumber().strip();
             whatsappService.sendText(from, whatsappService.format(userId, "ServiceSelected", name, number));
         }
+        sessionService.setSelectionContext(userId, WhatsappSessionService.SelectionContext.NONE);
         sendBusinessMenu(from, userId);
     }
 
@@ -515,6 +533,20 @@ public class WhatsappWebhookController {
             sessionService.saveTroubleTickets(userId, result.tickets());
             whatsappService.sendTroubleTicketPage(userId, result.tickets(), 0);
         }
+    }
+
+    private void handleTicketSelection(String userId, String from, int numeric) {
+        List<TroubleTicketSummary> tickets = sessionService.getTroubleTickets(userId);
+        int index = numeric - 1;
+        if (tickets.isEmpty() || index < 0 || index >= tickets.size()) {
+            whatsappService.sendText(from, whatsappService.translate(userId, "TicketNoLongerAvailable"));
+        } else {
+            TroubleTicketSummary ticket = tickets.get(index);
+            whatsappService.sendText(from, whatsappService.format(userId, "TicketSelected", ticket.id()));
+        }
+        sessionService.setSelectionContext(userId, WhatsappSessionService.SelectionContext.NONE);
+        AccountSummary selected = sessionService.getSelectedAccount(userId);
+        whatsappService.sendLoggedInMenu(from, selected, sessionService.getAccounts(userId).size() > 1);
     }
 
     private boolean ensureAccountSelected(String sessionKey, String userId) {

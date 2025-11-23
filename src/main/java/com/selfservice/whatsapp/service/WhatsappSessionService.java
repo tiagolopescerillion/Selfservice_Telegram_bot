@@ -39,6 +39,14 @@ public class WhatsappSessionService {
     private final Map<String, String> languageByUser = new ConcurrentHashMap<>();
     private final Map<String, List<String>> menuPathByUser = new ConcurrentHashMap<>();
     private final Map<String, Boolean> awaitingLanguageSelectionByUser = new ConcurrentHashMap<>();
+    private final Map<String, SelectionContext> selectionContextByUser = new ConcurrentHashMap<>();
+
+    public enum SelectionContext {
+        NONE,
+        ACCOUNT,
+        SERVICE,
+        TICKET
+    }
 
     public void save(String userId, String accessToken, String refreshToken, String idToken, long expiresInSeconds) {
         long exp = System.currentTimeMillis() + expiresInSeconds * 1000L;
@@ -172,6 +180,7 @@ public class WhatsappSessionService {
         languageByUser.remove(userId);
         menuPathByUser.remove(userId);
         awaitingLanguageSelectionByUser.remove(userId);
+        selectionContextByUser.remove(userId);
     }
 
     public String getIdToken(String userId) {
@@ -204,6 +213,7 @@ public class WhatsappSessionService {
         languageByUser.remove(userId);
         menuPathByUser.remove(userId);
         awaitingLanguageSelectionByUser.remove(userId);
+        selectionContextByUser.remove(userId);
         return byUser.remove(userId) != null;
     }
 
@@ -229,6 +239,18 @@ public class WhatsappSessionService {
 
     public boolean isAwaitingLanguageSelection(String userId) {
         return awaitingLanguageSelectionByUser.getOrDefault(userId, false);
+    }
+
+    public void setSelectionContext(String userId, SelectionContext context) {
+        if (context == null || context == SelectionContext.NONE) {
+            selectionContextByUser.remove(userId);
+            return;
+        }
+        selectionContextByUser.put(userId, context);
+    }
+
+    public SelectionContext getSelectionContext(String userId) {
+        return selectionContextByUser.getOrDefault(userId, SelectionContext.NONE);
     }
 
     public void resetBusinessMenu(String userId, String rootMenuId) {

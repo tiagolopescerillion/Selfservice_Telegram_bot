@@ -90,6 +90,7 @@ public class WhatsappService {
     }
 
     public void sendLoginMenu(String to, String loginUrl) {
+        sessionService.setSelectionContext(to, WhatsappSessionService.SelectionContext.NONE);
         StringBuilder menu = new StringBuilder();
         menu.append("1) ").append(translate(to, TelegramKey.BUTTON_SELF_SERVICE_LOGIN.toString())).append("\n");
         menu.append("2) ").append(translate(to, TelegramKey.BUTTON_DIRECT_LOGIN.toString())).append("\n");
@@ -102,6 +103,7 @@ public class WhatsappService {
     }
 
     public void sendLanguageMenu(String to) {
+        sessionService.setSelectionContext(to, WhatsappSessionService.SelectionContext.NONE);
         StringBuilder menu = new StringBuilder();
         menu.append(translate(to, "ChooseLanguagePrompt")).append("\n")
                 .append("1) ").append(translate(to, "LanguageEnglish")).append("\n")
@@ -119,11 +121,15 @@ public class WhatsappService {
         String menuId = resolveCurrentMenuId(to);
         List<BusinessMenuItem> menuItems = menuConfigurationProvider.getMenuItems(menuId);
         StringBuilder body = new StringBuilder();
+        sessionService.setSelectionContext(to, WhatsappSessionService.SelectionContext.NONE);
         appendParagraph(body, greeting);
         if (selectedAccount != null) {
             appendParagraph(body, format(to, "AccountSelected", selectedAccount.accountId()));
         }
         appendParagraph(body, translate(to, "LoginWelcome"));
+        if (!body.toString().endsWith("\n\n")) {
+            body.append("\n");
+        }
 
         int index = 1;
         for (BusinessMenuItem item : menuItems) {
@@ -194,6 +200,7 @@ public class WhatsappService {
             body.append(translate(to, "WhatsappMoreAccountsInstruction").formatted(end + 1));
         }
         body.append(translate(to, "WhatsappAccountSelectionInstruction"));
+        sessionService.setSelectionContext(to, WhatsappSessionService.SelectionContext.ACCOUNT);
         sendText(to, body.toString());
     }
 
@@ -226,6 +233,7 @@ public class WhatsappService {
             body.append(translate(to, "WhatsappMoreServicesInstruction").formatted(end + 1));
         }
         body.append(translate(to, "WhatsappServiceSelectionInstruction"));
+        sessionService.setSelectionContext(to, WhatsappSessionService.SelectionContext.SERVICE);
         sendText(to, body.toString());
     }
 
@@ -255,6 +263,7 @@ public class WhatsappService {
             body.append(translate(to, "WhatsappMoreTicketsInstruction").formatted(end + 1));
         }
         body.append(translate(to, "WhatsappTicketSelectionInstruction"));
+        sessionService.setSelectionContext(to, WhatsappSessionService.SelectionContext.TICKET);
         sendText(to, body.toString());
     }
 
