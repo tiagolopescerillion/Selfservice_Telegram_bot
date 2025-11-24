@@ -122,11 +122,21 @@ public class WhatsappService {
     public void sendLoginMenu(String to) {
         sessionService.setSelectionContext(to, WhatsappSessionService.SelectionContext.NONE);
         List<LoginMenuOption> options = loginMenuOptions();
+
+        boolean textSent = false;
         if (whatsappProperties.isBasicUxEnabled() || shouldSendFallbackText()) {
             sendLoginMenuText(to, options);
+            textSent = true;
         }
+
+        boolean cardsSent = false;
         if (whatsappProperties.isInteractiveUxEnabled()) {
-            sendLoginMenuCards(to, options);
+            cardsSent = sendLoginMenuCards(to, options);
+        }
+
+        if (!cardsSent && !textSent) {
+            // Interactive-only mode still needs a visible response if cards cannot be sent.
+            sendLoginMenuText(to, options);
         }
     }
 
@@ -153,10 +163,10 @@ public class WhatsappService {
         sendText(to, menu.toString());
     }
 
-    private void sendLoginMenuCards(String to, List<LoginMenuOption> options) {
+    private boolean sendLoginMenuCards(String to, List<LoginMenuOption> options) {
         if (!isConfigured()) {
             log.warn("WhatsApp messaging is not fully configured; cannot send login menu cards");
-            return;
+            return false;
         }
 
         List<Map<String, Object>> rows = new ArrayList<>();
@@ -173,7 +183,7 @@ public class WhatsappService {
             }
         }
 
-        sendInteractiveList(to,
+        return sendInteractiveList(to,
                 translate(to, "PleaseChooseSignIn"),
                 translate(to, "PleaseChooseSignIn"),
                 rows);
@@ -532,7 +542,7 @@ public class WhatsappService {
         return prompt;
     }
 
-    private void postToWhatsapp(Map<String, Object> payload) {
+    private boolean postToWhatsapp(Map<String, Object> payload) {
         String url = "https://graph.facebook.com/v20.0/" + phoneNumberId + "/messages";
 
         HttpHeaders headers = new HttpHeaders();
@@ -544,11 +554,14 @@ public class WhatsappService {
         try {
             ResponseEntity<String> response = restTemplate.postForEntity(url, entity, String.class);
             log.info("WhatsApp API responded with status {}", response.getStatusCode());
+            return true;
         } catch (HttpStatusCodeException ex) {
             log.error("WhatsApp API error {}: {}", ex.getStatusCode(), ex.getResponseBodyAsString());
         } catch (Exception ex) {
             log.error("Failed to call WhatsApp API", ex);
         }
+
+        return false;
     }
 
     private boolean isConfigured() {
@@ -566,13 +579,13 @@ public class WhatsappService {
         );
     }
 
-    private void sendInteractiveList(String to, String title, String instruction, List<Map<String, Object>> rows) {
+    private boolean sendInteractiveList(String to, String title, String instruction, List<Map<String, Object>> rows) {
         if (!isConfigured()) {
             log.warn("WhatsApp messaging is not fully configured; cannot send interactive list");
-            return;
+            return false;
         }
         if (rows == null || rows.isEmpty()) {
-            return;
+            return false;
         }
 
         Map<String, Object> payload = Map.of(
@@ -593,7 +606,7 @@ public class WhatsappService {
                 )
         );
 
-        postToWhatsapp(payload);
+        return postToWhatsapp(payload);
     }
 
     public enum TelegramKey {
