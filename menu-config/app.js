@@ -91,10 +91,11 @@ let menuOrder = [];
 let selectedMenuId = ROOT_MENU_ID;
 let menuIdCounter = 0;
 let itemIdCounter = 0;
-let sessionSequence = 0;
-const liveSessions = [];
-const sessionHistory = [];
-const monitoringChannels = ["Telegram", "WhatsApp", "Messenger", "Web"];
+let liveSessions = [];
+let sessionHistory = [];
+let monitoringError = null;
+const MONITORING_REFRESH_MS = 5000;
+let monitoringIntervalId = null;
 
 function initFunctionSelect(selectEl) {
   selectEl.innerHTML = "";
@@ -791,27 +792,42 @@ function setActiveApp(target) {
   navMenuConfig.classList.toggle("active", showMenuConfig);
   navOperationsMonitoring.classList.toggle("active", !showMenuConfig);
   if (!showMenuConfig) {
-    renderMonitoring();
+    refreshMonitoringData();
   }
 }
 
-function buildSession(channel, chatId, loggedIn, startedAt = new Date()) {
-  sessionSequence += 1;
-  return { id: `session-${sessionSequence}`, channel, chatId, loggedIn, startedAt };
-}
-
-function randomChatId(channel) {
-  const prefix = channel.slice(0, 2).toUpperCase();
-  return `${prefix}-${Math.floor(100000 + Math.random() * 900000)}`;
-}
-
-function seedMonitoringSessions() {
-  liveSessions.push(
-    buildSession("Telegram", randomChatId("Telegram"), true, new Date(Date.now() - 120000)),
-    buildSession("WhatsApp", randomChatId("WhatsApp"), false, new Date(Date.now() - 240000)),
-    buildSession("Messenger", randomChatId("Messenger"), true, new Date(Date.now() - 420000))
-  );
+async function refreshMonitoringData() {
+  try {
+    const response = await fetch("/operations/sessions");
+    if (!response.ok) {
+      throw new Error(`Failed to load sessions (HTTP ${response.status})`);
+    }
+    const payload = await response.json();
+    liveSessions = (payload.active || payload.live || payload.activeSessions || [])
+      .map(normalizeSession);
+    sessionHistory = (payload.history || payload.recent || [])
+      .map(normalizeSession);
+    monitoringError = null;
+  } catch (error) {
+    console.error("Monitoring refresh failed", error);
+    monitoringError = error?.message || "Unable to load monitoring data.";
+    liveSessions = [];
+    sessionHistory = [];
+  }
   renderMonitoring();
+}
+
+function normalizeSession(raw) {
+  const startedAt = raw?.startedAt ? new Date(raw.startedAt) : null;
+  const sessionId = raw?.sessionId || raw?.chatId || raw?.id || "Unknown";
+  return {
+    channel: raw?.channel || "Unknown",
+    chatId: sessionId,
+    loggedIn: Boolean(raw?.loggedIn),
+    username: raw?.username || "",
+    startedAt,
+    lastSeen: raw?.lastSeen ? new Date(raw.lastSeen) : startedAt
+  };
 }
 
 function renderMonitoring() {
@@ -821,10 +837,16 @@ function renderMonitoring() {
 
 function renderSessionList(container, sessions, emptyMessage) {
   container.innerHTML = "";
+  if (monitoringError) {
+    const errorRow = document.createElement("div");
+    errorRow.className = "empty-state error-state";
+    errorRow.textContent = monitoringError;
+    container.append(errorRow);
+  }
   if (!sessions.length) {
     const empty = document.createElement("div");
     empty.className = "empty-state";
-    empty.textContent = emptyMessage;
+    empty.textContent = monitoringError ? "" : emptyMessage;
     container.append(empty);
     return;
   }
@@ -846,12 +868,18 @@ function renderSessionList(container, sessions, emptyMessage) {
     const statusText = document.createElement("span");
     statusText.textContent = session.loggedIn ? "Yes" : "No";
     loggedIn.append(statusDot, statusText);
+    if (session.loggedIn && session.username) {
+      const userLabel = document.createElement("span");
+      userLabel.className = "session-row__user";
+      userLabel.textContent = `— ${session.username}`;
+      loggedIn.append(userLabel);
+    }
 
     const startDate = document.createElement("span");
-    startDate.textContent = formatDate(session.startedAt);
+    startDate.textContent = session.startedAt ? formatDate(session.startedAt) : "—";
 
     const startTime = document.createElement("span");
-    startTime.textContent = formatTime(session.startedAt);
+    startTime.textContent = session.startedAt ? formatTime(session.startedAt) : "—";
 
     row.append(channel, chat, loggedIn, startDate, startTime);
     container.append(row);
@@ -866,51 +894,11 @@ function formatTime(date) {
   return new Date(date).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit", second: "2-digit" });
 }
 
-function moveSessionToHistory(session) {
-  sessionHistory.unshift(session);
-  if (sessionHistory.length > 40) {
-    sessionHistory.pop();
-  }
-}
-
-function simulateSessionLifecycle() {
-  if (!liveSessions.length) {
-    return;
-  }
-  const index = Math.floor(Math.random() * liveSessions.length);
-  const [session] = liveSessions.splice(index, 1);
-  moveSessionToHistory(session);
-  renderMonitoring();
-}
-
-function simulateNewSession() {
-  const channel = monitoringChannels[Math.floor(Math.random() * monitoringChannels.length)];
-  const loggedIn = Math.random() > 0.35;
-  const session = buildSession(channel, randomChatId(channel), loggedIn);
-  liveSessions.unshift(session);
-  if (liveSessions.length > 25) {
-    liveSessions.pop();
-  }
-  renderMonitoring();
-}
-
-function refreshLoginState() {
-  if (!liveSessions.length) {
-    return;
-  }
-  liveSessions.forEach((session) => {
-    if (Math.random() > 0.7) {
-      session.loggedIn = !session.loggedIn;
-    }
-  });
-  renderMonitoring();
-}
-
 function initMonitoring() {
-  seedMonitoringSessions();
-  setInterval(simulateSessionLifecycle, 6500);
-  setInterval(simulateNewSession, 8500);
-  setInterval(refreshLoginState, 7000);
+  refreshMonitoringData();
+  if (monitoringIntervalId === null) {
+    monitoringIntervalId = setInterval(refreshMonitoringData, MONITORING_REFRESH_MS);
+  }
 }
 
 menuSelect.addEventListener("change", (event) => {

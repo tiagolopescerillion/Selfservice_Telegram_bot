@@ -349,7 +349,7 @@ button:disabled {
 .list-header,
 .session-row {
     display: grid;
-    grid-template-columns: 1.1fr 1.6fr 1.2fr 1.1fr 1.1fr;
+    grid-template-columns: 1.1fr 1.6fr 1.6fr 1.05fr 1.05fr;
     gap: 0.5rem;
     align-items: center;
 }
@@ -385,6 +385,11 @@ button:disabled {
     gap: 0.4rem;
 }
 
+.session-row__user {
+    color: #0f172a;
+    font-weight: 600;
+}
+
 .status-dot {
     width: 10px;
     height: 10px;
@@ -403,6 +408,10 @@ button:disabled {
 .empty-state {
     padding: 1rem;
     color: #475569;
+}
+
+.error-state {
+    color: #b91c1c;
 }
 
 @media (max-width: 900px) {
