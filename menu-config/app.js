@@ -83,6 +83,8 @@ const menuConfigurationPanel = document.getElementById("menuConfigurationPanel")
 const operationsMonitoringPanel = document.getElementById("operationsMonitoringPanel");
 const liveSessionsContainer = document.getElementById("liveSessions");
 const sessionHistoryContainer = document.getElementById("sessionHistory");
+const monitoringApiBaseInput = document.getElementById("monitoringApiBase");
+const monitoringApiBaseMeta = document.querySelector("meta[name='operations-api-base']");
 
 initFunctionSelect(menuFunctionSelect);
 
@@ -95,7 +97,9 @@ let liveSessions = [];
 let sessionHistory = [];
 let monitoringError = null;
 const MONITORING_REFRESH_MS = 5000;
+const MONITORING_API_STORAGE_KEY = "monitoringApiBase";
 let monitoringIntervalId = null;
+let monitoringEndpointCache = "";
 
 function initFunctionSelect(selectEl) {
   selectEl.innerHTML = "";
@@ -796,9 +800,81 @@ function setActiveApp(target) {
   }
 }
 
-async function refreshMonitoringData() {
+function getStoredMonitoringApiBase() {
+  return localStorage.getItem(MONITORING_API_STORAGE_KEY)?.trim() || "";
+}
+
+function restoreMonitoringApiBase() {
+  const stored = getStoredMonitoringApiBase();
+  if (stored && monitoringApiBaseInput) {
+    monitoringApiBaseInput.value = stored;
+    return;
+  }
+
+  const metaValue = monitoringApiBaseMeta?.content?.trim();
+  if (metaValue && monitoringApiBaseInput && !monitoringApiBaseInput.value) {
+    monitoringApiBaseInput.placeholder = metaValue;
+  }
+}
+
+function getConfiguredMonitoringApiBase() {
+  const manual = monitoringApiBaseInput?.value?.trim();
+  if (manual) {
+    return manual;
+  }
+
+  const stored = getStoredMonitoringApiBase();
+  if (stored) {
+    return stored;
+  }
+
+  const metaValue = monitoringApiBaseMeta?.content?.trim();
+  if (metaValue) {
+    return metaValue;
+  }
+
+  const origin = window.location?.origin;
+  return origin && origin !== "null" ? origin : "";
+}
+
+function persistMonitoringApiBase(value) {
+  if (value) {
+    localStorage.setItem(MONITORING_API_STORAGE_KEY, value);
+  } else {
+    localStorage.removeItem(MONITORING_API_STORAGE_KEY);
+  }
+}
+
+function buildOperationsEndpoint(path) {
+  const base = getConfiguredMonitoringApiBase();
+  if (!base) {
+    monitoringEndpointCache = path;
+    return null;
+  }
+
   try {
-    const response = await fetch("/operations/sessions");
+    const endpoint = new URL(path, base).toString();
+    monitoringEndpointCache = endpoint;
+    return endpoint;
+  } catch (error) {
+    console.error("Invalid monitoring API base", base, error);
+    monitoringError = `Invalid monitoring API base URL: ${base}`;
+    return null;
+  }
+}
+
+async function refreshMonitoringData() {
+  const endpoint = buildOperationsEndpoint("/operations/sessions");
+  if (!endpoint) {
+    monitoringError = "Set the monitoring API base URL so the Java server can be reached.";
+    liveSessions = [];
+    sessionHistory = [];
+    renderMonitoring();
+    return;
+  }
+
+  try {
+    const response = await fetch(endpoint);
     if (!response.ok) {
       throw new Error(`Failed to load sessions (HTTP ${response.status})`);
     }
@@ -810,7 +886,7 @@ async function refreshMonitoringData() {
     monitoringError = null;
   } catch (error) {
     console.error("Monitoring refresh failed", error);
-    monitoringError = error?.message || "Unable to load monitoring data.";
+    monitoringError = `Unable to load monitoring data from ${endpoint}: ${error?.message || error}`;
     liveSessions = [];
     sessionHistory = [];
   }
@@ -894,7 +970,15 @@ function formatTime(date) {
   return new Date(date).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit", second: "2-digit" });
 }
 
+function handleMonitoringApiBaseChanged() {
+  const value = monitoringApiBaseInput?.value?.trim() || "";
+  persistMonitoringApiBase(value);
+  monitoringError = null;
+  refreshMonitoringData();
+}
+
 function initMonitoring() {
+  restoreMonitoringApiBase();
   refreshMonitoringData();
   if (monitoringIntervalId === null) {
     monitoringIntervalId = setInterval(refreshMonitoringData, MONITORING_REFRESH_MS);
@@ -956,6 +1040,10 @@ downloadButton.addEventListener("click", downloadConfig);
 importInput.addEventListener("change", importConfig);
 navMenuConfig.addEventListener("click", () => setActiveApp("menu"));
 navOperationsMonitoring.addEventListener("click", () => setActiveApp("operations"));
+if (monitoringApiBaseInput) {
+  monitoringApiBaseInput.addEventListener("change", handleMonitoringApiBaseChanged);
+  monitoringApiBaseInput.addEventListener("blur", handleMonitoringApiBaseChanged);
+}
 
 toggleAddFormFields();
 resetToDefault();

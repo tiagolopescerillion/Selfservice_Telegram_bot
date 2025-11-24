@@ -329,6 +329,18 @@ button:disabled {
     gap: 1rem;
 }
 
+.monitoring-config {
+    padding: 1rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    background: #f8fafc;
+    margin: 1rem 0;
+}
+
+.monitoring-config input[type="text"] {
+    margin-top: 0.25rem;
+}
+
 .monitoring-card {
     border: 1px solid var(--border);
     border-radius: 12px;

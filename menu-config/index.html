@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="operations-api-base" content="" />
     <title>Cerillion Digital IM Configuration</title>
     <link rel="stylesheet" href="styles.css" />
 </head>
@@ -129,6 +130,16 @@
                         Track live chat sessions and sign-in activity in near real time. The lists refresh automatically while preserving the familiar
                         Cerillion Digital IM look and feel.
                     </p>
+                    <div class="monitoring-config">
+                        <label>
+                            Monitoring API base URL
+                            <input id="monitoringApiBase" type="text" placeholder="e.g. https://my-server.example.com" />
+                        </label>
+                        <p class="hint">
+                            Leave blank when this UI is hosted by the Java server. If you open this file locally, set the full base URL from your
+                            <code>application-local.yml</code> so the Operations Monitoring API can be reached.
+                        </p>
+                    </div>
                     <div class="monitoring-grid">
                         <div class="monitoring-card">
                             <div class="monitoring-card__header">
