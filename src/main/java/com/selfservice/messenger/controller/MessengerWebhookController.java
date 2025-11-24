@@ -75,7 +75,6 @@ public class MessengerWebhookController {
 
                 Map<String, Object> message = (Map<String, Object>) messagingEvent.get("message");
                 if (message == null) {
-                    messengerService.sendHelloWorldMenu(senderId);
                     continue;
                 }
 
