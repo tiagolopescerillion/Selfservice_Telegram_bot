@@ -159,44 +159,24 @@ public class WhatsappService {
             return;
         }
 
-        List<Map<String, Object>> buttons = new ArrayList<>();
+        List<Map<String, Object>> rows = new ArrayList<>();
         for (LoginMenuOption option : options) {
             if (option == LoginMenuOption.DIGITAL_LOGIN) {
-                buttons.add(buildReplyButton(INTERACTIVE_ID_DIGITAL_LOGIN,
+                rows.add(buildListRow(INTERACTIVE_ID_DIGITAL_LOGIN,
                         translate(to, TelegramKey.BUTTON_SELF_SERVICE_LOGIN.toString())));
             } else if (option == LoginMenuOption.CRM_LOGIN) {
-                buttons.add(buildReplyButton(INTERACTIVE_ID_CRM_LOGIN,
+                rows.add(buildListRow(INTERACTIVE_ID_CRM_LOGIN,
                         translate(to, TelegramKey.BUTTON_DIRECT_LOGIN.toString())));
             } else {
-                buttons.add(buildReplyButton(INTERACTIVE_ID_CHANGE_LANGUAGE,
+                rows.add(buildListRow(INTERACTIVE_ID_CHANGE_LANGUAGE,
                         translate(to, TelegramKey.BUTTON_CHANGE_LANGUAGE.toString())));
             }
         }
 
-        StringBuilder body = new StringBuilder(translate(to, "PleaseChooseSignIn"));
-
-        Map<String, Object> payload = Map.of(
-                "messaging_product", "whatsapp",
-                "to", to,
-                "type", "interactive",
-                "interactive", Map.of(
-                        "type", "button",
-                        "body", Map.of("text", body.toString()),
-                        "action", Map.of("buttons", buttons)
-                )
-        );
-
-        postToWhatsapp(payload);
-    }
-
-    private Map<String, Object> buildReplyButton(String id, String title) {
-        return Map.of(
-                "type", "reply",
-                "reply", Map.of(
-                        "id", id,
-                        "title", title
-                )
-        );
+        sendInteractiveList(to,
+                translate(to, "PleaseChooseSignIn"),
+                translate(to, "PleaseChooseSignIn"),
+                rows);
     }
 
     public void sendDigitalLoginLink(String to, String loginUrl) {
