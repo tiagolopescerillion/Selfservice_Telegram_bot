@@ -576,7 +576,7 @@ public class WhatsappService {
     }
 
     private boolean shouldSendFallbackText() {
-        return whatsappProperties.isInteractiveUxEnabled() && !whatsappProperties.isBasicUxEnabled();
+        return whatsappProperties.getUxMode() == WhatsappProperties.WhatsappUxMode.TEST;
     }
 
     private Map<String, Object> buildListRow(String id, String title) {
