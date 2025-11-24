@@ -77,6 +77,12 @@ const resetButton = document.getElementById("resetButton");
 const downloadButton = document.getElementById("downloadButton");
 const preview = document.getElementById("preview");
 const importInput = document.getElementById("importInput");
+const navMenuConfig = document.getElementById("navMenuConfig");
+const navOperationsMonitoring = document.getElementById("navOperationsMonitoring");
+const menuConfigurationPanel = document.getElementById("menuConfigurationPanel");
+const operationsMonitoringPanel = document.getElementById("operationsMonitoringPanel");
+const liveSessionsContainer = document.getElementById("liveSessions");
+const sessionHistoryContainer = document.getElementById("sessionHistory");
 
 initFunctionSelect(menuFunctionSelect);
 
@@ -85,6 +91,10 @@ let menuOrder = [];
 let selectedMenuId = ROOT_MENU_ID;
 let menuIdCounter = 0;
 let itemIdCounter = 0;
+let sessionSequence = 0;
+const liveSessions = [];
+const sessionHistory = [];
+const monitoringChannels = ["Telegram", "WhatsApp", "Messenger", "Web"];
 
 function initFunctionSelect(selectEl) {
   selectEl.innerHTML = "";
@@ -774,6 +784,135 @@ function addMenuItem(event) {
   renderAll();
 }
 
+function setActiveApp(target) {
+  const showMenuConfig = target !== "operations";
+  menuConfigurationPanel.classList.toggle("hidden", !showMenuConfig);
+  operationsMonitoringPanel.classList.toggle("hidden", showMenuConfig);
+  navMenuConfig.classList.toggle("active", showMenuConfig);
+  navOperationsMonitoring.classList.toggle("active", !showMenuConfig);
+  if (!showMenuConfig) {
+    renderMonitoring();
+  }
+}
+
+function buildSession(channel, chatId, loggedIn, startedAt = new Date()) {
+  sessionSequence += 1;
+  return { id: `session-${sessionSequence}`, channel, chatId, loggedIn, startedAt };
+}
+
+function randomChatId(channel) {
+  const prefix = channel.slice(0, 2).toUpperCase();
+  return `${prefix}-${Math.floor(100000 + Math.random() * 900000)}`;
+}
+
+function seedMonitoringSessions() {
+  liveSessions.push(
+    buildSession("Telegram", randomChatId("Telegram"), true, new Date(Date.now() - 120000)),
+    buildSession("WhatsApp", randomChatId("WhatsApp"), false, new Date(Date.now() - 240000)),
+    buildSession("Messenger", randomChatId("Messenger"), true, new Date(Date.now() - 420000))
+  );
+  renderMonitoring();
+}
+
+function renderMonitoring() {
+  renderSessionList(liveSessionsContainer, liveSessions, "No active sessions yet.");
+  renderSessionList(sessionHistoryContainer, sessionHistory, "No completed sessions yet.");
+}
+
+function renderSessionList(container, sessions, emptyMessage) {
+  container.innerHTML = "";
+  if (!sessions.length) {
+    const empty = document.createElement("div");
+    empty.className = "empty-state";
+    empty.textContent = emptyMessage;
+    container.append(empty);
+    return;
+  }
+
+  sessions.forEach((session) => {
+    const row = document.createElement("div");
+    row.className = "session-row";
+
+    const channel = document.createElement("span");
+    channel.textContent = session.channel;
+
+    const chat = document.createElement("span");
+    chat.textContent = session.chatId;
+
+    const loggedIn = document.createElement("span");
+    loggedIn.className = "session-row__meta";
+    const statusDot = document.createElement("span");
+    statusDot.className = `status-dot ${session.loggedIn ? "online" : "offline"}`;
+    const statusText = document.createElement("span");
+    statusText.textContent = session.loggedIn ? "Yes" : "No";
+    loggedIn.append(statusDot, statusText);
+
+    const startDate = document.createElement("span");
+    startDate.textContent = formatDate(session.startedAt);
+
+    const startTime = document.createElement("span");
+    startTime.textContent = formatTime(session.startedAt);
+
+    row.append(channel, chat, loggedIn, startDate, startTime);
+    container.append(row);
+  });
+}
+
+function formatDate(date) {
+  return new Date(date).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "2-digit" });
+}
+
+function formatTime(date) {
+  return new Date(date).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+}
+
+function moveSessionToHistory(session) {
+  sessionHistory.unshift(session);
+  if (sessionHistory.length > 40) {
+    sessionHistory.pop();
+  }
+}
+
+function simulateSessionLifecycle() {
+  if (!liveSessions.length) {
+    return;
+  }
+  const index = Math.floor(Math.random() * liveSessions.length);
+  const [session] = liveSessions.splice(index, 1);
+  moveSessionToHistory(session);
+  renderMonitoring();
+}
+
+function simulateNewSession() {
+  const channel = monitoringChannels[Math.floor(Math.random() * monitoringChannels.length)];
+  const loggedIn = Math.random() > 0.35;
+  const session = buildSession(channel, randomChatId(channel), loggedIn);
+  liveSessions.unshift(session);
+  if (liveSessions.length > 25) {
+    liveSessions.pop();
+  }
+  renderMonitoring();
+}
+
+function refreshLoginState() {
+  if (!liveSessions.length) {
+    return;
+  }
+  liveSessions.forEach((session) => {
+    if (Math.random() > 0.7) {
+      session.loggedIn = !session.loggedIn;
+    }
+  });
+  renderMonitoring();
+}
+
+function initMonitoring() {
+  seedMonitoringSessions();
+  setInterval(simulateSessionLifecycle, 6500);
+  setInterval(simulateNewSession, 8500);
+  setInterval(refreshLoginState, 7000);
+}
+
 menuSelect.addEventListener("change", (event) => {
   selectedMenuId = event.target.value;
   renderAll();
@@ -827,6 +966,10 @@ resetButton.addEventListener("click", () => {
 
 downloadButton.addEventListener("click", downloadConfig);
 importInput.addEventListener("change", importConfig);
+navMenuConfig.addEventListener("click", () => setActiveApp("menu"));
+navOperationsMonitoring.addEventListener("click", () => setActiveApp("operations"));
 
 toggleAddFormFields();
 resetToDefault();
+initMonitoring();
+setActiveApp("menu");
