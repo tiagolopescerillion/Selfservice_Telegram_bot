@@ -12,6 +12,10 @@ spring:
 app:
   public-base-url: https://solaris-probe-lucy-ventures.trycloudflare.com
 
+login-menu:
+  digital-login: Y  # Show the digital login option in login menus
+  crm-login: Y      # Show the CRM login option in login menus
+
 telegram:
   bot:
     token: YOUR_TELEGRAM_BOT_TOKEN
@@ -21,6 +25,7 @@ whatsapp:
   verify-token: digital-whatsapp-bot-verify-123
   phone-number-id: YOUR_PHONE_NUMBER_ID
   access-token: YOUR_WHATSAPP_ACCESS_TOKEN
+  ux-mode: TEST # BASIC | PRODUCTION | TEST (default shows both plain text and interactive cards)
 
 messenger:
   callback-url: https://solaris-probe-lucy-ventures.trycloudflare.com/messenger/webhook

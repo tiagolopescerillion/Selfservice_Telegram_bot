@@ -182,7 +182,7 @@ public class OAuthCallbackController {
                         whatsappSessions.clearSelectedAccount(whatsappChatId);
                         whatsappService.sendText(whatsappChatId, whatsappService.translate(whatsappChatId,
                                 "NoBillingAccountsFound"));
-                        whatsappService.sendLoginMenu(whatsappChatId, oauth.buildAuthUrl(sessionKey));
+                        whatsappService.sendLoginMenu(whatsappChatId);
                     } else if (accounts.size() == 1) {
                         var onlyAccount = accounts.get(0);
                         whatsappSessions.selectAccount(whatsappChatId, onlyAccount);
