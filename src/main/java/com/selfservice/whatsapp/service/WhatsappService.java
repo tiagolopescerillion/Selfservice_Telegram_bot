@@ -122,7 +122,7 @@ public class WhatsappService {
     public void sendLoginMenu(String to) {
         sessionService.setSelectionContext(to, WhatsappSessionService.SelectionContext.NONE);
         List<LoginMenuOption> options = loginMenuOptions();
-        if (whatsappProperties.isBasicUxEnabled()) {
+        if (whatsappProperties.isBasicUxEnabled() || shouldSendFallbackText()) {
             sendLoginMenuText(to, options);
         }
         if (whatsappProperties.isInteractiveUxEnabled()) {
@@ -131,10 +131,6 @@ public class WhatsappService {
     }
 
     private void sendLoginMenuText(String to, List<LoginMenuOption> options) {
-        if (!whatsappProperties.isBasicUxEnabled() && !whatsappProperties.isInteractiveUxEnabled()) {
-            return;
-        }
-
         StringBuilder menu = new StringBuilder();
         int index = 1;
         for (LoginMenuOption option : options) {
@@ -213,7 +209,7 @@ public class WhatsappService {
 
     public void sendLanguageMenu(String to) {
         sessionService.setSelectionContext(to, WhatsappSessionService.SelectionContext.NONE);
-        if (whatsappProperties.isBasicUxEnabled()) {
+        if (whatsappProperties.isBasicUxEnabled() || shouldSendFallbackText()) {
             StringBuilder menu = new StringBuilder();
             menu.append(translate(to, "ChooseLanguagePrompt")).append("\n")
                     .append("1) ").append(translate(to, "LanguageEnglish")).append("\n")
@@ -289,7 +285,7 @@ public class WhatsappService {
                 .append(translate(to, TelegramKey.BUTTON_LOGOUT.toString()))
                 .append("\n");
         body.append(translate(to, "WhatsappMenuInstruction"));
-        if (whatsappProperties.isBasicUxEnabled()) {
+        if (whatsappProperties.isBasicUxEnabled() || shouldSendFallbackText()) {
             sendText(to, body.toString());
         }
 
@@ -360,7 +356,7 @@ public class WhatsappService {
         }
         body.append(translate(to, "WhatsappAccountSelectionInstruction"));
         sessionService.setSelectionContext(to, WhatsappSessionService.SelectionContext.ACCOUNT, safeStart);
-        if (whatsappProperties.isBasicUxEnabled()) {
+        if (whatsappProperties.isBasicUxEnabled() || shouldSendFallbackText()) {
             sendText(to, body.toString());
         }
 
@@ -410,7 +406,7 @@ public class WhatsappService {
         }
         body.append(translate(to, "WhatsappServiceSelectionInstruction"));
         sessionService.setSelectionContext(to, WhatsappSessionService.SelectionContext.SERVICE, safeStart);
-        if (whatsappProperties.isBasicUxEnabled()) {
+        if (whatsappProperties.isBasicUxEnabled() || shouldSendFallbackText()) {
             sendText(to, body.toString());
         }
 
@@ -463,7 +459,7 @@ public class WhatsappService {
         }
         body.append(translate(to, "WhatsappTicketSelectionInstruction"));
         sessionService.setSelectionContext(to, WhatsappSessionService.SelectionContext.TICKET, safeStart);
-        if (whatsappProperties.isBasicUxEnabled()) {
+        if (whatsappProperties.isBasicUxEnabled() || shouldSendFallbackText()) {
             sendText(to, body.toString());
         }
 
@@ -577,6 +573,10 @@ public class WhatsappService {
 
     private boolean isConfigured() {
         return !phoneNumberId.isBlank() && !accessToken.isBlank();
+    }
+
+    private boolean shouldSendFallbackText() {
+        return whatsappProperties.isInteractiveUxEnabled() && !whatsappProperties.isBasicUxEnabled();
     }
 
     private Map<String, Object> buildListRow(String id, String title) {
