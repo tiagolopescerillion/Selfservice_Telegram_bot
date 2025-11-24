@@ -122,32 +122,37 @@ public class WhatsappService {
     public void sendLoginMenu(String to) {
         sessionService.setSelectionContext(to, WhatsappSessionService.SelectionContext.NONE);
         List<LoginMenuOption> options = loginMenuOptions();
-        if (whatsappProperties.isBasicUxEnabled()) {
-            StringBuilder menu = new StringBuilder();
-            int index = 1;
-            for (LoginMenuOption option : options) {
-                if (option == LoginMenuOption.DIGITAL_LOGIN) {
-                    menu.append(index).append(") ")
-                            .append(translate(to, TelegramKey.BUTTON_SELF_SERVICE_LOGIN.toString()))
-                            .append("\n");
-                } else if (option == LoginMenuOption.CRM_LOGIN) {
-                    menu.append(index).append(") ")
-                            .append(translate(to, TelegramKey.BUTTON_DIRECT_LOGIN.toString()))
-                            .append("\n");
-                } else {
-                    menu.append(index).append(") ")
-                            .append(translate(to, TelegramKey.BUTTON_CHANGE_LANGUAGE.toString()))
-                            .append("\n");
-                }
-                index++;
-            }
-            menu.append("\n").append(translate(to, "PleaseChooseSignIn"));
-            sendText(to, menu.toString());
-        }
-
+        sendLoginMenuText(to, options);
         if (whatsappProperties.isInteractiveUxEnabled()) {
             sendLoginMenuCards(to, options);
         }
+    }
+
+    private void sendLoginMenuText(String to, List<LoginMenuOption> options) {
+        if (!whatsappProperties.isBasicUxEnabled() && !whatsappProperties.isInteractiveUxEnabled()) {
+            return;
+        }
+
+        StringBuilder menu = new StringBuilder();
+        int index = 1;
+        for (LoginMenuOption option : options) {
+            if (option == LoginMenuOption.DIGITAL_LOGIN) {
+                menu.append(index).append(") ")
+                        .append(translate(to, TelegramKey.BUTTON_SELF_SERVICE_LOGIN.toString()))
+                        .append("\n");
+            } else if (option == LoginMenuOption.CRM_LOGIN) {
+                menu.append(index).append(") ")
+                        .append(translate(to, TelegramKey.BUTTON_DIRECT_LOGIN.toString()))
+                        .append("\n");
+            } else {
+                menu.append(index).append(") ")
+                        .append(translate(to, TelegramKey.BUTTON_CHANGE_LANGUAGE.toString()))
+                        .append("\n");
+            }
+            index++;
+        }
+        menu.append("\n").append(translate(to, "PleaseChooseSignIn"));
+        sendText(to, menu.toString());
     }
 
     private void sendLoginMenuCards(String to, List<LoginMenuOption> options) {
