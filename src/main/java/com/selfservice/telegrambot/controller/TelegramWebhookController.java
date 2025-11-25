@@ -116,6 +116,12 @@ public class TelegramWebhookController {
                 text = TelegramService.CALLBACK_SELF_SERVICE_LOGIN;
             } else if (text.equals(telegramService.translate(chatId, TelegramService.KEY_BUTTON_DIRECT_LOGIN))) {
                 text = TelegramService.CALLBACK_DIRECT_LOGIN;
+            } else if (text.equals(telegramService.translate(chatId, TelegramService.KEY_BUTTON_OPT_IN))) {
+                text = TelegramService.CALLBACK_OPT_IN_PROMPT;
+            } else if (text.equalsIgnoreCase(telegramService.translate(chatId, TelegramService.KEY_OPT_IN_YES))) {
+                text = TelegramService.CALLBACK_OPT_IN_ACCEPT;
+            } else if (text.equalsIgnoreCase(telegramService.translate(chatId, TelegramService.KEY_OPT_IN_NO))) {
+                text = TelegramService.CALLBACK_OPT_IN_DECLINE;
             } else if (text.equals(telegramService.translate(chatId, TelegramService.KEY_BUTTON_LOGOUT))) {
                 text = TelegramService.CALLBACK_LOGOUT;
             }
@@ -123,10 +129,19 @@ public class TelegramWebhookController {
             var tokenSnapshot = userSessionService.getTokenSnapshot(chatId);
             String existingToken = userSessionService.getValidAccessToken(chatId);
             boolean hasValidToken = existingToken != null;
+            boolean optedIn = userSessionService.isOptedIn(chatId);
             monitoringService.recordActivity("Telegram", Long.toString(chatId), chatUsername, hasValidToken,
-                    monitoringService.toTokenDetails(tokenSnapshot));
+                    monitoringService.toTokenDetails(tokenSnapshot), optedIn);
             String loginReminder = telegramService.format(chatId, "LoginReminder",
                     telegramService.translate(chatId, TelegramService.KEY_BUTTON_SELF_SERVICE_LOGIN));
+
+            if (text.equalsIgnoreCase("unsubscribe")) {
+                userSessionService.setOptIn(chatId, false);
+                monitoringService.recordActivity("Telegram", Long.toString(chatId), chatUsername, hasValidToken,
+                        monitoringService.toTokenDetails(tokenSnapshot), false);
+                telegramService.sendMessageWithKey(chatId, "OptOutConfirmation");
+                return ResponseEntity.ok().build();
+            }
 
             if (text.equals(TelegramService.CALLBACK_BUSINESS_MENU_HOME)) {
                 telegramService.goHomeBusinessMenu(chatId);
@@ -205,6 +220,29 @@ public class TelegramWebhookController {
 
             if (TelegramService.CALLBACK_LANGUAGE_MENU.equals(text)) {
                 telegramService.sendLanguageMenu(chatId);
+                return ResponseEntity.ok().build();
+            }
+
+            if (TelegramService.CALLBACK_OPT_IN_PROMPT.equals(text)) {
+                telegramService.sendOptInPrompt(chatId);
+                return ResponseEntity.ok().build();
+            }
+
+            if (TelegramService.CALLBACK_OPT_IN_ACCEPT.equals(text)) {
+                userSessionService.setOptIn(chatId, true);
+                monitoringService.recordActivity("Telegram", Long.toString(chatId), chatUsername, hasValidToken,
+                        monitoringService.toTokenDetails(tokenSnapshot), true);
+                telegramService.sendMessageWithKey(chatId, "OptInAccepted");
+                telegramService.sendLoginMenu(chatId, oauthSessionService.buildAuthUrl(chatId));
+                return ResponseEntity.ok().build();
+            }
+
+            if (TelegramService.CALLBACK_OPT_IN_DECLINE.equals(text)) {
+                userSessionService.setOptIn(chatId, false);
+                monitoringService.recordActivity("Telegram", Long.toString(chatId), chatUsername, hasValidToken,
+                        monitoringService.toTokenDetails(tokenSnapshot), false);
+                telegramService.sendMessageWithKey(chatId, "OptInDeclined");
+                telegramService.sendLoginMenu(chatId, oauthSessionService.buildAuthUrl(chatId));
                 return ResponseEntity.ok().build();
             }
 

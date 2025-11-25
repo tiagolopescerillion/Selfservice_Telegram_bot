@@ -26,6 +26,10 @@ import java.util.Map;
 @Service
 public class WhatsappService {
 
+    public static final String KEY_OPT_IN_YES = "OptInYes";
+    public static final String KEY_OPT_IN_NO = "OptInNo";
+
+
     private static final Logger log = LoggerFactory.getLogger(WhatsappService.class);
 
     public static final String COMMAND_CHANGE_LANGUAGE = "language";
@@ -38,10 +42,12 @@ public class WhatsappService {
     public static final String INTERACTIVE_ID_DIGITAL_LOGIN = "DIGITAL_LOGIN";
     public static final String INTERACTIVE_ID_CRM_LOGIN = "CRM_LOGIN";
     public static final String INTERACTIVE_ID_CHANGE_LANGUAGE = "CHANGE_LANGUAGE";
+    public static final String INTERACTIVE_ID_OPT_IN = "OPT_IN";
 
     public enum LoginMenuOption {
         DIGITAL_LOGIN,
         CRM_LOGIN,
+        OPT_IN,
         CHANGE_LANGUAGE
     }
 
@@ -115,6 +121,7 @@ public class WhatsappService {
         if (loginMenuProperties.isCrmLoginEnabled()) {
             options.add(LoginMenuOption.CRM_LOGIN);
         }
+        options.add(LoginMenuOption.OPT_IN);
         options.add(LoginMenuOption.CHANGE_LANGUAGE);
         return options;
     }
@@ -152,6 +159,10 @@ public class WhatsappService {
                 menu.append(index).append(") ")
                         .append(translate(to, TelegramKey.BUTTON_DIRECT_LOGIN.toString()))
                         .append("\n");
+            } else if (option == LoginMenuOption.OPT_IN) {
+                menu.append(index).append(") ")
+                        .append(translate(to, TelegramKey.BUTTON_OPT_IN.toString()))
+                        .append("\n");
             } else {
                 menu.append(index).append(") ")
                         .append(translate(to, TelegramKey.BUTTON_CHANGE_LANGUAGE.toString()))
@@ -177,6 +188,9 @@ public class WhatsappService {
             } else if (option == LoginMenuOption.CRM_LOGIN) {
                 rows.add(buildListRow(INTERACTIVE_ID_CRM_LOGIN,
                         translate(to, TelegramKey.BUTTON_DIRECT_LOGIN.toString())));
+            } else if (option == LoginMenuOption.OPT_IN) {
+                rows.add(buildListRow(INTERACTIVE_ID_OPT_IN,
+                        translate(to, TelegramKey.BUTTON_OPT_IN.toString())));
             } else {
                 rows.add(buildListRow(INTERACTIVE_ID_CHANGE_LANGUAGE,
                         translate(to, TelegramKey.BUTTON_CHANGE_LANGUAGE.toString())));
@@ -195,6 +209,22 @@ public class WhatsappService {
             return;
         }
         sendText(to, format(to, "LoginUrlHint", loginUrl));
+    }
+
+    public void sendOptInPrompt(String to) {
+        String prompt = translate(to, "OptInPrompt");
+        String yes = translate(to, KEY_OPT_IN_YES);
+        String no = translate(to, KEY_OPT_IN_NO);
+        sessionService.setSelectionContext(to, WhatsappSessionService.SelectionContext.OPT_IN);
+        sendText(to, String.format("%s\n\n1) %s\n2) %s", prompt, yes, no));
+    }
+
+    public void sendOptInAccepted(String to) {
+        sendText(to, translate(to, "OptInAccepted"));
+    }
+
+    public void sendOptInDeclined(String to) {
+        sendText(to, translate(to, "OptInDeclined"));
     }
 
     public void sendLanguageMenu(String to) {
@@ -612,6 +642,7 @@ public class WhatsappService {
     public enum TelegramKey {
         BUTTON_SELF_SERVICE_LOGIN("ButtonSelfServiceLogin"),
         BUTTON_DIRECT_LOGIN("ButtonDirectLogin"),
+        BUTTON_OPT_IN("ButtonOptIn"),
         BUTTON_CHANGE_LANGUAGE("ButtonChangeLanguage"),
         BUTTON_LOGOUT("ButtonLogout"),
         BUTTON_BUSINESS_MENU_HOME("BusinessMenuHome"),

@@ -79,12 +79,20 @@ const preview = document.getElementById("preview");
 const importInput = document.getElementById("importInput");
 const navMenuConfig = document.getElementById("navMenuConfig");
 const navOperationsMonitoring = document.getElementById("navOperationsMonitoring");
+const navSendMessages = document.getElementById("navSendMessages");
 const menuConfigurationPanel = document.getElementById("menuConfigurationPanel");
 const operationsMonitoringPanel = document.getElementById("operationsMonitoringPanel");
+const sendMessagesPanel = document.getElementById("sendMessagesPanel");
 const liveSessionsContainer = document.getElementById("liveSessions");
 const sessionHistoryContainer = document.getElementById("sessionHistory");
 const monitoringApiBaseInput = document.getElementById("monitoringApiBase");
 const monitoringApiBaseMeta = document.querySelector("meta[name='operations-api-base']");
+const notificationApiBaseInput = document.getElementById("notificationApiBase");
+const notificationChannelSelect = document.getElementById("notificationChannel");
+const notificationChatIdInput = document.getElementById("notificationChatId");
+const notificationMessageInput = document.getElementById("notificationMessage");
+const notificationResult = document.getElementById("notificationResult");
+const sendMessageForm = document.getElementById("sendMessageForm");
 
 initFunctionSelect(menuFunctionSelect);
 
@@ -98,9 +106,11 @@ let sessionHistory = [];
 let monitoringError = null;
 const MONITORING_REFRESH_MS = 5000;
 const MONITORING_API_STORAGE_KEY = "monitoringApiBase";
+const NOTIFICATION_API_STORAGE_KEY = "notificationApiBase";
 let monitoringIntervalId = null;
 let monitoringEndpointCache = "";
 let monitoringConfigLoaded = false;
+let notificationEndpointCache = "";
 
 function initFunctionSelect(selectEl) {
   selectEl.innerHTML = "";
@@ -791,12 +801,16 @@ function addMenuItem(event) {
 }
 
 function setActiveApp(target) {
-  const showMenuConfig = target !== "operations";
+  const showMenuConfig = target === "menu";
+  const showOperations = target === "operations";
+  const showSendMessages = target === "notifications";
   menuConfigurationPanel.classList.toggle("hidden", !showMenuConfig);
-  operationsMonitoringPanel.classList.toggle("hidden", showMenuConfig);
+  operationsMonitoringPanel.classList.toggle("hidden", !showOperations);
+  sendMessagesPanel.classList.toggle("hidden", !showSendMessages);
   navMenuConfig.classList.toggle("active", showMenuConfig);
-  navOperationsMonitoring.classList.toggle("active", !showMenuConfig);
-  if (!showMenuConfig) {
+  navOperationsMonitoring.classList.toggle("active", showOperations);
+  navSendMessages.classList.toggle("active", showSendMessages);
+  if (showOperations) {
     refreshMonitoringData();
   }
 }
@@ -815,6 +829,22 @@ function restoreMonitoringApiBase() {
   const metaValue = monitoringApiBaseMeta?.content?.trim();
   if (metaValue && monitoringApiBaseInput && !monitoringApiBaseInput.value) {
     monitoringApiBaseInput.placeholder = metaValue;
+  }
+}
+
+function getStoredNotificationApiBase() {
+  return localStorage.getItem(NOTIFICATION_API_STORAGE_KEY)?.trim() || "";
+}
+
+function restoreNotificationApiBase() {
+  const stored = getStoredNotificationApiBase();
+  if (stored && notificationApiBaseInput) {
+    notificationApiBaseInput.value = stored;
+    return;
+  }
+  const metaValue = monitoringApiBaseMeta?.content?.trim();
+  if (metaValue && notificationApiBaseInput && !notificationApiBaseInput.value) {
+    notificationApiBaseInput.placeholder = metaValue;
   }
 }
 
@@ -875,6 +905,39 @@ function persistMonitoringApiBase(value) {
   }
 }
 
+function getConfiguredNotificationApiBase() {
+  const manual = notificationApiBaseInput?.value?.trim();
+  if (manual) {
+    return manual;
+  }
+
+  const stored = getStoredNotificationApiBase();
+  if (stored) {
+    return stored;
+  }
+
+  const metaValue = monitoringApiBaseMeta?.content?.trim();
+  if (metaValue) {
+    return metaValue;
+  }
+
+  const monitoringBase = getConfiguredMonitoringApiBase();
+  if (monitoringBase) {
+    return monitoringBase;
+  }
+
+  const origin = window.location?.origin;
+  return origin && origin !== "null" ? origin : "";
+}
+
+function persistNotificationApiBase(value) {
+  if (value) {
+    localStorage.setItem(NOTIFICATION_API_STORAGE_KEY, value);
+  } else {
+    localStorage.removeItem(NOTIFICATION_API_STORAGE_KEY);
+  }
+}
+
 function buildOperationsEndpoint(path) {
   const base = getConfiguredMonitoringApiBase();
   if (!base) {
@@ -889,6 +952,25 @@ function buildOperationsEndpoint(path) {
   } catch (error) {
     console.error("Invalid monitoring API base", base, error);
     monitoringError = `Invalid monitoring API base URL: ${base}`;
+    return null;
+  }
+}
+
+function buildNotificationEndpoint(path) {
+  const base = getConfiguredNotificationApiBase();
+  if (!base) {
+    notificationEndpointCache = path;
+    return null;
+  }
+
+  try {
+    const endpoint = new URL(path, base).toString();
+    notificationEndpointCache = endpoint;
+    return endpoint;
+  } catch (error) {
+    console.error("Invalid notification API base", base, error);
+    notificationResult.textContent = `Invalid notifications API base URL: ${base}`;
+    notificationResult.className = "notification-result error";
     return null;
   }
 }
@@ -935,6 +1017,7 @@ function normalizeSession(raw) {
     username: raw?.username || raw?.user || raw?.displayName || "",
     startedAt,
     lastSeen: raw?.lastSeen ? new Date(raw.lastSeen) : startedAt,
+    optIn: Boolean(raw?.optIn),
     tokenState,
     token: tokenValue
   };
@@ -991,6 +1074,11 @@ function renderSessionList(container, sessions, emptyMessage) {
     const startTime = document.createElement("span");
     startTime.textContent = session.startedAt ? formatTime(session.startedAt) : "—";
 
+    const optInCell = document.createElement("span");
+    optInCell.className = "optin-pill";
+    optInCell.textContent = session.optIn ? "Opted in" : "Opted out";
+    optInCell.classList.add(session.optIn ? "optin-pill--yes" : "optin-pill--no");
+
     const tokenCell = document.createElement("span");
     tokenCell.className = "session-row__token";
     const tokenStatus = describeToken(session.tokenState);
@@ -1008,7 +1096,7 @@ function renderSessionList(container, sessions, emptyMessage) {
       tokenCell.append(link);
     }
 
-    row.append(channel, chat, loggedIn, tokenCell, startDate, startTime);
+    row.append(channel, chat, loggedIn, optInCell, tokenCell, startDate, startTime);
     container.append(row);
   });
 }
@@ -1047,6 +1135,12 @@ function handleMonitoringApiBaseChanged() {
   refreshMonitoringData();
 }
 
+function handleNotificationApiBaseChanged() {
+  const value = notificationApiBaseInput?.value?.trim() || "";
+  persistNotificationApiBase(value);
+  notificationEndpointCache = "";
+}
+
 function initMonitoring() {
   restoreMonitoringApiBase();
   prefillMonitoringApiBaseFromServer().finally(() => {
@@ -1054,6 +1148,57 @@ function initMonitoring() {
   });
   if (monitoringIntervalId === null) {
     monitoringIntervalId = setInterval(refreshMonitoringData, MONITORING_REFRESH_MS);
+  }
+}
+
+async function handleSendNotification(event) {
+  event.preventDefault();
+  notificationResult.textContent = "";
+  notificationResult.className = "notification-result";
+
+  const endpoint = buildNotificationEndpoint("/notifications");
+  if (!endpoint) {
+    notificationResult.textContent = "Set the notifications API base URL so the server can be reached.";
+    notificationResult.classList.add("error");
+    return;
+  }
+
+  const payload = {
+    channel: notificationChannelSelect?.value || "",
+    chatId: notificationChatIdInput?.value?.trim() || "",
+    message: notificationMessageInput?.value?.trim() || ""
+  };
+
+  if (!payload.channel || !payload.chatId || !payload.message) {
+    notificationResult.textContent = "Channel, chat ID, and message are required.";
+    notificationResult.classList.add("error");
+    return;
+  }
+
+  try {
+    notificationResult.textContent = "Sending notification...";
+    notificationResult.classList.add("info");
+    const response = await fetch(endpoint, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      notificationResult.textContent = body?.reason || `Request failed (HTTP ${response.status})`;
+      notificationResult.classList.remove("info");
+      notificationResult.classList.add("error");
+      return;
+    }
+    notificationResult.textContent = body?.status === "sent"
+      ? `Message sent via ${body.channel || payload.channel} to ${body.chatId || payload.chatId}.`
+      : "Message sent.";
+    notificationResult.classList.remove("info");
+    notificationResult.classList.add("success");
+  } catch (error) {
+    notificationResult.textContent = error?.message || "Unexpected error while sending notification.";
+    notificationResult.classList.remove("info");
+    notificationResult.classList.add("error");
   }
 }
 
@@ -1112,12 +1257,21 @@ downloadButton.addEventListener("click", downloadConfig);
 importInput.addEventListener("change", importConfig);
 navMenuConfig.addEventListener("click", () => setActiveApp("menu"));
 navOperationsMonitoring.addEventListener("click", () => setActiveApp("operations"));
+navSendMessages.addEventListener("click", () => setActiveApp("notifications"));
 if (monitoringApiBaseInput) {
   monitoringApiBaseInput.addEventListener("change", handleMonitoringApiBaseChanged);
   monitoringApiBaseInput.addEventListener("blur", handleMonitoringApiBaseChanged);
+}
+if (notificationApiBaseInput) {
+  notificationApiBaseInput.addEventListener("change", handleNotificationApiBaseChanged);
+  notificationApiBaseInput.addEventListener("blur", handleNotificationApiBaseChanged);
+}
+if (sendMessageForm) {
+  sendMessageForm.addEventListener("submit", handleSendNotification);
 }
 
 toggleAddFormFields();
 resetToDefault();
 initMonitoring();
+restoreNotificationApiBase();
 setActiveApp("menu");

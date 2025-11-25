@@ -77,7 +77,7 @@ public class MessengerWebhookController {
                     continue;
                 }
 
-                monitoringService.recordActivity("Messenger", senderId, null, false);
+                monitoringService.recordActivity("Messenger", senderId, null, false, false);
 
                 Map<String, Object> message = (Map<String, Object>) messagingEvent.get("message");
                 if (message == null) {
