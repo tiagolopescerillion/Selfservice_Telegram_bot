@@ -51,9 +51,11 @@ public class OAuthCallbackController {
                            @RequestParam(required = false, name = "error") String error,
                            @RequestParam(required = false, name = "error_description") String errorDescription) {
 
+        String channel = oauth.parseChannelFromState(state);
         String sessionKey = oauth.parseSessionKeyFromState(state);
         long chatId = oauth.parseChatIdFromState(state);
-        boolean whatsappUser = sessionKey != null && sessionKey.startsWith("wa-");
+        boolean whatsappUser = (channel != null && channel.equalsIgnoreCase("whatsapp"))
+                || (sessionKey != null && sessionKey.startsWith("wa-"));
         String whatsappChatId = whatsappUser ? sessionKey.substring(3) : null;
         try {
             if (error != null) {
@@ -96,6 +98,8 @@ public class OAuthCallbackController {
             Object exp = tokens.get("expires_in");
             Object rt = tokens.get("refresh_token");
             Object id = tokens.get("id_token");
+            boolean telegramOptIn = chatId > 0 && sessions.isOptedIn(chatId);
+            boolean whatsappOptIn = whatsappUser && whatsappChatId != null && whatsappSessions.isOptedIn(whatsappChatId);
             if (chatId > 0 && at instanceof String) {
                 long expSecs = (exp instanceof Number) ? ((Number) exp).longValue() : 300L;
                 sessions.save(chatId,
@@ -103,7 +107,7 @@ public class OAuthCallbackController {
                         rt instanceof String ? (String) rt : null,
                         id instanceof String ? (String) id : null,
                         expSecs);
-                monitoringService.markLoggedIn("Telegram", Long.toString(chatId), null);
+                monitoringService.markLoggedIn("Telegram", Long.toString(chatId), null, telegramOptIn);
             }
             if (whatsappUser && whatsappChatId != null && at instanceof String) {
                 long expSecs = (exp instanceof Number) ? ((Number) exp).longValue() : 300L;
@@ -112,7 +116,7 @@ public class OAuthCallbackController {
                         rt instanceof String ? (String) rt : null,
                         id instanceof String ? (String) id : null,
                         expSecs);
-                monitoringService.markLoggedIn("WhatsApp", whatsappChatId, null);
+                monitoringService.markLoggedIn("WhatsApp", whatsappChatId, null, whatsappOptIn);
             }
 
             // 4) Immediately call APIMAN with the user token
@@ -126,10 +130,10 @@ public class OAuthCallbackController {
 
             String displayName = findUserResult.givenName();
             if (chatId > 0) {
-                monitoringService.markLoggedIn("Telegram", Long.toString(chatId), displayName);
+                monitoringService.markLoggedIn("Telegram", Long.toString(chatId), displayName, telegramOptIn);
             }
             if (whatsappUser && whatsappChatId != null) {
-                monitoringService.markLoggedIn("WhatsApp", whatsappChatId, displayName);
+                monitoringService.markLoggedIn("WhatsApp", whatsappChatId, displayName, whatsappOptIn);
             }
 
             String accountListMessage;
