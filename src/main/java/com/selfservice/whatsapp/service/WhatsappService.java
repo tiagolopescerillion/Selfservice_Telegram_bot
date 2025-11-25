@@ -26,6 +26,10 @@ import java.util.Map;
 @Service
 public class WhatsappService {
 
+    public static final String KEY_OPT_IN_YES = "OptInYes";
+    public static final String KEY_OPT_IN_NO = "OptInNo";
+
+
     private static final Logger log = LoggerFactory.getLogger(WhatsappService.class);
 
     public static final String COMMAND_CHANGE_LANGUAGE = "language";
@@ -209,8 +213,8 @@ public class WhatsappService {
 
     public void sendOptInPrompt(String to) {
         String prompt = translate(to, "OptInPrompt");
-        String yes = translate(to, TelegramService.KEY_OPT_IN_YES);
-        String no = translate(to, TelegramService.KEY_OPT_IN_NO);
+        String yes = translate(to, KEY_OPT_IN_YES);
+        String no = translate(to, KEY_OPT_IN_NO);
         sendText(to, String.format("%s\n\n- %s\n- %s", prompt, yes, no));
     }
 
