@@ -120,9 +120,11 @@ public class TelegramWebhookController {
                 text = TelegramService.CALLBACK_LOGOUT;
             }
 
+            var tokenSnapshot = userSessionService.getTokenSnapshot(chatId);
             String existingToken = userSessionService.getValidAccessToken(chatId);
             boolean hasValidToken = existingToken != null;
-            monitoringService.recordActivity("Telegram", Long.toString(chatId), chatUsername, hasValidToken);
+            monitoringService.recordActivity("Telegram", Long.toString(chatId), chatUsername, hasValidToken,
+                    monitoringService.toTokenDetails(tokenSnapshot));
             String loginReminder = telegramService.format(chatId, "LoginReminder",
                     telegramService.translate(chatId, TelegramService.KEY_BUTTON_SELF_SERVICE_LOGIN));
 

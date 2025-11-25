@@ -152,9 +152,11 @@ public class WhatsappWebhookController {
         String userId = from;
         String lower = body.toLowerCase();
         boolean awaitingLanguage = sessionService.isAwaitingLanguageSelection(userId);
+        var tokenSnapshot = sessionService.getTokenSnapshot(userId);
         String token = sessionService.getValidAccessToken(userId);
         boolean hasValidToken = token != null;
-        monitoringService.recordActivity("WhatsApp", userId, null, hasValidToken);
+        monitoringService.recordActivity("WhatsApp", userId, null, hasValidToken,
+                monitoringService.toTokenDetails(tokenSnapshot));
         WhatsappSessionService.SelectionContext selectionContext = sessionService.getSelectionContext(userId);
         WhatsappService.LoginMenuOption numericLoginSelection = parseLoginMenuSelection(body);
 
@@ -632,8 +634,10 @@ public class WhatsappWebhookController {
 
     private void dispatchFallback(String from) {
         String sessionKey = "wa-" + from;
+        var tokenSnapshot = sessionService.getTokenSnapshot(from);
         boolean hasValidToken = sessionService.getValidAccessToken(from) != null;
-        monitoringService.recordActivity("WhatsApp", from, null, hasValidToken);
+        monitoringService.recordActivity("WhatsApp", from, null, hasValidToken,
+                monitoringService.toTokenDetails(tokenSnapshot));
         if (hasValidToken) {
             sendBusinessMenu(from, from);
         } else {

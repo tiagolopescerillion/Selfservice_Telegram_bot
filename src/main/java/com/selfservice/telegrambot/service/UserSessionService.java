@@ -33,6 +33,19 @@ public class UserSessionService {
         }
     }
 
+    public enum TokenState {
+        NONE,
+        VALID,
+        EXPIRED,
+        INVALID
+    }
+
+    public record TokenSnapshot(TokenState state, String token) {
+        public static TokenSnapshot none() {
+            return new TokenSnapshot(TokenState.NONE, null);
+        }
+    }
+
     private static final String DEFAULT_LANGUAGE = "en";
 
     private final Map<Long, TokenInfo> byChat = new ConcurrentHashMap<>();
@@ -46,6 +59,15 @@ public class UserSessionService {
         byChat.put(chatId, new TokenInfo(accessToken, refreshToken, idToken, exp, Collections.emptyList(), null));
         clearServices(chatId);
         clearTroubleTickets(chatId);
+    }
+
+    public TokenSnapshot getTokenSnapshot(long chatId) {
+        TokenInfo info = byChat.get(chatId);
+        if (info == null) {
+            return TokenSnapshot.none();
+        }
+        boolean expired = info.expiryEpochMs <= System.currentTimeMillis() + 30_000;
+        return new TokenSnapshot(expired ? TokenState.EXPIRED : TokenState.VALID, info.accessToken);
     }
 
     public String getValidAccessToken(long chatId) {

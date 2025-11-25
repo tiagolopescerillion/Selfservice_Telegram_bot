@@ -73,7 +73,7 @@ body {
 }
 
 .content {
-    max-width: 1100px;
+    max-width: 1366px;
 }
 
 header {
@@ -323,9 +323,13 @@ button:disabled {
     cursor: pointer;
 }
 
-.monitoring-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+.panel--wide {
+    max-width: 1366px;
+}
+
+.monitoring-vertical {
+    display: flex;
+    flex-direction: column;
     gap: 1rem;
 }
 
@@ -361,7 +365,7 @@ button:disabled {
 .list-header,
 .session-row {
     display: grid;
-    grid-template-columns: 1.1fr 1.6fr 1.6fr 1.05fr 1.05fr;
+    grid-template-columns: 1.1fr 1.6fr 1.6fr 1.1fr 1.05fr 1.05fr;
     gap: 0.5rem;
     align-items: center;
 }
@@ -395,6 +399,49 @@ button:disabled {
     display: inline-flex;
     align-items: center;
     gap: 0.4rem;
+}
+
+.session-row__token {
+    display: inline-flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+.token-pill {
+    padding: 0.2rem 0.6rem;
+    border-radius: 999px;
+    font-weight: 700;
+    border: 1px solid var(--border);
+    background: #fff;
+}
+
+.token-pill.valid {
+    background: #ecfdf3;
+    border-color: #16a34a;
+    color: #14532d;
+}
+
+.token-pill.expired {
+    background: #fff7ed;
+    border-color: #f97316;
+    color: #7c2d12;
+}
+
+.token-pill.invalid {
+    background: #fef2f2;
+    border-color: #ef4444;
+    color: #7f1d1d;
+}
+
+.token-pill.none {
+    background: #e2e8f0;
+    border-color: #cbd5e1;
+    color: #0f172a;
+}
+
+.token-link {
+    font-size: 0.9rem;
 }
 
 .session-row__user {

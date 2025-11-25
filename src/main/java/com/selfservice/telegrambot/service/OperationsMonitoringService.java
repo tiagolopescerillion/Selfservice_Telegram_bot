@@ -13,21 +13,29 @@ import java.util.concurrent.ConcurrentLinkedDeque;
 @Service
 public class OperationsMonitoringService {
 
+    public record TokenDetails(String state, String token) {
+        public static TokenDetails none() {
+            return new TokenDetails("NONE", null);
+        }
+    }
+
     public record SessionSnapshot(
             String channel,
             String sessionId,
             boolean loggedIn,
             String username,
             Instant startedAt,
-            Instant lastSeen
+            Instant lastSeen,
+            TokenDetails token
     ) {
-        public SessionSnapshot update(boolean loggedInUpdate, String newUsername, Instant now) {
+        public SessionSnapshot update(boolean loggedInUpdate, String newUsername, TokenDetails updatedToken, Instant now) {
             String mergedUsername = (newUsername != null && !newUsername.isBlank()) ? newUsername.strip() : username;
-            return new SessionSnapshot(channel, sessionId, loggedInUpdate, mergedUsername, startedAt, now);
+            TokenDetails mergedToken = updatedToken != null ? updatedToken : token;
+            return new SessionSnapshot(channel, sessionId, loggedInUpdate, mergedUsername, startedAt, now, mergedToken);
         }
 
         public SessionSnapshot logout(Instant now) {
-            return new SessionSnapshot(channel, sessionId, false, username, startedAt, now);
+            return new SessionSnapshot(channel, sessionId, false, username, startedAt, now, token);
         }
     }
 
@@ -37,6 +45,10 @@ public class OperationsMonitoringService {
     private final Deque<SessionSnapshot> sessionHistory = new ConcurrentLinkedDeque<>();
 
     public void recordActivity(String channel, String sessionId, String username, boolean loggedIn) {
+        recordActivity(channel, sessionId, username, loggedIn, null);
+    }
+
+    public void recordActivity(String channel, String sessionId, String username, boolean loggedIn, TokenDetails tokenDetails) {
         if (channel == null || sessionId == null) {
             return;
         }
@@ -45,10 +57,27 @@ public class OperationsMonitoringService {
         String key = key(channel, sessionId);
         activeSessions.compute(key, (k, existing) -> {
             if (existing == null) {
-                return new SessionSnapshot(channel, sessionId, loggedIn, normalize(username), now, now);
+                return new SessionSnapshot(channel, sessionId, loggedIn, normalize(username), now, now,
+                        tokenDetails != null ? tokenDetails : TokenDetails.none());
             }
-            return existing.update(loggedIn, normalize(username), now);
+            return existing.update(loggedIn, normalize(username), tokenDetails, now);
         });
+    }
+
+    public TokenDetails toTokenDetails(UserSessionService.TokenSnapshot snapshot) {
+        if (snapshot == null) {
+            return TokenDetails.none();
+        }
+        String state = snapshot.state() != null ? snapshot.state().name() : "NONE";
+        return new TokenDetails(state, snapshot.token());
+    }
+
+    public TokenDetails toTokenDetails(com.selfservice.whatsapp.service.WhatsappSessionService.TokenSnapshot snapshot) {
+        if (snapshot == null) {
+            return TokenDetails.none();
+        }
+        String state = snapshot.state() != null ? snapshot.state().name() : "NONE";
+        return new TokenDetails(state, snapshot.token());
     }
 
     public void markLoggedIn(String channel, String sessionId, String username) {

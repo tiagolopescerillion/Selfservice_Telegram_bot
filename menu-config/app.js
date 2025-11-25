@@ -100,6 +100,7 @@ const MONITORING_REFRESH_MS = 5000;
 const MONITORING_API_STORAGE_KEY = "monitoringApiBase";
 let monitoringIntervalId = null;
 let monitoringEndpointCache = "";
+let monitoringConfigLoaded = false;
 
 function initFunctionSelect(selectEl) {
   selectEl.innerHTML = "";
@@ -817,6 +818,35 @@ function restoreMonitoringApiBase() {
   }
 }
 
+async function prefillMonitoringApiBaseFromServer() {
+  if (!monitoringApiBaseInput || monitoringConfigLoaded) {
+    return;
+  }
+
+  if (monitoringApiBaseInput.value || getStoredMonitoringApiBase()) {
+    monitoringConfigLoaded = true;
+    return;
+  }
+
+  try {
+    const response = await fetch("/operations/config");
+    if (!response.ok) {
+      monitoringConfigLoaded = true;
+      return;
+    }
+    const payload = await response.json();
+    const serverBase = payload?.publicBaseUrl?.trim();
+    if (serverBase) {
+      monitoringApiBaseInput.placeholder = monitoringApiBaseInput.placeholder || serverBase;
+      monitoringApiBaseInput.value = serverBase;
+      persistMonitoringApiBase(serverBase);
+    }
+  } catch (error) {
+    console.warn("Unable to prefill monitoring API base from server", error);
+  }
+  monitoringConfigLoaded = true;
+}
+
 function getConfiguredMonitoringApiBase() {
   const manual = monitoringApiBaseInput?.value?.trim();
   if (manual) {
@@ -896,13 +926,17 @@ async function refreshMonitoringData() {
 function normalizeSession(raw) {
   const startedAt = raw?.startedAt ? new Date(raw.startedAt) : null;
   const sessionId = raw?.sessionId || raw?.chatId || raw?.id || "Unknown";
+  const tokenState = raw?.token?.state || raw?.tokenState || "";
+  const tokenValue = raw?.token?.token ?? raw?.token ?? null;
   return {
     channel: raw?.channel || "Unknown",
     chatId: sessionId,
     loggedIn: Boolean(raw?.loggedIn),
-    username: raw?.username || "",
+    username: raw?.username || raw?.user || raw?.displayName || "",
     startedAt,
-    lastSeen: raw?.lastSeen ? new Date(raw.lastSeen) : startedAt
+    lastSeen: raw?.lastSeen ? new Date(raw.lastSeen) : startedAt,
+    tokenState,
+    token: tokenValue
   };
 }
 
@@ -957,9 +991,45 @@ function renderSessionList(container, sessions, emptyMessage) {
     const startTime = document.createElement("span");
     startTime.textContent = session.startedAt ? formatTime(session.startedAt) : "—";
 
-    row.append(channel, chat, loggedIn, startDate, startTime);
+    const tokenCell = document.createElement("span");
+    tokenCell.className = "session-row__token";
+    const tokenStatus = describeToken(session.tokenState);
+    const tokenPill = document.createElement("span");
+    tokenPill.className = `token-pill ${tokenStatus.className}`;
+    tokenPill.textContent = tokenStatus.label;
+    tokenCell.append(tokenPill);
+    if (session.token) {
+      const link = document.createElement("a");
+      link.href = `data:text/plain;charset=utf-8,${encodeURIComponent(session.token)}`;
+      link.target = "_blank";
+      link.rel = "noreferrer";
+      link.textContent = "Open token";
+      link.className = "token-link";
+      tokenCell.append(link);
+    }
+
+    row.append(channel, chat, loggedIn, tokenCell, startDate, startTime);
     container.append(row);
   });
+}
+
+function describeToken(state) {
+  const normalized = (state || "").toString().toUpperCase();
+  switch (normalized) {
+    case "VALID":
+    case "YES":
+      return { label: "Yes", className: "valid" };
+    case "EXPIRED":
+      return { label: "Expired", className: "expired" };
+    case "INVALID":
+      return { label: "Invalid", className: "invalid" };
+    case "NONE":
+    case "NO":
+    case "":
+      return { label: "NO TOKEN", className: "none" };
+    default:
+      return { label: normalized, className: "none" };
+  }
 }
 
 function formatDate(date) {
@@ -979,7 +1049,9 @@ function handleMonitoringApiBaseChanged() {
 
 function initMonitoring() {
   restoreMonitoringApiBase();
-  refreshMonitoringData();
+  prefillMonitoringApiBaseFromServer().finally(() => {
+    refreshMonitoringData();
+  });
   if (monitoringIntervalId === null) {
     monitoringIntervalId = setInterval(refreshMonitoringData, MONITORING_REFRESH_MS);
   }
