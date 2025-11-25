@@ -215,7 +215,8 @@ public class WhatsappService {
         String prompt = translate(to, "OptInPrompt");
         String yes = translate(to, KEY_OPT_IN_YES);
         String no = translate(to, KEY_OPT_IN_NO);
-        sendText(to, String.format("%s\n\n- %s\n- %s", prompt, yes, no));
+        sessionService.setSelectionContext(to, WhatsappSessionService.SelectionContext.OPT_IN);
+        sendText(to, String.format("%s\n\n1) %s\n2) %s", prompt, yes, no));
     }
 
     public void sendOptInAccepted(String to) {

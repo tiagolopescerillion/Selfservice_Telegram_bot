@@ -176,6 +176,28 @@ public class WhatsappWebhookController {
                 || lower.equals(WhatsappService.INTERACTIVE_ID_CHANGE_LANGUAGE.toLowerCase())
                 || lower.equals(WhatsappService.COMMAND_CHANGE_LANGUAGE);
 
+        if (selectionContext == WhatsappSessionService.SelectionContext.OPT_IN && parseIndex(lower) >= 1) {
+            int choice = parseIndex(lower);
+            if (choice == 1) {
+                sessionService.setOptIn(userId, true);
+                monitoringService.recordActivity("WhatsApp", userId, null, hasValidToken,
+                        monitoringService.toTokenDetails(tokenSnapshot), true);
+                whatsappService.sendOptInAccepted(from);
+                sessionService.setSelectionContext(userId, WhatsappSessionService.SelectionContext.NONE);
+                sendLoginPrompt(from, sessionKey);
+                return;
+            }
+            if (choice == 2) {
+                sessionService.setOptIn(userId, false);
+                monitoringService.recordActivity("WhatsApp", userId, null, hasValidToken,
+                        monitoringService.toTokenDetails(tokenSnapshot), false);
+                whatsappService.sendText(from, whatsappService.translate(from, "OptOutConfirmation"));
+                sessionService.setSelectionContext(userId, WhatsappSessionService.SelectionContext.NONE);
+                sendLoginPrompt(from, sessionKey);
+                return;
+            }
+        }
+
         if (lower.equals("unsubscribe")) {
             sessionService.setOptIn(userId, false);
             monitoringService.recordActivity("WhatsApp", userId, null, hasValidToken,
@@ -189,6 +211,8 @@ public class WhatsappWebhookController {
             monitoringService.recordActivity("WhatsApp", userId, null, hasValidToken,
                     monitoringService.toTokenDetails(tokenSnapshot), true);
             whatsappService.sendOptInAccepted(from);
+            sessionService.setSelectionContext(userId, WhatsappSessionService.SelectionContext.NONE);
+            sendLoginPrompt(from, sessionKey);
             return;
         }
 
@@ -196,7 +220,9 @@ public class WhatsappWebhookController {
             sessionService.setOptIn(userId, false);
             monitoringService.recordActivity("WhatsApp", userId, null, hasValidToken,
                     monitoringService.toTokenDetails(tokenSnapshot), false);
-            whatsappService.sendOptInDeclined(from);
+            whatsappService.sendText(from, whatsappService.translate(from, "OptOutConfirmation"));
+            sessionService.setSelectionContext(userId, WhatsappSessionService.SelectionContext.NONE);
+            sendLoginPrompt(from, sessionKey);
             return;
         }
 
