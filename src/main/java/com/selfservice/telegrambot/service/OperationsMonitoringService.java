@@ -85,7 +85,11 @@ public class OperationsMonitoringService {
     }
 
     public void markLoggedIn(String channel, String sessionId, String username) {
-        recordActivity(channel, sessionId, username, true, false);
+        markLoggedIn(channel, sessionId, username, false);
+    }
+
+    public void markLoggedIn(String channel, String sessionId, String username, boolean optIn) {
+        recordActivity(channel, sessionId, username, true, optIn);
     }
 
     public void markLoggedOut(String channel, String sessionId) {
