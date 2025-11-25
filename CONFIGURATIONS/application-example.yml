@@ -1,33 +1,75 @@
 spring:
   profiles:
-    active: local
+    active: local   # Default profile to load the local configuration below
 
 ---
 spring:
   config:
     activate:
       on-profile: local
+  application:
+    name: selfservice-telegram-bot  # Application name registered with Spring Boot
 
-# Public URL used for webhook callbacks when the server is exposed via tunnelling
+server:
+  port: 8080  # HTTP port where the application listens
+
+logging:
+  level:
+    root: INFO  # Default log level; override with DEBUG for more verbose output
+
 app:
-  public-base-url: https://solaris-probe-lucy-ventures.trycloudflare.com
+  public-base-url: YOUR_SERVER_PUBLIC_URL  # Base URL exposed to the internet (used to build webhook callbacks)
+  http-logging:
+    enabled: true  # Enable HTTP request/response logging (disable in production if not needed)
+
+# Shared base URLs to avoid repetition across services
+endpoints:
+  keycloak-base-url: YOUR_KEYCLOAK_URL      # Base URL of your Keycloak realm (e.g., https://keycloak.example.com/realms/realm)
+  rest-server-base-url: YOUR_REST_SERVER_URL # Base URL of the backend REST services
+  apiman-base-url: YOUR_APIMAN_URL          # Base URL of the API management gateway
 
 login-menu:
-  digital-login: Y  # Show the digital login option in login menus
-  crm-login: Y      # Show the CRM login option in login menus
+  digital-login: Y  # Show the digital login option in login menus (Y/N)
+  crm-login: Y      # Show the CRM login option in login menus (Y/N)
 
 telegram:
   bot:
-    token: YOUR_TELEGRAM_BOT_TOKEN
+    token: YOUR_TELEGRAM_BOT_TOKEN  # Bot token issued by BotFather
 
 whatsapp:
-  callback-url: https://solaris-probe-lucy-ventures.trycloudflare.com/webhook/whatsapp
-  verify-token: digital-whatsapp-bot-verify-123
-  phone-number-id: YOUR_PHONE_NUMBER_ID
-  access-token: YOUR_WHATSAPP_ACCESS_TOKEN
-  ux-mode: TEST # BASIC | PRODUCTION | TEST (default shows both plain text and interactive cards)
+  callback-url: ${app.public-base-url}/webhook/whatsapp  # Public webhook endpoint for WhatsApp callbacks
+  verify-token: YOUR_WHATSAPP_VERIFY_TOKEN               # Verification token configured in Meta App settings
+  phone-number-id: YOUR_PHONE_NUMBER_ID                  # WhatsApp Business phone number ID
+  access-token: YOUR_WHATSAPP_ACCESS_TOKEN               # WhatsApp Graph API access token
+  ux-mode: TEST  # UX mode: BASIC (plain text), PRODUCTION (interactive cards), TEST (show both)
 
 messenger:
-  callback-url: https://solaris-probe-lucy-ventures.trycloudflare.com/messenger/webhook
-  verify-token: digital-facebook-bot-verify-123
-  page-access-token: YOUR_FACEBOOK_PAGE_ACCESS_TOKEN
+  callback-url: ${app.public-base-url}/messenger/webhook  # Public webhook endpoint for Facebook Messenger callbacks
+  verify-token: YOUR_FACEBOOK_VERIFY_TOKEN                # Verification token configured for the Facebook app
+  page-access-token: YOUR_FACEBOOK_PAGE_ACCESS_TOKEN      # Page access token for sending messages
+
+keycloak:
+  allow-insecure-certs: false   # Set true only for dev/self-signed certificates
+
+  auth-endpoint: ${endpoints.keycloak-base-url}/protocol/openid-connect/auth    # Authorization endpoint
+  token-endpoint: ${endpoints.keycloak-base-url}/protocol/openid-connect/token  # Token endpoint used for OAuth flows
+  token-endpoint2: ${endpoints.keycloak-base-url}/protocol/openid-connect/token # Secondary token endpoint (if needed)
+
+  oauth:
+    client-id: YOUR_KEYCLOAK_CLIENT_ID         # OAuth client ID used for user authentication
+    client-secret: YOUR_KEYCLOAK_CLIENT_SECRET # OAuth client secret used for user authentication
+    redirect-uri: ${app.public-base-url}/oauth/callback # Redirect URI registered in Keycloak
+
+  client-credentials:
+    client-id: YOUR_KEYCLOAK_CLIENT_ID         # Client ID for client credentials grant
+    client-secret: YOUR_KEYCLOAK_CLIENT_SECRET # Client secret for client credentials grant
+
+external:
+  api:
+    trouble-ticket:
+      url: ${endpoints.rest-server-base-url}/openapi-fun-trouble-ticket/api/v1/troubleTicket?id=28667 # Trouble ticket API endpoint
+
+apiman:
+  trouble-ticket-url: ${endpoints.apiman-base-url}/troubleTicket/1.0?id=28970           # Trouble ticket endpoint exposed via API management
+  url2: ${endpoints.apiman-base-url}/openapi-fun-account/api/v1/billingAccounts?billingAccount.id=20000053 # Billing account API example
+  url: ${endpoints.apiman-base-url}/troubleTicket/1.0?                                   # Base API management URL for trouble ticket queries
