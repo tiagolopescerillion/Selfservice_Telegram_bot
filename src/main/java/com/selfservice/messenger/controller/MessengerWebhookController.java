@@ -1,6 +1,7 @@
 package com.selfservice.messenger.controller;
 
 import com.selfservice.messenger.service.MessengerService;
+import com.selfservice.telegrambot.service.OperationsMonitoringService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -24,12 +25,15 @@ public class MessengerWebhookController {
 
     private final MessengerService messengerService;
     private final String verifyToken;
+    private final OperationsMonitoringService monitoringService;
 
     public MessengerWebhookController(
             MessengerService messengerService,
-            @Value("${messenger.verify-token}") String verifyToken) {
+            @Value("${messenger.verify-token}") String verifyToken,
+            OperationsMonitoringService monitoringService) {
         this.messengerService = messengerService;
         this.verifyToken = Objects.requireNonNull(verifyToken, "messenger.verify-token must be set");
+        this.monitoringService = monitoringService;
     }
 
     @GetMapping
@@ -72,6 +76,8 @@ public class MessengerWebhookController {
                 if (senderId == null || senderId.isBlank()) {
                     continue;
                 }
+
+                monitoringService.recordActivity("Messenger", senderId, null, false);
 
                 Map<String, Object> message = (Map<String, Object>) messagingEvent.get("message");
                 if (message == null) {

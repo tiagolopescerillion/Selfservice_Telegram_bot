@@ -11,6 +11,7 @@ import com.selfservice.application.service.ExternalApiService;
 import com.selfservice.application.service.MainServiceCatalogService;
 import com.selfservice.application.service.TroubleTicketService;
 import com.selfservice.telegrambot.config.menu.BusinessMenuItem;
+import com.selfservice.telegrambot.service.OperationsMonitoringService;
 import com.selfservice.telegrambot.service.TelegramService;
 import com.selfservice.whatsapp.service.WhatsappService;
 import com.selfservice.whatsapp.service.WhatsappSessionService;
@@ -43,6 +44,7 @@ public class WhatsappWebhookController {
     private final MainServiceCatalogService mainServiceCatalogService;
     private final TroubleTicketService troubleTicketService;
     private final String verifyToken;
+    private final OperationsMonitoringService monitoringService;
 
     public WhatsappWebhookController(
             WhatsappService whatsappService,
@@ -52,7 +54,8 @@ public class WhatsappWebhookController {
             ExternalApiService externalApiService,
             MainServiceCatalogService mainServiceCatalogService,
             TroubleTicketService troubleTicketService,
-            @Value("${whatsapp.verify-token}") String verifyToken) {
+            @Value("${whatsapp.verify-token}") String verifyToken,
+            OperationsMonitoringService monitoringService) {
         this.whatsappService = whatsappService;
         this.oauthSessionService = oauthSessionService;
         this.sessionService = sessionService;
@@ -61,6 +64,7 @@ public class WhatsappWebhookController {
         this.mainServiceCatalogService = mainServiceCatalogService;
         this.troubleTicketService = troubleTicketService;
         this.verifyToken = Objects.requireNonNull(verifyToken, "whatsapp.verify-token must be set");
+        this.monitoringService = monitoringService;
     }
 
     @GetMapping
@@ -148,8 +152,11 @@ public class WhatsappWebhookController {
         String userId = from;
         String lower = body.toLowerCase();
         boolean awaitingLanguage = sessionService.isAwaitingLanguageSelection(userId);
+        var tokenSnapshot = sessionService.getTokenSnapshot(userId);
         String token = sessionService.getValidAccessToken(userId);
         boolean hasValidToken = token != null;
+        monitoringService.recordActivity("WhatsApp", userId, null, hasValidToken,
+                monitoringService.toTokenDetails(tokenSnapshot));
         WhatsappSessionService.SelectionContext selectionContext = sessionService.getSelectionContext(userId);
         WhatsappService.LoginMenuOption numericLoginSelection = parseLoginMenuSelection(body);
 
@@ -328,6 +335,7 @@ public class WhatsappWebhookController {
                 log.warn("Logout failed for WhatsApp user {}", sessionKey, ex);
             }
             sessionService.clearSession(userId);
+            monitoringService.markLoggedOut("WhatsApp", userId);
             whatsappService.sendText(from, whatsappService.translate(from, "LoggedOutMessage"));
             sendLoginPrompt(from, sessionKey);
             return;
@@ -453,6 +461,7 @@ public class WhatsappWebhookController {
                 log.warn("Logout failed for WhatsApp user {}", sessionKey, ex);
             }
             sessionService.clearSession(userId);
+            monitoringService.markLoggedOut("WhatsApp", userId);
             whatsappService.sendText(from, whatsappService.translate(from, "LoggedOutMessage"));
             sendLoginPrompt(from, sessionKey);
             return;
@@ -625,7 +634,10 @@ public class WhatsappWebhookController {
 
     private void dispatchFallback(String from) {
         String sessionKey = "wa-" + from;
+        var tokenSnapshot = sessionService.getTokenSnapshot(from);
         boolean hasValidToken = sessionService.getValidAccessToken(from) != null;
+        monitoringService.recordActivity("WhatsApp", from, null, hasValidToken,
+                monitoringService.toTokenDetails(tokenSnapshot));
         if (hasValidToken) {
             sendBusinessMenu(from, from);
         } else {

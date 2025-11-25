@@ -33,6 +33,19 @@ public class WhatsappSessionService {
         }
     }
 
+    public enum TokenState {
+        NONE,
+        VALID,
+        EXPIRED,
+        INVALID
+    }
+
+    public record TokenSnapshot(TokenState state, String token) {
+        public static TokenSnapshot none() {
+            return new TokenSnapshot(TokenState.NONE, null);
+        }
+    }
+
     private final Map<String, TokenInfo> byUser = new ConcurrentHashMap<>();
     private final Map<String, List<ServiceSummary>> servicesByUser = new ConcurrentHashMap<>();
     private final Map<String, List<TroubleTicketSummary>> ticketsByUser = new ConcurrentHashMap<>();
@@ -54,6 +67,15 @@ public class WhatsappSessionService {
         byUser.put(userId, new TokenInfo(accessToken, refreshToken, idToken, exp, Collections.emptyList(), null));
         clearServices(userId);
         clearTroubleTickets(userId);
+    }
+
+    public TokenSnapshot getTokenSnapshot(String userId) {
+        TokenInfo info = byUser.get(userId);
+        if (info == null) {
+            return TokenSnapshot.none();
+        }
+        boolean expired = info.expiryEpochMs <= System.currentTimeMillis() + 30_000;
+        return new TokenSnapshot(expired ? TokenState.EXPIRED : TokenState.VALID, info.accessToken);
     }
 
     public String getValidAccessToken(String userId) {

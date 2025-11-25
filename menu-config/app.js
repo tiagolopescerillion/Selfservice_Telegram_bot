@@ -77,6 +77,14 @@ const resetButton = document.getElementById("resetButton");
 const downloadButton = document.getElementById("downloadButton");
 const preview = document.getElementById("preview");
 const importInput = document.getElementById("importInput");
+const navMenuConfig = document.getElementById("navMenuConfig");
+const navOperationsMonitoring = document.getElementById("navOperationsMonitoring");
+const menuConfigurationPanel = document.getElementById("menuConfigurationPanel");
+const operationsMonitoringPanel = document.getElementById("operationsMonitoringPanel");
+const liveSessionsContainer = document.getElementById("liveSessions");
+const sessionHistoryContainer = document.getElementById("sessionHistory");
+const monitoringApiBaseInput = document.getElementById("monitoringApiBase");
+const monitoringApiBaseMeta = document.querySelector("meta[name='operations-api-base']");
 
 initFunctionSelect(menuFunctionSelect);
 
@@ -85,6 +93,14 @@ let menuOrder = [];
 let selectedMenuId = ROOT_MENU_ID;
 let menuIdCounter = 0;
 let itemIdCounter = 0;
+let liveSessions = [];
+let sessionHistory = [];
+let monitoringError = null;
+const MONITORING_REFRESH_MS = 5000;
+const MONITORING_API_STORAGE_KEY = "monitoringApiBase";
+let monitoringIntervalId = null;
+let monitoringEndpointCache = "";
+let monitoringConfigLoaded = false;
 
 function initFunctionSelect(selectEl) {
   selectEl.innerHTML = "";
@@ -774,6 +790,273 @@ function addMenuItem(event) {
   renderAll();
 }
 
+function setActiveApp(target) {
+  const showMenuConfig = target !== "operations";
+  menuConfigurationPanel.classList.toggle("hidden", !showMenuConfig);
+  operationsMonitoringPanel.classList.toggle("hidden", showMenuConfig);
+  navMenuConfig.classList.toggle("active", showMenuConfig);
+  navOperationsMonitoring.classList.toggle("active", !showMenuConfig);
+  if (!showMenuConfig) {
+    refreshMonitoringData();
+  }
+}
+
+function getStoredMonitoringApiBase() {
+  return localStorage.getItem(MONITORING_API_STORAGE_KEY)?.trim() || "";
+}
+
+function restoreMonitoringApiBase() {
+  const stored = getStoredMonitoringApiBase();
+  if (stored && monitoringApiBaseInput) {
+    monitoringApiBaseInput.value = stored;
+    return;
+  }
+
+  const metaValue = monitoringApiBaseMeta?.content?.trim();
+  if (metaValue && monitoringApiBaseInput && !monitoringApiBaseInput.value) {
+    monitoringApiBaseInput.placeholder = metaValue;
+  }
+}
+
+async function prefillMonitoringApiBaseFromServer() {
+  if (!monitoringApiBaseInput || monitoringConfigLoaded) {
+    return;
+  }
+
+  if (monitoringApiBaseInput.value || getStoredMonitoringApiBase()) {
+    monitoringConfigLoaded = true;
+    return;
+  }
+
+  try {
+    const response = await fetch("/operations/config");
+    if (!response.ok) {
+      monitoringConfigLoaded = true;
+      return;
+    }
+    const payload = await response.json();
+    const serverBase = payload?.publicBaseUrl?.trim();
+    if (serverBase) {
+      monitoringApiBaseInput.placeholder = monitoringApiBaseInput.placeholder || serverBase;
+      monitoringApiBaseInput.value = serverBase;
+      persistMonitoringApiBase(serverBase);
+    }
+  } catch (error) {
+    console.warn("Unable to prefill monitoring API base from server", error);
+  }
+  monitoringConfigLoaded = true;
+}
+
+function getConfiguredMonitoringApiBase() {
+  const manual = monitoringApiBaseInput?.value?.trim();
+  if (manual) {
+    return manual;
+  }
+
+  const stored = getStoredMonitoringApiBase();
+  if (stored) {
+    return stored;
+  }
+
+  const metaValue = monitoringApiBaseMeta?.content?.trim();
+  if (metaValue) {
+    return metaValue;
+  }
+
+  const origin = window.location?.origin;
+  return origin && origin !== "null" ? origin : "";
+}
+
+function persistMonitoringApiBase(value) {
+  if (value) {
+    localStorage.setItem(MONITORING_API_STORAGE_KEY, value);
+  } else {
+    localStorage.removeItem(MONITORING_API_STORAGE_KEY);
+  }
+}
+
+function buildOperationsEndpoint(path) {
+  const base = getConfiguredMonitoringApiBase();
+  if (!base) {
+    monitoringEndpointCache = path;
+    return null;
+  }
+
+  try {
+    const endpoint = new URL(path, base).toString();
+    monitoringEndpointCache = endpoint;
+    return endpoint;
+  } catch (error) {
+    console.error("Invalid monitoring API base", base, error);
+    monitoringError = `Invalid monitoring API base URL: ${base}`;
+    return null;
+  }
+}
+
+async function refreshMonitoringData() {
+  const endpoint = buildOperationsEndpoint("/operations/sessions");
+  if (!endpoint) {
+    monitoringError = "Set the monitoring API base URL so the Java server can be reached.";
+    liveSessions = [];
+    sessionHistory = [];
+    renderMonitoring();
+    return;
+  }
+
+  try {
+    const response = await fetch(endpoint);
+    if (!response.ok) {
+      throw new Error(`Failed to load sessions (HTTP ${response.status})`);
+    }
+    const payload = await response.json();
+    liveSessions = (payload.active || payload.live || payload.activeSessions || [])
+      .map(normalizeSession);
+    sessionHistory = (payload.history || payload.recent || [])
+      .map(normalizeSession);
+    monitoringError = null;
+  } catch (error) {
+    console.error("Monitoring refresh failed", error);
+    monitoringError = `Unable to load monitoring data from ${endpoint}: ${error?.message || error}`;
+    liveSessions = [];
+    sessionHistory = [];
+  }
+  renderMonitoring();
+}
+
+function normalizeSession(raw) {
+  const startedAt = raw?.startedAt ? new Date(raw.startedAt) : null;
+  const sessionId = raw?.sessionId || raw?.chatId || raw?.id || "Unknown";
+  const tokenState = raw?.token?.state || raw?.tokenState || "";
+  const tokenValue = raw?.token?.token ?? raw?.token ?? null;
+  return {
+    channel: raw?.channel || "Unknown",
+    chatId: sessionId,
+    loggedIn: Boolean(raw?.loggedIn),
+    username: raw?.username || raw?.user || raw?.displayName || "",
+    startedAt,
+    lastSeen: raw?.lastSeen ? new Date(raw.lastSeen) : startedAt,
+    tokenState,
+    token: tokenValue
+  };
+}
+
+function renderMonitoring() {
+  renderSessionList(liveSessionsContainer, liveSessions, "No active sessions yet.");
+  renderSessionList(sessionHistoryContainer, sessionHistory, "No completed sessions yet.");
+}
+
+function renderSessionList(container, sessions, emptyMessage) {
+  container.innerHTML = "";
+  if (monitoringError) {
+    const errorRow = document.createElement("div");
+    errorRow.className = "empty-state error-state";
+    errorRow.textContent = monitoringError;
+    container.append(errorRow);
+  }
+  if (!sessions.length) {
+    const empty = document.createElement("div");
+    empty.className = "empty-state";
+    empty.textContent = monitoringError ? "" : emptyMessage;
+    container.append(empty);
+    return;
+  }
+
+  sessions.forEach((session) => {
+    const row = document.createElement("div");
+    row.className = "session-row";
+
+    const channel = document.createElement("span");
+    channel.textContent = session.channel;
+
+    const chat = document.createElement("span");
+    chat.textContent = session.chatId;
+
+    const loggedIn = document.createElement("span");
+    loggedIn.className = "session-row__meta";
+    const statusDot = document.createElement("span");
+    statusDot.className = `status-dot ${session.loggedIn ? "online" : "offline"}`;
+    const statusText = document.createElement("span");
+    statusText.textContent = session.loggedIn ? "Yes" : "No";
+    loggedIn.append(statusDot, statusText);
+    if (session.loggedIn && session.username) {
+      const userLabel = document.createElement("span");
+      userLabel.className = "session-row__user";
+      userLabel.textContent = `— ${session.username}`;
+      loggedIn.append(userLabel);
+    }
+
+    const startDate = document.createElement("span");
+    startDate.textContent = session.startedAt ? formatDate(session.startedAt) : "—";
+
+    const startTime = document.createElement("span");
+    startTime.textContent = session.startedAt ? formatTime(session.startedAt) : "—";
+
+    const tokenCell = document.createElement("span");
+    tokenCell.className = "session-row__token";
+    const tokenStatus = describeToken(session.tokenState);
+    const tokenPill = document.createElement("span");
+    tokenPill.className = `token-pill ${tokenStatus.className}`;
+    tokenPill.textContent = tokenStatus.label;
+    tokenCell.append(tokenPill);
+    if (session.token) {
+      const link = document.createElement("a");
+      link.href = `data:text/plain;charset=utf-8,${encodeURIComponent(session.token)}`;
+      link.target = "_blank";
+      link.rel = "noreferrer";
+      link.textContent = "Open token";
+      link.className = "token-link";
+      tokenCell.append(link);
+    }
+
+    row.append(channel, chat, loggedIn, tokenCell, startDate, startTime);
+    container.append(row);
+  });
+}
+
+function describeToken(state) {
+  const normalized = (state || "").toString().toUpperCase();
+  switch (normalized) {
+    case "VALID":
+    case "YES":
+      return { label: "Yes", className: "valid" };
+    case "EXPIRED":
+      return { label: "Expired", className: "expired" };
+    case "INVALID":
+      return { label: "Invalid", className: "invalid" };
+    case "NONE":
+    case "NO":
+    case "":
+      return { label: "NO TOKEN", className: "none" };
+    default:
+      return { label: normalized, className: "none" };
+  }
+}
+
+function formatDate(date) {
+  return new Date(date).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "2-digit" });
+}
+
+function formatTime(date) {
+  return new Date(date).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+}
+
+function handleMonitoringApiBaseChanged() {
+  const value = monitoringApiBaseInput?.value?.trim() || "";
+  persistMonitoringApiBase(value);
+  monitoringError = null;
+  refreshMonitoringData();
+}
+
+function initMonitoring() {
+  restoreMonitoringApiBase();
+  prefillMonitoringApiBaseFromServer().finally(() => {
+    refreshMonitoringData();
+  });
+  if (monitoringIntervalId === null) {
+    monitoringIntervalId = setInterval(refreshMonitoringData, MONITORING_REFRESH_MS);
+  }
+}
+
 menuSelect.addEventListener("change", (event) => {
   selectedMenuId = event.target.value;
   renderAll();
@@ -827,6 +1110,14 @@ resetButton.addEventListener("click", () => {
 
 downloadButton.addEventListener("click", downloadConfig);
 importInput.addEventListener("change", importConfig);
+navMenuConfig.addEventListener("click", () => setActiveApp("menu"));
+navOperationsMonitoring.addEventListener("click", () => setActiveApp("operations"));
+if (monitoringApiBaseInput) {
+  monitoringApiBaseInput.addEventListener("change", handleMonitoringApiBaseChanged);
+  monitoringApiBaseInput.addEventListener("blur", handleMonitoringApiBaseChanged);
+}
 
 toggleAddFormFields();
 resetToDefault();
+initMonitoring();
+setActiveApp("menu");

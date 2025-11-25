@@ -9,6 +9,7 @@ import com.selfservice.application.dto.TroubleTicketListResult;
 import com.selfservice.application.service.ExternalApiService;
 import com.selfservice.application.service.MainServiceCatalogService;
 import com.selfservice.application.service.TroubleTicketService;
+import com.selfservice.telegrambot.service.OperationsMonitoringService;
 import com.selfservice.telegrambot.service.TelegramService;
 import com.selfservice.telegrambot.service.UserSessionService;
 import org.slf4j.Logger;
@@ -31,6 +32,7 @@ public class TelegramWebhookController {
     private final OAuthSessionService oauthSessionService;
     private final UserSessionService userSessionService;
     private final TroubleTicketService troubleTicketService;
+    private final OperationsMonitoringService monitoringService;
 
     public TelegramWebhookController(TelegramService telegramService,
             KeycloakAuthService keycloakAuthService,
@@ -38,7 +40,8 @@ public class TelegramWebhookController {
             MainServiceCatalogService mainServiceCatalogService,
             OAuthSessionService oauthSessionService,
             UserSessionService userSessionService,
-            TroubleTicketService troubleTicketService) {
+            TroubleTicketService troubleTicketService,
+            OperationsMonitoringService monitoringService) {
         this.telegramService = telegramService;
         this.keycloakAuthService = keycloakAuthService;
         this.externalApiService = externalApiService;
@@ -47,6 +50,7 @@ public class TelegramWebhookController {
 
         this.userSessionService = userSessionService;
         this.troubleTicketService = troubleTicketService;
+        this.monitoringService = monitoringService;
 
     }
 
@@ -61,6 +65,7 @@ public class TelegramWebhookController {
             Map<String, Object> chat;
             String text;
             long chatId;
+            String chatUsername;
 
             if (message != null) {
                 chat = (Map<String, Object>) message.get("chat");
@@ -68,6 +73,7 @@ public class TelegramWebhookController {
                     return ResponseEntity.ok().build();
 
                 chatId = ((Number) chat.get("id")).longValue();
+                chatUsername = extractDisplayName(chat);
                 text = (String) message.get("text");
                 if (text == null)
                     text = "";
@@ -82,6 +88,7 @@ public class TelegramWebhookController {
                     return ResponseEntity.ok().build();
 
                 chatId = ((Number) chat.get("id")).longValue();
+                chatUsername = extractDisplayName(chat);
                 text = (String) callbackQuery.get("data");
                 if (text == null)
                     text = "";
@@ -113,8 +120,11 @@ public class TelegramWebhookController {
                 text = TelegramService.CALLBACK_LOGOUT;
             }
 
+            var tokenSnapshot = userSessionService.getTokenSnapshot(chatId);
             String existingToken = userSessionService.getValidAccessToken(chatId);
             boolean hasValidToken = existingToken != null;
+            monitoringService.recordActivity("Telegram", Long.toString(chatId), chatUsername, hasValidToken,
+                    monitoringService.toTokenDetails(tokenSnapshot));
             String loginReminder = telegramService.format(chatId, "LoginReminder",
                     telegramService.translate(chatId, TelegramService.KEY_BUTTON_SELF_SERVICE_LOGIN));
 
@@ -251,6 +261,7 @@ public class TelegramWebhookController {
                     log.warn("Failed to revoke Keycloak session for chat {}", chatId, e);
                 }
                 userSessionService.clearSession(chatId);
+                monitoringService.markLoggedOut("Telegram", Long.toString(chatId));
                 telegramService.sendMessageWithKey(chatId, "LoggedOutMessage");
                 telegramService.sendLoginMenu(chatId, oauthSessionService.buildAuthUrl(chatId));
                 return ResponseEntity.ok().build();
@@ -470,6 +481,29 @@ public class TelegramWebhookController {
         }
 
         return ResponseEntity.ok().build();
+    }
+
+    private String extractDisplayName(Map<String, Object> chat) {
+        if (chat == null) {
+            return null;
+        }
+        Object username = chat.get("username");
+        if (username instanceof String handle && !handle.isBlank()) {
+            return handle.strip();
+        }
+        Object first = chat.get("first_name");
+        Object last = chat.get("last_name");
+        StringBuilder name = new StringBuilder();
+        if (first instanceof String firstName && !firstName.isBlank()) {
+            name.append(firstName.strip());
+        }
+        if (last instanceof String lastName && !lastName.isBlank()) {
+            if (!name.isEmpty()) {
+                name.append(' ');
+            }
+            name.append(lastName.strip());
+        }
+        return name.isEmpty() ? null : name.toString();
     }
 
     private int parseIndex(String text, String prefix) {
