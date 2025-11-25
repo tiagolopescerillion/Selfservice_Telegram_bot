@@ -23,19 +23,22 @@ public class OperationsMonitoringService {
             String channel,
             String sessionId,
             boolean loggedIn,
+            boolean optIn,
             String username,
             Instant startedAt,
             Instant lastSeen,
             TokenDetails token
     ) {
-        public SessionSnapshot update(boolean loggedInUpdate, String newUsername, TokenDetails updatedToken, Instant now) {
+        public SessionSnapshot update(boolean loggedInUpdate, boolean optInUpdate, String newUsername,
+                                      TokenDetails updatedToken, Instant now) {
             String mergedUsername = (newUsername != null && !newUsername.isBlank()) ? newUsername.strip() : username;
             TokenDetails mergedToken = updatedToken != null ? updatedToken : token;
-            return new SessionSnapshot(channel, sessionId, loggedInUpdate, mergedUsername, startedAt, now, mergedToken);
+            return new SessionSnapshot(channel, sessionId, loggedInUpdate, optInUpdate, mergedUsername, startedAt, now,
+                    mergedToken);
         }
 
         public SessionSnapshot logout(Instant now) {
-            return new SessionSnapshot(channel, sessionId, false, username, startedAt, now, token);
+            return new SessionSnapshot(channel, sessionId, false, optIn, username, startedAt, now, token);
         }
     }
 
@@ -44,11 +47,12 @@ public class OperationsMonitoringService {
     private final Map<String, SessionSnapshot> activeSessions = new ConcurrentHashMap<>();
     private final Deque<SessionSnapshot> sessionHistory = new ConcurrentLinkedDeque<>();
 
-    public void recordActivity(String channel, String sessionId, String username, boolean loggedIn) {
-        recordActivity(channel, sessionId, username, loggedIn, null);
+    public void recordActivity(String channel, String sessionId, String username, boolean loggedIn, boolean optIn) {
+        recordActivity(channel, sessionId, username, loggedIn, null, optIn);
     }
 
-    public void recordActivity(String channel, String sessionId, String username, boolean loggedIn, TokenDetails tokenDetails) {
+    public void recordActivity(String channel, String sessionId, String username, boolean loggedIn, TokenDetails tokenDetails,
+            boolean optIn) {
         if (channel == null || sessionId == null) {
             return;
         }
@@ -57,10 +61,10 @@ public class OperationsMonitoringService {
         String key = key(channel, sessionId);
         activeSessions.compute(key, (k, existing) -> {
             if (existing == null) {
-                return new SessionSnapshot(channel, sessionId, loggedIn, normalize(username), now, now,
+                return new SessionSnapshot(channel, sessionId, loggedIn, optIn, normalize(username), now, now,
                         tokenDetails != null ? tokenDetails : TokenDetails.none());
             }
-            return existing.update(loggedIn, normalize(username), tokenDetails, now);
+            return existing.update(loggedIn, optIn, normalize(username), tokenDetails, now);
         });
     }
 
@@ -81,7 +85,7 @@ public class OperationsMonitoringService {
     }
 
     public void markLoggedIn(String channel, String sessionId, String username) {
-        recordActivity(channel, sessionId, username, true);
+        recordActivity(channel, sessionId, username, true, false);
     }
 
     public void markLoggedOut(String channel, String sessionId) {

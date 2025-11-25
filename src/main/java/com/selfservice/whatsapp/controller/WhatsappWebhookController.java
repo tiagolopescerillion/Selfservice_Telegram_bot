@@ -155,8 +155,9 @@ public class WhatsappWebhookController {
         var tokenSnapshot = sessionService.getTokenSnapshot(userId);
         String token = sessionService.getValidAccessToken(userId);
         boolean hasValidToken = token != null;
+        boolean optedIn = sessionService.isOptedIn(userId);
         monitoringService.recordActivity("WhatsApp", userId, null, hasValidToken,
-                monitoringService.toTokenDetails(tokenSnapshot));
+                monitoringService.toTokenDetails(tokenSnapshot), optedIn);
         WhatsappSessionService.SelectionContext selectionContext = sessionService.getSelectionContext(userId);
         WhatsappService.LoginMenuOption numericLoginSelection = parseLoginMenuSelection(body);
 
@@ -167,9 +168,37 @@ public class WhatsappWebhookController {
                 || lower.equals(WhatsappService.INTERACTIVE_ID_DIGITAL_LOGIN.toLowerCase())
                 || lower.contains(TelegramService.CALLBACK_SELF_SERVICE_LOGIN.toLowerCase())
                 || lower.equals("login"));
+        boolean isOptInSelection = numericLoginSelection == WhatsappService.LoginMenuOption.OPT_IN
+                || lower.equals(WhatsappService.INTERACTIVE_ID_OPT_IN.toLowerCase())
+                || lower.contains(TelegramService.CALLBACK_OPT_IN_PROMPT.toLowerCase())
+                || lower.equals("opt in");
         boolean isChangeLanguage = numericLoginSelection == WhatsappService.LoginMenuOption.CHANGE_LANGUAGE
                 || lower.equals(WhatsappService.INTERACTIVE_ID_CHANGE_LANGUAGE.toLowerCase())
                 || lower.equals(WhatsappService.COMMAND_CHANGE_LANGUAGE);
+
+        if (lower.equals("unsubscribe")) {
+            sessionService.setOptIn(userId, false);
+            monitoringService.recordActivity("WhatsApp", userId, null, hasValidToken,
+                    monitoringService.toTokenDetails(tokenSnapshot), false);
+            whatsappService.sendText(from, whatsappService.translate(from, "OptOutConfirmation"));
+            return;
+        }
+
+        if (lower.startsWith("yes") && lower.contains("opt-in")) {
+            sessionService.setOptIn(userId, true);
+            monitoringService.recordActivity("WhatsApp", userId, null, hasValidToken,
+                    monitoringService.toTokenDetails(tokenSnapshot), true);
+            whatsappService.sendOptInAccepted(from);
+            return;
+        }
+
+        if (lower.startsWith("no") && lower.contains("opt-in")) {
+            sessionService.setOptIn(userId, false);
+            monitoringService.recordActivity("WhatsApp", userId, null, hasValidToken,
+                    monitoringService.toTokenDetails(tokenSnapshot), false);
+            whatsappService.sendOptInDeclined(from);
+            return;
+        }
 
         if (lower.equals(WhatsappService.COMMAND_MENU)) {
             sessionService.setAwaitingLanguageSelection(userId, false);
@@ -182,6 +211,11 @@ public class WhatsappWebhookController {
         }
 
         if (awaitingLanguage && tryHandleLanguageSelection(sessionKey, userId, lower, hasValidToken)) {
+            return;
+        }
+
+        if (isOptInSelection) {
+            whatsappService.sendOptInPrompt(from);
             return;
         }
 
@@ -637,7 +671,7 @@ public class WhatsappWebhookController {
         var tokenSnapshot = sessionService.getTokenSnapshot(from);
         boolean hasValidToken = sessionService.getValidAccessToken(from) != null;
         monitoringService.recordActivity("WhatsApp", from, null, hasValidToken,
-                monitoringService.toTokenDetails(tokenSnapshot));
+                monitoringService.toTokenDetails(tokenSnapshot), sessionService.isOptedIn(from));
         if (hasValidToken) {
             sendBusinessMenu(from, from);
         } else {

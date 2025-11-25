@@ -35,6 +35,9 @@ public class TelegramService {
     public static final String KEY_BUTTON_MY_ISSUES = "ButtonMyIssues";
     public static final String KEY_BUTTON_CHANGE_ACCOUNT = "ButtonChangeAccount";
     public static final String KEY_BUTTON_CHANGE_LANGUAGE = "ButtonChangeLanguage";
+    public static final String KEY_BUTTON_OPT_IN = "ButtonOptIn";
+    public static final String KEY_OPT_IN_YES = "OptInYes";
+    public static final String KEY_OPT_IN_NO = "OptInNo";
     public static final String KEY_BUTTON_LOGOUT = "ButtonLogout";
     public static final String KEY_BUTTON_BUSINESS_MENU_HOME = "BusinessMenuHome";
     public static final String KEY_BUTTON_BUSINESS_MENU_UP = "BusinessMenuUp";
@@ -61,6 +64,9 @@ public class TelegramService {
     public static final String CALLBACK_BUSINESS_MENU_HOME = "BUSINESS_MENU_HOME";
     public static final String CALLBACK_BUSINESS_MENU_UP = "BUSINESS_MENU_UP";
     public static final String CALLBACK_BUSINESS_MENU_PREFIX = "BUSINESS_MENU:";
+    public static final String CALLBACK_OPT_IN_PROMPT = "OPT_IN_PROMPT";
+    public static final String CALLBACK_OPT_IN_ACCEPT = "OPT_IN_ACCEPT";
+    public static final String CALLBACK_OPT_IN_DECLINE = "OPT_IN_DECLINE";
 
     private final RestTemplate rest = new RestTemplate();
     private final String baseUrl;
@@ -150,6 +156,9 @@ public class TelegramService {
                     "callback_data", CALLBACK_DIRECT_LOGIN)));
         }
         keyboard.add(List.of(Map.of(
+                "text", translate(chatId, KEY_BUTTON_OPT_IN),
+                "callback_data", CALLBACK_OPT_IN_PROMPT)));
+        keyboard.add(List.of(Map.of(
                 "text", translate(chatId, KEY_BUTTON_CHANGE_LANGUAGE),
                 "callback_data", CALLBACK_LANGUAGE_MENU)));
 
@@ -158,6 +167,25 @@ public class TelegramService {
         Map<String, Object> body = Map.of(
                 "chat_id", chatId,
                 "text", translate(chatId, "PleaseChooseSignIn"),
+                "reply_markup", replyMarkup);
+
+        post(url, body, headers);
+    }
+
+    public void sendOptInPrompt(long chatId) {
+        String url = baseUrl + "/sendMessage";
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+
+        List<List<Map<String, Object>>> keyboard = List.of(List.of(
+                Map.of("text", translate(chatId, KEY_OPT_IN_YES), "callback_data", CALLBACK_OPT_IN_ACCEPT),
+                Map.of("text", translate(chatId, KEY_OPT_IN_NO), "callback_data", CALLBACK_OPT_IN_DECLINE)));
+
+        Map<String, Object> replyMarkup = Map.of("inline_keyboard", keyboard);
+
+        Map<String, Object> body = Map.of(
+                "chat_id", chatId,
+                "text", translate(chatId, "OptInPrompt"),
                 "reply_markup", replyMarkup);
 
         post(url, body, headers);

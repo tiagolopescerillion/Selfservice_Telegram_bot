@@ -53,6 +53,7 @@ public class UserSessionService {
     private final Map<Long, List<TroubleTicketSummary>> ticketsByChat = new ConcurrentHashMap<>();
     private final Map<Long, String> languageByChat = new ConcurrentHashMap<>();
     private final Map<Long, List<String>> menuPathByChat = new ConcurrentHashMap<>();
+    private final Map<Long, Boolean> optInByChat = new ConcurrentHashMap<>();
 
     public void save(long chatId, String accessToken, String refreshToken, String idToken, long expiresInSeconds) {
         long exp = System.currentTimeMillis() + expiresInSeconds * 1000L;
@@ -191,6 +192,7 @@ public class UserSessionService {
         ticketsByChat.remove(chatId);
         languageByChat.remove(chatId);
         menuPathByChat.remove(chatId);
+        optInByChat.remove(chatId);
     }
 
     public String getRefreshToken(long chatId) {
@@ -231,6 +233,18 @@ public class UserSessionService {
 
     public void resetBusinessMenu(long chatId, String rootMenuId) {
         menuPathByChat.put(chatId, new ArrayList<>(List.of(rootMenuId)));
+    }
+
+    public boolean isOptedIn(long chatId) {
+        return optInByChat.getOrDefault(chatId, false);
+    }
+
+    public void setOptIn(long chatId, boolean optIn) {
+        if (optIn) {
+            optInByChat.put(chatId, true);
+        } else {
+            optInByChat.remove(chatId);
+        }
     }
 
     public String currentBusinessMenu(long chatId, String rootMenuId) {

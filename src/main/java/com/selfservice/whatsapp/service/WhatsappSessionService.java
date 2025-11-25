@@ -54,6 +54,7 @@ public class WhatsappSessionService {
     private final Map<String, Boolean> awaitingLanguageSelectionByUser = new ConcurrentHashMap<>();
     private final Map<String, SelectionContext> selectionContextByUser = new ConcurrentHashMap<>();
     private final Map<String, Integer> selectionPageStartByUser = new ConcurrentHashMap<>();
+    private final Map<String, Boolean> optInByUser = new ConcurrentHashMap<>();
 
     public enum SelectionContext {
         NONE,
@@ -205,6 +206,7 @@ public class WhatsappSessionService {
         awaitingLanguageSelectionByUser.remove(userId);
         selectionContextByUser.remove(userId);
         selectionPageStartByUser.remove(userId);
+        optInByUser.remove(userId);
     }
 
     public String getIdToken(String userId) {
@@ -260,6 +262,18 @@ public class WhatsappSessionService {
             return;
         }
         awaitingLanguageSelectionByUser.put(userId, true);
+    }
+
+    public boolean isOptedIn(String userId) {
+        return optInByUser.getOrDefault(userId, false);
+    }
+
+    public void setOptIn(String userId, boolean optIn) {
+        if (optIn) {
+            optInByUser.put(userId, true);
+        } else {
+            optInByUser.remove(userId);
+        }
     }
 
     public boolean isAwaitingLanguageSelection(String userId) {

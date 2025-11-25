@@ -14,6 +14,7 @@
         <nav class="sidebar__nav">
             <button id="navMenuConfig" class="sidebar__link active" type="button">Cerillion Digital IM Configuration</button>
             <button id="navOperationsMonitoring" class="sidebar__link" type="button">Operations Monitoring</button>
+            <button id="navSendMessages" class="sidebar__link" type="button">Send Messages</button>
         </nav>
     </aside>
 
@@ -153,6 +154,7 @@
                                 <span>Channel</span>
                                 <span>Chat ID / Session ID</span>
                                 <span>Login status &amp; username</span>
+                                <span>Opt-in status</span>
                                 <span>Token</span>
                                 <span>Session start date</span>
                                 <span>Session start time</span>
@@ -172,6 +174,7 @@
                                 <span>Channel</span>
                                 <span>Chat ID / Session ID</span>
                                 <span>Login status &amp; username</span>
+                                <span>Opt-in status</span>
                                 <span>Token</span>
                                 <span>Session start date</span>
                                 <span>Session start time</span>
@@ -179,6 +182,47 @@
                             <div id="sessionHistory" class="session-list scrollable-list" aria-live="polite"></div>
                         </div>
                     </div>
+                </section>
+            </section>
+
+            <section id="sendMessagesPanel" class="hidden">
+                <section class="panel panel--wide">
+                    <h2>Send Messages</h2>
+                    <p>
+                        Deliver notifications to opted-in users on Telegram or WhatsApp. Users must grant consent from their
+                        chat session before any outbound message is sent.
+                    </p>
+                    <div class="monitoring-config">
+                        <label>
+                            Notifications API base URL
+                            <input id="notificationApiBase" type="text" placeholder="e.g. https://my-server.example.com" />
+                        </label>
+                        <p class="hint">
+                            Leave blank when this UI is hosted by the Java server. If you open this file locally, set the full base
+                            URL so the <code>/notifications</code> endpoint can be reached.
+                        </p>
+                    </div>
+                    <form id="sendMessageForm" class="send-message-form" autocomplete="off">
+                        <label>
+                            Channel
+                            <select id="notificationChannel" required>
+                                <option value="telegram">Telegram</option>
+                                <option value="whatsapp">WhatsApp</option>
+                            </select>
+                        </label>
+                        <label>
+                            Chat ID / Phone Number
+                            <input id="notificationChatId" type="text" placeholder="e.g. 123456789" required />
+                        </label>
+                        <label>
+                            Message
+                            <textarea id="notificationMessage" rows="4" placeholder="Type the notification to send" required></textarea>
+                        </label>
+                        <div class="panel-actions">
+                            <button type="submit">Send notification</button>
+                        </div>
+                    </form>
+                    <div id="notificationResult" class="notification-result" aria-live="polite"></div>
                 </section>
             </section>
         </main>
