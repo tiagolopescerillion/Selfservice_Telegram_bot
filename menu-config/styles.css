@@ -327,6 +327,22 @@ button:disabled {
     max-width: 1366px;
 }
 
+.config-viewer__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+}
+
+.config-viewer__filename {
+    font-weight: 700;
+}
+
+.config-preview {
+    margin-top: 0.75rem;
+    min-height: 240px;
+}
+
 .monitoring-vertical {
     display: flex;
     flex-direction: column;

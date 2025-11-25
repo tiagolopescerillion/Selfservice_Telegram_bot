@@ -15,6 +15,7 @@
             <button id="navMenuConfig" class="sidebar__link active" type="button">Cerillion Digital IM Configuration</button>
             <button id="navOperationsMonitoring" class="sidebar__link" type="button">Operations Monitoring</button>
             <button id="navSendMessages" class="sidebar__link" type="button">Send Messages</button>
+            <button id="navImServerAdmin" class="sidebar__link" type="button">IM Server Admin</button>
         </nav>
     </aside>
 
@@ -223,6 +224,28 @@
                         </div>
                     </form>
                     <div id="notificationResult" class="notification-result" aria-live="polite"></div>
+                </section>
+            </section>
+
+            <section id="imServerAdminPanel" class="hidden">
+                <section class="panel panel--wide">
+                    <h2>IM Server Admin</h2>
+                    <p>
+                        Review the active configuration that drives the Cerillion Digital IM Server. When available,
+                        the server prioritises <code>application-local.yml</code>; otherwise the
+                        <code>application-example.yml</code> baseline is shown.
+                    </p>
+                    <div class="monitoring-config config-viewer__header">
+                        <div>
+                            <div class="hint">Configuration source</div>
+                            <div id="configFileName" class="config-viewer__filename">Loading...</div>
+                        </div>
+                        <div class="panel-actions">
+                            <button id="refreshConfigButton" type="button" class="secondary">Reload configuration</button>
+                        </div>
+                    </div>
+                    <div id="configStatus" class="hint"></div>
+                    <pre id="imConfigContent" class="preview config-preview" aria-live="polite"></pre>
                 </section>
             </section>
         </main>

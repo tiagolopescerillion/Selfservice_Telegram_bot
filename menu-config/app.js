@@ -80,9 +80,11 @@ const importInput = document.getElementById("importInput");
 const navMenuConfig = document.getElementById("navMenuConfig");
 const navOperationsMonitoring = document.getElementById("navOperationsMonitoring");
 const navSendMessages = document.getElementById("navSendMessages");
+const navImServerAdmin = document.getElementById("navImServerAdmin");
 const menuConfigurationPanel = document.getElementById("menuConfigurationPanel");
 const operationsMonitoringPanel = document.getElementById("operationsMonitoringPanel");
 const sendMessagesPanel = document.getElementById("sendMessagesPanel");
+const imServerAdminPanel = document.getElementById("imServerAdminPanel");
 const liveSessionsContainer = document.getElementById("liveSessions");
 const sessionHistoryContainer = document.getElementById("sessionHistory");
 const monitoringApiBaseInput = document.getElementById("monitoringApiBase");
@@ -93,6 +95,10 @@ const notificationChatIdInput = document.getElementById("notificationChatId");
 const notificationMessageInput = document.getElementById("notificationMessage");
 const notificationResult = document.getElementById("notificationResult");
 const sendMessageForm = document.getElementById("sendMessageForm");
+const imConfigContent = document.getElementById("imConfigContent");
+const configFileName = document.getElementById("configFileName");
+const configStatus = document.getElementById("configStatus");
+const refreshConfigButton = document.getElementById("refreshConfigButton");
 
 initFunctionSelect(menuFunctionSelect);
 
@@ -111,6 +117,7 @@ let monitoringIntervalId = null;
 let monitoringEndpointCache = "";
 let monitoringConfigLoaded = false;
 let notificationEndpointCache = "";
+let configEndpointCache = "";
 
 function initFunctionSelect(selectEl) {
   selectEl.innerHTML = "";
@@ -804,14 +811,20 @@ function setActiveApp(target) {
   const showMenuConfig = target === "menu";
   const showOperations = target === "operations";
   const showSendMessages = target === "notifications";
+  const showImServerAdmin = target === "admin";
   menuConfigurationPanel.classList.toggle("hidden", !showMenuConfig);
   operationsMonitoringPanel.classList.toggle("hidden", !showOperations);
   sendMessagesPanel.classList.toggle("hidden", !showSendMessages);
+  imServerAdminPanel.classList.toggle("hidden", !showImServerAdmin);
   navMenuConfig.classList.toggle("active", showMenuConfig);
   navOperationsMonitoring.classList.toggle("active", showOperations);
   navSendMessages.classList.toggle("active", showSendMessages);
+  navImServerAdmin.classList.toggle("active", showImServerAdmin);
   if (showOperations) {
     refreshMonitoringData();
+  }
+  if (showImServerAdmin) {
+    loadImServerConfig();
   }
 }
 
@@ -972,6 +985,73 @@ function buildNotificationEndpoint(path) {
     notificationResult.textContent = `Invalid notifications API base URL: ${base}`;
     notificationResult.className = "notification-result error";
     return null;
+  }
+}
+
+function buildAdminEndpoint(path) {
+  const base = getConfiguredMonitoringApiBase();
+  if (!base) {
+    configEndpointCache = path;
+    return null;
+  }
+
+  try {
+    const endpoint = new URL(path, base).toString();
+    configEndpointCache = endpoint;
+    return endpoint;
+  } catch (error) {
+    console.error("Invalid admin API base", base, error);
+    configEndpointCache = path;
+    return null;
+  }
+}
+
+function formatTimestamp(millis) {
+  if (!millis) {
+    return "";
+  }
+  try {
+    return new Date(millis).toLocaleString();
+  } catch (error) {
+    return "";
+  }
+}
+
+async function loadImServerConfig() {
+  if (!imConfigContent || !configFileName || !configStatus) {
+    return;
+  }
+
+  const endpoint = buildAdminEndpoint("/admin/application-config");
+  if (!endpoint) {
+    configStatus.textContent = "Set the monitoring API base URL so the Java server can be reached.";
+    configStatus.className = "hint error-state";
+    imConfigContent.textContent = "";
+    configFileName.textContent = "Unavailable";
+    return;
+  }
+
+  configStatus.textContent = `Loading configuration from ${endpoint}...`;
+  configStatus.className = "hint";
+  try {
+    const response = await fetch(endpoint);
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      const reason = payload?.reason || response.statusText || `HTTP ${response.status}`;
+      throw new Error(reason);
+    }
+    const content = payload?.content || "";
+    imConfigContent.textContent = content || "Configuration file is empty.";
+    configFileName.textContent = payload?.fileName || "Unknown source";
+    const timestamp = formatTimestamp(payload?.lastModified);
+    configStatus.textContent = timestamp
+      ? `Last updated ${timestamp}`
+      : "Configuration loaded from server.";
+    configStatus.className = "hint";
+  } catch (error) {
+    imConfigContent.textContent = "";
+    configStatus.textContent = `Unable to load configuration from ${endpoint}: ${error?.message || error}`;
+    configStatus.className = "hint error-state";
   }
 }
 
@@ -1258,6 +1338,7 @@ importInput.addEventListener("change", importConfig);
 navMenuConfig.addEventListener("click", () => setActiveApp("menu"));
 navOperationsMonitoring.addEventListener("click", () => setActiveApp("operations"));
 navSendMessages.addEventListener("click", () => setActiveApp("notifications"));
+navImServerAdmin.addEventListener("click", () => setActiveApp("admin"));
 if (monitoringApiBaseInput) {
   monitoringApiBaseInput.addEventListener("change", handleMonitoringApiBaseChanged);
   monitoringApiBaseInput.addEventListener("blur", handleMonitoringApiBaseChanged);
@@ -1268,6 +1349,9 @@ if (notificationApiBaseInput) {
 }
 if (sendMessageForm) {
   sendMessageForm.addEventListener("submit", handleSendNotification);
+}
+if (refreshConfigButton) {
+  refreshConfigButton.addEventListener("click", loadImServerConfig);
 }
 
 toggleAddFormFields();
