@@ -65,7 +65,7 @@ public class OAuthSessionService {
     }
 
     /** Build the browser URL for Keycloak login (with PKCE). State carries the session key and nonce. */
-    public String buildAuthUrl(String sessionKey) {
+    public String buildAuthUrl(String channel, String sessionKey) {
         Objects.requireNonNull(sessionKey, "sessionKey");
         // PKCE: code_verifier (43-128 chars allowed); we use 64 URL-safe chars
         String codeVerifier = randomUrlSafe(64);
@@ -74,7 +74,8 @@ public class OAuthSessionService {
         String nonce = UUID.randomUUID().toString();
         pkceStore.put(nonce, codeVerifier);
 
-        String state = sessionKey + ":" + nonce;
+        String prefix = (channel == null || channel.isBlank()) ? "" : channel + "|";
+        String state = prefix + sessionKey + ":" + nonce;
         String scope = url("openid profile email");
 
         String url = authEndpoint +
@@ -86,13 +87,18 @@ public class OAuthSessionService {
                 "&code_challenge_method=S256" +
                 "&code_challenge=" + url(codeChallenge);
 
-        log.info("Auth URL generated for sessionKey={} nonce={} at {}", sessionKey, nonce, Instant.now());
+        log.info("Auth URL generated for channel={} sessionKey={} nonce={} at {}", channel, sessionKey, nonce, Instant.now());
         return url;
     }
 
     /** Convenience overload for Telegram (numeric chat IDs). */
     public String buildAuthUrl(long chatId) {
-        return buildAuthUrl(Long.toString(chatId));
+        return buildAuthUrl("Telegram", Long.toString(chatId));
+    }
+
+    /** Convenience overload for non-numeric session keys. */
+    public String buildAuthUrl(String sessionKey) {
+        return buildAuthUrl(null, sessionKey);
     }
 
     /** Exchange the authorization code for tokens (with PKCE code_verifier). */
@@ -249,7 +255,19 @@ public class OAuthSessionService {
     public String parseSessionKeyFromState(String state) {
         if (state == null) return null;
         int idx = state.indexOf(':');
-        return (idx >= 0) ? state.substring(0, idx) : state;
+        String sessionAndChannel = (idx >= 0) ? state.substring(0, idx) : state;
+        int pipeIdx = sessionAndChannel.indexOf('|');
+        return (pipeIdx >= 0 && pipeIdx + 1 < sessionAndChannel.length())
+                ? sessionAndChannel.substring(pipeIdx + 1)
+                : sessionAndChannel;
+    }
+
+    public String parseChannelFromState(String state) {
+        if (state == null) return null;
+        int idx = state.indexOf(':');
+        String sessionAndChannel = (idx >= 0) ? state.substring(0, idx) : state;
+        int pipeIdx = sessionAndChannel.indexOf('|');
+        return pipeIdx > 0 ? sessionAndChannel.substring(0, pipeIdx) : null;
     }
 
     public long parseChatIdFromState(String state) {

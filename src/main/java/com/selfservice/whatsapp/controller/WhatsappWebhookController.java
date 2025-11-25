@@ -257,7 +257,7 @@ public class WhatsappWebhookController {
 
         if (isDigitalLogin) {
             if (!hasValidToken) {
-                whatsappService.sendDigitalLoginLink(from, oauthSessionService.buildAuthUrl(sessionKey));
+                whatsappService.sendDigitalLoginLink(from, oauthSessionService.buildAuthUrl("WhatsApp", sessionKey));
                 return;
             }
             // Logged-in users should treat numeric options as business menu selections, not login shortcuts.

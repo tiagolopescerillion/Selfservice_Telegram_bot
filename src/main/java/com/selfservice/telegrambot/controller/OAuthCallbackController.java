@@ -51,9 +51,11 @@ public class OAuthCallbackController {
                            @RequestParam(required = false, name = "error") String error,
                            @RequestParam(required = false, name = "error_description") String errorDescription) {
 
+        String channel = oauth.parseChannelFromState(state);
         String sessionKey = oauth.parseSessionKeyFromState(state);
         long chatId = oauth.parseChatIdFromState(state);
-        boolean whatsappUser = sessionKey != null && sessionKey.startsWith("wa-");
+        boolean whatsappUser = (channel != null && channel.equalsIgnoreCase("whatsapp"))
+                || (sessionKey != null && sessionKey.startsWith("wa-"));
         String whatsappChatId = whatsappUser ? sessionKey.substring(3) : null;
         try {
             if (error != null) {
