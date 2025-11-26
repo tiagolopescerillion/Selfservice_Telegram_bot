@@ -10,8 +10,8 @@ public class LoginMenuProperties {
     private final boolean crmLoginEnabled;
 
     public LoginMenuProperties(
-            @Value("${login-menu.digital-login:Y}") String digitalLoginEnabled,
-            @Value("${login-menu.crm-login:Y}") String crmLoginEnabled) {
+            @Value("${login-menu.digital-login:true}") String digitalLoginEnabled,
+            @Value("${login-menu.crm-login:true}") String crmLoginEnabled) {
         this.digitalLoginEnabled = parseBoolean(digitalLoginEnabled, true);
         this.crmLoginEnabled = parseBoolean(crmLoginEnabled, true);
     }
