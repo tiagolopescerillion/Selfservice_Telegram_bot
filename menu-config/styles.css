@@ -327,6 +327,79 @@ button:disabled {
     max-width: 1366px;
 }
 
+.config-viewer__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+}
+
+.config-viewer__filename {
+    font-weight: 700;
+}
+
+.config-editor {
+    margin-top: 0.75rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 1rem;
+    background: #f8fafc;
+}
+
+.config-tree {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.config-entry,
+.config-group {
+    display: grid;
+    grid-template-columns: minmax(180px, 280px) 1fr;
+    align-items: center;
+    gap: 0.5rem 0.75rem;
+    padding: 0.5rem 0.75rem;
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    margin-left: calc(var(--depth, 0) * 16px);
+}
+
+.config-group {
+    grid-template-columns: 1fr;
+    font-weight: 700;
+    background: #f1f5f9;
+}
+
+.config-group__divider {
+    border-top: 1px solid #e2e8f0;
+    margin-top: 0.35rem;
+}
+
+.config-entry__key {
+    font-weight: 600;
+    font-size: 0.95rem;
+    color: #1f2937;
+}
+
+.config-entry input[type="text"],
+.config-entry input[type="number"] {
+    width: 100%;
+}
+
+.config-empty {
+    padding: 0.75rem 0;
+}
+
+.config-raw {
+    margin-top: 0.75rem;
+}
+
+.config-preview {
+    margin-top: 0.75rem;
+    min-height: 240px;
+}
+
 .monitoring-vertical {
     display: flex;
     flex-direction: column;

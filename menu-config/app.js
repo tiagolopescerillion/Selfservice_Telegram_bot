@@ -80,9 +80,11 @@ const importInput = document.getElementById("importInput");
 const navMenuConfig = document.getElementById("navMenuConfig");
 const navOperationsMonitoring = document.getElementById("navOperationsMonitoring");
 const navSendMessages = document.getElementById("navSendMessages");
+const navImServerAdmin = document.getElementById("navImServerAdmin");
 const menuConfigurationPanel = document.getElementById("menuConfigurationPanel");
 const operationsMonitoringPanel = document.getElementById("operationsMonitoringPanel");
 const sendMessagesPanel = document.getElementById("sendMessagesPanel");
+const imServerAdminPanel = document.getElementById("imServerAdminPanel");
 const liveSessionsContainer = document.getElementById("liveSessions");
 const sessionHistoryContainer = document.getElementById("sessionHistory");
 const monitoringApiBaseInput = document.getElementById("monitoringApiBase");
@@ -93,6 +95,12 @@ const notificationChatIdInput = document.getElementById("notificationChatId");
 const notificationMessageInput = document.getElementById("notificationMessage");
 const notificationResult = document.getElementById("notificationResult");
 const sendMessageForm = document.getElementById("sendMessageForm");
+const imConfigContent = document.getElementById("imConfigContent");
+const configFileName = document.getElementById("configFileName");
+const configStatus = document.getElementById("configStatus");
+const refreshConfigButton = document.getElementById("refreshConfigButton");
+const configTree = document.getElementById("configTree");
+const configEmptyState = document.getElementById("configEmptyState");
 
 initFunctionSelect(menuFunctionSelect);
 
@@ -111,6 +119,7 @@ let monitoringIntervalId = null;
 let monitoringEndpointCache = "";
 let monitoringConfigLoaded = false;
 let notificationEndpointCache = "";
+let configEndpointCache = "";
 
 function initFunctionSelect(selectEl) {
   selectEl.innerHTML = "";
@@ -804,14 +813,20 @@ function setActiveApp(target) {
   const showMenuConfig = target === "menu";
   const showOperations = target === "operations";
   const showSendMessages = target === "notifications";
+  const showImServerAdmin = target === "admin";
   menuConfigurationPanel.classList.toggle("hidden", !showMenuConfig);
   operationsMonitoringPanel.classList.toggle("hidden", !showOperations);
   sendMessagesPanel.classList.toggle("hidden", !showSendMessages);
+  imServerAdminPanel.classList.toggle("hidden", !showImServerAdmin);
   navMenuConfig.classList.toggle("active", showMenuConfig);
   navOperationsMonitoring.classList.toggle("active", showOperations);
   navSendMessages.classList.toggle("active", showSendMessages);
+  navImServerAdmin.classList.toggle("active", showImServerAdmin);
   if (showOperations) {
     refreshMonitoringData();
+  }
+  if (showImServerAdmin) {
+    loadImServerConfig();
   }
 }
 
@@ -973,6 +988,145 @@ function buildNotificationEndpoint(path) {
     notificationResult.className = "notification-result error";
     return null;
   }
+}
+
+function buildAdminEndpoint(path) {
+  const base = getConfiguredMonitoringApiBase();
+  if (!base) {
+    configEndpointCache = path;
+    return null;
+  }
+
+  try {
+    const endpoint = new URL(path, base).toString();
+    configEndpointCache = endpoint;
+    return endpoint;
+  } catch (error) {
+    console.error("Invalid admin API base", base, error);
+    configEndpointCache = path;
+    return null;
+  }
+}
+
+function formatTimestamp(millis) {
+  if (!millis) {
+    return "";
+  }
+  try {
+    return new Date(millis).toLocaleString();
+  } catch (error) {
+    return "";
+  }
+}
+
+function renderConfigTree(nodes) {
+  if (!configTree || !configEmptyState) {
+    return;
+  }
+
+  configTree.innerHTML = "";
+
+  if (!nodes || !nodes.length) {
+    configTree.classList.add("hidden");
+    configEmptyState.classList.remove("hidden");
+    return;
+  }
+
+  configEmptyState.classList.add("hidden");
+  configTree.classList.remove("hidden");
+
+  nodes.forEach((node) => renderConfigNode(node, 0, configTree));
+}
+
+function renderConfigNode(node, depth, parentEl) {
+  const hasChildren = Array.isArray(node?.children) && node.children.length > 0;
+  const row = document.createElement("div");
+  row.className = hasChildren ? "config-group" : "config-entry";
+  row.style.setProperty("--depth", depth);
+
+  const keyEl = document.createElement("div");
+  keyEl.className = "config-entry__key";
+  keyEl.textContent = node?.key || node?.path || "value";
+  row.append(keyEl);
+
+  if (hasChildren) {
+    const divider = document.createElement("div");
+    divider.className = "config-group__divider";
+    row.append(divider);
+    parentEl.append(row);
+    node.children.forEach((child) => renderConfigNode(child, depth + 1, parentEl));
+    return;
+  }
+
+  const valueEl = document.createElement("input");
+  const isNumber = node?.type === "number";
+  valueEl.type = isNumber ? "number" : "text";
+  valueEl.value = node?.value ?? "";
+  valueEl.placeholder = isNumber ? "number" : "value";
+  valueEl.setAttribute("aria-label", `Edit value for ${keyEl.textContent}`);
+
+  row.append(valueEl);
+  parentEl.append(row);
+}
+
+async function loadImServerConfig() {
+  if (!imConfigContent || !configFileName || !configStatus) {
+    return;
+  }
+
+  const endpoint = buildAdminEndpoint("/admin/application-config");
+  if (!endpoint) {
+    configStatus.textContent = "Set the monitoring API base URL so the Java server can be reached.";
+    configStatus.className = "hint error-state";
+    imConfigContent.textContent = "";
+    configFileName.textContent = "Unavailable";
+    renderConfigTree([]);
+    return;
+  }
+
+  configStatus.textContent = `Loading configuration from ${endpoint}...`;
+  configStatus.className = "hint";
+  try {
+    const response = await fetch(endpoint);
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      const reason = payload?.reason || response.statusText || `HTTP ${response.status}`;
+      throw new Error(reason);
+    }
+    const content = payload?.content || "";
+    imConfigContent.textContent = content || "Configuration file is empty.";
+    const tree = buildRenderableTree(payload?.tree, payload?.entries);
+    renderConfigTree(tree);
+    configFileName.textContent = payload?.fileName || "Unknown source";
+    const timestamp = formatTimestamp(payload?.lastModified);
+    configStatus.textContent = timestamp
+      ? `Last updated ${timestamp}`
+      : "Configuration loaded from server.";
+    configStatus.className = "hint";
+  } catch (error) {
+    imConfigContent.textContent = "";
+    renderConfigTree([]);
+    configStatus.textContent = `Unable to load configuration from ${endpoint}: ${error?.message || error}`;
+    configStatus.className = "hint error-state";
+  }
+}
+
+function buildRenderableTree(tree, entries) {
+  if (Array.isArray(tree) && tree.length) {
+    return tree;
+  }
+
+  if (Array.isArray(entries) && entries.length) {
+    return entries.map((entry) => ({
+      key: entry?.key,
+      path: entry?.key,
+      type: entry?.type,
+      value: entry?.value,
+      children: []
+    }));
+  }
+
+  return [];
 }
 
 async function refreshMonitoringData() {
@@ -1258,6 +1412,7 @@ importInput.addEventListener("change", importConfig);
 navMenuConfig.addEventListener("click", () => setActiveApp("menu"));
 navOperationsMonitoring.addEventListener("click", () => setActiveApp("operations"));
 navSendMessages.addEventListener("click", () => setActiveApp("notifications"));
+navImServerAdmin.addEventListener("click", () => setActiveApp("admin"));
 if (monitoringApiBaseInput) {
   monitoringApiBaseInput.addEventListener("change", handleMonitoringApiBaseChanged);
   monitoringApiBaseInput.addEventListener("blur", handleMonitoringApiBaseChanged);
@@ -1268,6 +1423,9 @@ if (notificationApiBaseInput) {
 }
 if (sendMessageForm) {
   sendMessageForm.addEventListener("submit", handleSendNotification);
+}
+if (refreshConfigButton) {
+  refreshConfigButton.addEventListener("click", loadImServerConfig);
 }
 
 toggleAddFormFields();
