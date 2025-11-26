@@ -2,16 +2,16 @@
 
 ## Business menu configuration web app
 
-The `menu-config` folder contains a lightweight, no-code web application that
+The `Cerillion-Digital-IM-UI` folder contains a lightweight, no-code web application that
 lets administrators design the entire logged-in business menu tree—root and
 sub-menus—without touching the Java source.
 
 ### How to run it
 
-1. Serve the repository (or the `menu-config` folder) with any static web
+1. Serve the repository (or the `Cerillion-Digital-IM-UI` folder) with any static web
    server, for example:
    ```bash
-   cd menu-config
+   cd Cerillion-Digital-IM-UI
    python -m http.server 8080
    ```
 2. Open `http://localhost:8080` in your browser.
