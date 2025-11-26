@@ -42,16 +42,18 @@ public class AdminConfigController {
         try {
             String content = Files.readString(configPath, StandardCharsets.UTF_8);
             List<ConfigEntry> entries = parseEntries(content);
+            List<ConfigNode> tree = parseTree(content);
             return ResponseEntity.ok(new ApplicationConfigView(
                     configPath.getFileName().toString(),
                     content,
                     Files.getLastModifiedTime(configPath).toMillis(),
-                    entries
+                    entries,
+                    tree
             ));
         } catch (IOException e) {
             log.error("Unable to read configuration file {}: {}", configPath, e.getMessage());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(new ApplicationConfigView(configPath.getFileName().toString(), "", 0L, List.of()));
+                    .body(new ApplicationConfigView(configPath.getFileName().toString(), "", 0L, List.of(), List.of()));
         }
     }
 
@@ -105,6 +107,56 @@ public class AdminConfigController {
         return "string";
     }
 
+    private List<ConfigNode> parseTree(String content) {
+        if (content == null || content.isBlank()) {
+            return List.of();
+        }
+
+        try {
+            Object loaded = new Yaml().load(content);
+            return buildTree(loaded, "");
+        } catch (Exception ex) {
+            log.warn("Unable to parse YAML tree for admin view: {}", ex.getMessage());
+            return List.of();
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<ConfigNode> buildTree(Object node, String path) {
+        if (node instanceof Map<?, ?> map) {
+            List<ConfigNode> children = new ArrayList<>();
+            map.forEach((key, value) -> {
+                String childPath = path.isBlank() ? String.valueOf(key) : path + "." + key;
+                children.add(buildBranch(String.valueOf(key), childPath, value));
+            });
+            return children;
+        }
+
+        if (node instanceof Iterable<?> iterable) {
+            List<ConfigNode> children = new ArrayList<>();
+            int index = 0;
+            for (Object item : iterable) {
+                String childKey = "[" + index + "]";
+                String childPath = path + childKey;
+                children.add(buildBranch(childKey, childPath, item));
+                index++;
+            }
+            return children;
+        }
+
+        String key = path.isBlank() ? "value" : path;
+        return List.of(new ConfigNode(key, path, detectType(node), node == null ? "" : String.valueOf(node), List.of()));
+    }
+
+    @SuppressWarnings("unchecked")
+    private ConfigNode buildBranch(String key, String path, Object value) {
+        if (value instanceof Map<?, ?> || value instanceof Iterable<?>) {
+            List<ConfigNode> children = buildTree(value, path);
+            return new ConfigNode(key, path, "object", "", children);
+        }
+        return new ConfigNode(key, path, detectType(value), value == null ? "" : String.valueOf(value), List.of());
+    }
+
     private Optional<Path> resolveConfigPath() {
         Path local = CONFIG_DIR.resolve(LOCAL_CONFIG);
         if (Files.exists(local)) {
@@ -120,7 +172,10 @@ public class AdminConfigController {
         return Optional.empty();
     }
 
-    public record ApplicationConfigView(String fileName, String content, long lastModified, List<ConfigEntry> entries) { }
+    public record ApplicationConfigView(String fileName, String content, long lastModified, List<ConfigEntry> entries,
+                                        List<ConfigNode> tree) { }
 
     public record ConfigEntry(String key, String value, String type) { }
+
+    public record ConfigNode(String key, String path, String type, String value, List<ConfigNode> children) { }
 }

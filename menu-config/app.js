@@ -99,7 +99,7 @@ const imConfigContent = document.getElementById("imConfigContent");
 const configFileName = document.getElementById("configFileName");
 const configStatus = document.getElementById("configStatus");
 const refreshConfigButton = document.getElementById("refreshConfigButton");
-const configEntryList = document.getElementById("configEntryList");
+const configTree = document.getElementById("configTree");
 const configEmptyState = document.getElementById("configEmptyState");
 
 initFunctionSelect(menuFunctionSelect);
@@ -1019,40 +1019,54 @@ function formatTimestamp(millis) {
   }
 }
 
-function renderConfigEntries(entries) {
-  if (!configEntryList || !configEmptyState) {
+function renderConfigTree(nodes) {
+  if (!configTree || !configEmptyState) {
     return;
   }
 
-  configEntryList.innerHTML = "";
+  configTree.innerHTML = "";
 
-  if (!entries || !entries.length) {
-    configEntryList.classList.add("hidden");
+  if (!nodes || !nodes.length) {
+    configTree.classList.add("hidden");
     configEmptyState.classList.remove("hidden");
     return;
   }
 
   configEmptyState.classList.add("hidden");
-  configEntryList.classList.remove("hidden");
+  configTree.classList.remove("hidden");
 
-  entries.forEach((entry) => {
-    const wrapper = document.createElement("div");
-    wrapper.className = "config-entry";
+  nodes.forEach((node) => renderConfigNode(node, 0, configTree));
+}
 
-    const keyEl = document.createElement("div");
-    keyEl.className = "config-entry__key";
-    keyEl.textContent = entry?.key || "value";
+function renderConfigNode(node, depth, parentEl) {
+  const hasChildren = Array.isArray(node?.children) && node.children.length > 0;
+  const row = document.createElement("div");
+  row.className = hasChildren ? "config-group" : "config-entry";
+  row.style.setProperty("--depth", depth);
 
-    const valueEl = document.createElement("input");
-    const isNumber = entry?.type === "number";
-    valueEl.type = isNumber ? "number" : "text";
-    valueEl.value = entry?.value ?? "";
-    valueEl.placeholder = isNumber ? "number" : "value";
-    valueEl.setAttribute("aria-label", `Edit value for ${keyEl.textContent}`);
+  const keyEl = document.createElement("div");
+  keyEl.className = "config-entry__key";
+  keyEl.textContent = node?.key || node?.path || "value";
+  row.append(keyEl);
 
-    wrapper.append(keyEl, valueEl);
-    configEntryList.append(wrapper);
-  });
+  if (hasChildren) {
+    const divider = document.createElement("div");
+    divider.className = "config-group__divider";
+    row.append(divider);
+    parentEl.append(row);
+    node.children.forEach((child) => renderConfigNode(child, depth + 1, parentEl));
+    return;
+  }
+
+  const valueEl = document.createElement("input");
+  const isNumber = node?.type === "number";
+  valueEl.type = isNumber ? "number" : "text";
+  valueEl.value = node?.value ?? "";
+  valueEl.placeholder = isNumber ? "number" : "value";
+  valueEl.setAttribute("aria-label", `Edit value for ${keyEl.textContent}`);
+
+  row.append(valueEl);
+  parentEl.append(row);
 }
 
 async function loadImServerConfig() {
@@ -1066,7 +1080,7 @@ async function loadImServerConfig() {
     configStatus.className = "hint error-state";
     imConfigContent.textContent = "";
     configFileName.textContent = "Unavailable";
-    renderConfigEntries([]);
+    renderConfigTree([]);
     return;
   }
 
@@ -1081,7 +1095,8 @@ async function loadImServerConfig() {
     }
     const content = payload?.content || "";
     imConfigContent.textContent = content || "Configuration file is empty.";
-    renderConfigEntries(payload?.entries || []);
+    const tree = buildRenderableTree(payload?.tree, payload?.entries);
+    renderConfigTree(tree);
     configFileName.textContent = payload?.fileName || "Unknown source";
     const timestamp = formatTimestamp(payload?.lastModified);
     configStatus.textContent = timestamp
@@ -1090,10 +1105,28 @@ async function loadImServerConfig() {
     configStatus.className = "hint";
   } catch (error) {
     imConfigContent.textContent = "";
-    renderConfigEntries([]);
+    renderConfigTree([]);
     configStatus.textContent = `Unable to load configuration from ${endpoint}: ${error?.message || error}`;
     configStatus.className = "hint error-state";
   }
+}
+
+function buildRenderableTree(tree, entries) {
+  if (Array.isArray(tree) && tree.length) {
+    return tree;
+  }
+
+  if (Array.isArray(entries) && entries.length) {
+    return entries.map((entry) => ({
+      key: entry?.key,
+      path: entry?.key,
+      type: entry?.type,
+      value: entry?.value,
+      children: []
+    }));
+  }
+
+  return [];
 }
 
 async function refreshMonitoringData() {
