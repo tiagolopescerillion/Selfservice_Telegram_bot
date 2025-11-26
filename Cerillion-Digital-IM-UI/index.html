@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="operations-api-base" content="" />
-    <title>Cerillion Digital IM Configuration</title>
+    <meta name="operations-api-base" content="YOUR_SERVER_PUBLIC_URL" />
+    <title>Cerillion Digital IM</title>
     <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
@@ -12,16 +12,16 @@
     <aside class="sidebar" aria-label="Application navigation">
         <div class="sidebar__title">Admin applications</div>
         <nav class="sidebar__nav">
-            <button id="navMenuConfig" class="sidebar__link active" type="button">Cerillion Digital IM Configuration</button>
+            <button id="navImServerAdmin" class="sidebar__link active" type="button">IM Server Admin</button>
             <button id="navOperationsMonitoring" class="sidebar__link" type="button">Operations Monitoring</button>
             <button id="navSendMessages" class="sidebar__link" type="button">Send Messages</button>
-            <button id="navImServerAdmin" class="sidebar__link" type="button">IM Server Admin</button>
+            <button id="navMenuConfig" class="sidebar__link" type="button">IM Menus Configurator</button>
         </nav>
     </aside>
 
     <div class="content">
         <header>
-            <h1>Cerillion Digital IM Configuration</h1>
+            <h1>IM Menus Configurator</h1>
             <p>
                 Configure the root items of the Telegram business menu without touching the Java code. Start from the
                 current defaults, tweak the labels, and download a JSON file that can override the menu structure in
@@ -135,11 +135,11 @@
                     <div class="monitoring-config">
                         <label>
                             Monitoring API base URL
-                            <input id="monitoringApiBase" type="text" placeholder="e.g. https://my-server.example.com" />
+                            <input id="monitoringApiBase" type="text" value="YOUR_SERVER_PUBLIC_URL" readonly />
                         </label>
                         <p class="hint">
-                            Leave blank when this UI is hosted by the Java server. If you open this file locally, set the full base URL from your
-                            <code>application-local.yml</code> so the Operations Monitoring API can be reached.
+                            Populated from the <code>public-base-url</code> application property. Copy this value when hosting the UI separately so the
+                            Operations Monitoring API can be reached.
                         </p>
                     </div>
                     <div class="monitoring-vertical">
@@ -196,11 +196,11 @@
                     <div class="monitoring-config">
                         <label>
                             Notifications API base URL
-                            <input id="notificationApiBase" type="text" placeholder="e.g. https://my-server.example.com" />
+                            <input id="notificationApiBase" type="text" value="YOUR_SERVER_PUBLIC_URL" readonly />
                         </label>
                         <p class="hint">
-                            Leave blank when this UI is hosted by the Java server. If you open this file locally, set the full base
-                            URL so the <code>/notifications</code> endpoint can be reached.
+                            Populated from the <code>public-base-url</code> application property. Copy this value when hosting the UI separately so the
+                            <code>/notifications</code> endpoint can be reached.
                         </p>
                     </div>
                     <form id="sendMessageForm" class="send-message-form" autocomplete="off">

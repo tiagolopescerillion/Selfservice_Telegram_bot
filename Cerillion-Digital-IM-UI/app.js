@@ -102,6 +102,18 @@ const refreshConfigButton = document.getElementById("refreshConfigButton");
 const configTree = document.getElementById("configTree");
 const configEmptyState = document.getElementById("configEmptyState");
 
+const PUBLIC_BASE_URL = "YOUR_SERVER_PUBLIC_URL";
+
+if (monitoringApiBaseInput) {
+  monitoringApiBaseInput.value = PUBLIC_BASE_URL;
+  monitoringApiBaseInput.readOnly = true;
+}
+
+if (notificationApiBaseInput) {
+  notificationApiBaseInput.value = PUBLIC_BASE_URL;
+  notificationApiBaseInput.readOnly = true;
+}
+
 initFunctionSelect(menuFunctionSelect);
 
 let menusById = new Map();
@@ -835,15 +847,10 @@ function getStoredMonitoringApiBase() {
 }
 
 function restoreMonitoringApiBase() {
-  const stored = getStoredMonitoringApiBase();
-  if (stored && monitoringApiBaseInput) {
-    monitoringApiBaseInput.value = stored;
-    return;
-  }
-
-  const metaValue = monitoringApiBaseMeta?.content?.trim();
-  if (metaValue && monitoringApiBaseInput && !monitoringApiBaseInput.value) {
-    monitoringApiBaseInput.placeholder = metaValue;
+  if (monitoringApiBaseInput) {
+    monitoringApiBaseInput.value = PUBLIC_BASE_URL;
+    monitoringApiBaseInput.placeholder = PUBLIC_BASE_URL;
+    monitoringApiBaseInput.readOnly = true;
   }
 }
 
@@ -852,105 +859,31 @@ function getStoredNotificationApiBase() {
 }
 
 function restoreNotificationApiBase() {
-  const stored = getStoredNotificationApiBase();
-  if (stored && notificationApiBaseInput) {
-    notificationApiBaseInput.value = stored;
-    return;
-  }
-  const metaValue = monitoringApiBaseMeta?.content?.trim();
-  if (metaValue && notificationApiBaseInput && !notificationApiBaseInput.value) {
-    notificationApiBaseInput.placeholder = metaValue;
+  if (notificationApiBaseInput) {
+    notificationApiBaseInput.value = PUBLIC_BASE_URL;
+    notificationApiBaseInput.placeholder = PUBLIC_BASE_URL;
+    notificationApiBaseInput.readOnly = true;
   }
 }
 
 async function prefillMonitoringApiBaseFromServer() {
-  if (!monitoringApiBaseInput || monitoringConfigLoaded) {
-    return;
-  }
-
-  if (monitoringApiBaseInput.value || getStoredMonitoringApiBase()) {
-    monitoringConfigLoaded = true;
-    return;
-  }
-
-  try {
-    const response = await fetch("/operations/config");
-    if (!response.ok) {
-      monitoringConfigLoaded = true;
-      return;
-    }
-    const payload = await response.json();
-    const serverBase = payload?.publicBaseUrl?.trim();
-    if (serverBase) {
-      monitoringApiBaseInput.placeholder = monitoringApiBaseInput.placeholder || serverBase;
-      monitoringApiBaseInput.value = serverBase;
-      persistMonitoringApiBase(serverBase);
-    }
-  } catch (error) {
-    console.warn("Unable to prefill monitoring API base from server", error);
-  }
   monitoringConfigLoaded = true;
 }
 
 function getConfiguredMonitoringApiBase() {
-  const manual = monitoringApiBaseInput?.value?.trim();
-  if (manual) {
-    return manual;
-  }
-
-  const stored = getStoredMonitoringApiBase();
-  if (stored) {
-    return stored;
-  }
-
-  const metaValue = monitoringApiBaseMeta?.content?.trim();
-  if (metaValue) {
-    return metaValue;
-  }
-
-  const origin = window.location?.origin;
-  return origin && origin !== "null" ? origin : "";
+  return PUBLIC_BASE_URL;
 }
 
 function persistMonitoringApiBase(value) {
-  if (value) {
-    localStorage.setItem(MONITORING_API_STORAGE_KEY, value);
-  } else {
-    localStorage.removeItem(MONITORING_API_STORAGE_KEY);
-  }
+  monitoringApiBaseInput.value = PUBLIC_BASE_URL;
 }
 
 function getConfiguredNotificationApiBase() {
-  const manual = notificationApiBaseInput?.value?.trim();
-  if (manual) {
-    return manual;
-  }
-
-  const stored = getStoredNotificationApiBase();
-  if (stored) {
-    return stored;
-  }
-
-  const metaValue = monitoringApiBaseMeta?.content?.trim();
-  if (metaValue) {
-    return metaValue;
-  }
-
-  const monitoringBase = getConfiguredMonitoringApiBase();
-  if (monitoringBase) {
-    return monitoringBase;
-  }
-
-  const origin = window.location?.origin;
-  return origin && origin !== "null" ? origin : "";
+  return PUBLIC_BASE_URL;
 }
 
 function persistNotificationApiBase(value) {
-  if (value) {
-    localStorage.setItem(NOTIFICATION_API_STORAGE_KEY, value);
-  } else {
-    localStorage.removeItem(NOTIFICATION_API_STORAGE_KEY);
-  }
+  notificationApiBaseInput.value = PUBLIC_BASE_URL;
 }
 
 function buildOperationsEndpoint(path) {
@@ -1283,15 +1216,19 @@ function formatTime(date) {
 }
 
 function handleMonitoringApiBaseChanged() {
-  const value = monitoringApiBaseInput?.value?.trim() || "";
-  persistMonitoringApiBase(value);
+  if (monitoringApiBaseInput) {
+    monitoringApiBaseInput.value = PUBLIC_BASE_URL;
+  }
+  persistMonitoringApiBase(PUBLIC_BASE_URL);
   monitoringError = null;
   refreshMonitoringData();
 }
 
 function handleNotificationApiBaseChanged() {
-  const value = notificationApiBaseInput?.value?.trim() || "";
-  persistNotificationApiBase(value);
+  if (notificationApiBaseInput) {
+    notificationApiBaseInput.value = PUBLIC_BASE_URL;
+  }
+  persistNotificationApiBase(PUBLIC_BASE_URL);
   notificationEndpointCache = "";
 }
 
@@ -1432,4 +1369,4 @@ toggleAddFormFields();
 resetToDefault();
 initMonitoring();
 restoreNotificationApiBase();
-setActiveApp("menu");
+setActiveApp("admin");
