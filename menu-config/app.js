@@ -99,6 +99,8 @@ const imConfigContent = document.getElementById("imConfigContent");
 const configFileName = document.getElementById("configFileName");
 const configStatus = document.getElementById("configStatus");
 const refreshConfigButton = document.getElementById("refreshConfigButton");
+const configEntryList = document.getElementById("configEntryList");
+const configEmptyState = document.getElementById("configEmptyState");
 
 initFunctionSelect(menuFunctionSelect);
 
@@ -1017,6 +1019,42 @@ function formatTimestamp(millis) {
   }
 }
 
+function renderConfigEntries(entries) {
+  if (!configEntryList || !configEmptyState) {
+    return;
+  }
+
+  configEntryList.innerHTML = "";
+
+  if (!entries || !entries.length) {
+    configEntryList.classList.add("hidden");
+    configEmptyState.classList.remove("hidden");
+    return;
+  }
+
+  configEmptyState.classList.add("hidden");
+  configEntryList.classList.remove("hidden");
+
+  entries.forEach((entry) => {
+    const wrapper = document.createElement("div");
+    wrapper.className = "config-entry";
+
+    const keyEl = document.createElement("div");
+    keyEl.className = "config-entry__key";
+    keyEl.textContent = entry?.key || "value";
+
+    const valueEl = document.createElement("input");
+    const isNumber = entry?.type === "number";
+    valueEl.type = isNumber ? "number" : "text";
+    valueEl.value = entry?.value ?? "";
+    valueEl.placeholder = isNumber ? "number" : "value";
+    valueEl.setAttribute("aria-label", `Edit value for ${keyEl.textContent}`);
+
+    wrapper.append(keyEl, valueEl);
+    configEntryList.append(wrapper);
+  });
+}
+
 async function loadImServerConfig() {
   if (!imConfigContent || !configFileName || !configStatus) {
     return;
@@ -1028,6 +1066,7 @@ async function loadImServerConfig() {
     configStatus.className = "hint error-state";
     imConfigContent.textContent = "";
     configFileName.textContent = "Unavailable";
+    renderConfigEntries([]);
     return;
   }
 
@@ -1042,6 +1081,7 @@ async function loadImServerConfig() {
     }
     const content = payload?.content || "";
     imConfigContent.textContent = content || "Configuration file is empty.";
+    renderConfigEntries(payload?.entries || []);
     configFileName.textContent = payload?.fileName || "Unknown source";
     const timestamp = formatTimestamp(payload?.lastModified);
     configStatus.textContent = timestamp
@@ -1050,6 +1090,7 @@ async function loadImServerConfig() {
     configStatus.className = "hint";
   } catch (error) {
     imConfigContent.textContent = "";
+    renderConfigEntries([]);
     configStatus.textContent = `Unable to load configuration from ${endpoint}: ${error?.message || error}`;
     configStatus.className = "hint error-state";
   }

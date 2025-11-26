@@ -8,12 +8,16 @@ import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.yaml.snakeyaml.Yaml;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 @RestController
@@ -37,16 +41,68 @@ public class AdminConfigController {
         Path configPath = selected.get();
         try {
             String content = Files.readString(configPath, StandardCharsets.UTF_8);
+            List<ConfigEntry> entries = parseEntries(content);
             return ResponseEntity.ok(new ApplicationConfigView(
                     configPath.getFileName().toString(),
                     content,
-                    Files.getLastModifiedTime(configPath).toMillis()
+                    Files.getLastModifiedTime(configPath).toMillis(),
+                    entries
             ));
         } catch (IOException e) {
             log.error("Unable to read configuration file {}: {}", configPath, e.getMessage());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(new ApplicationConfigView(configPath.getFileName().toString(), "", 0L));
+                    .body(new ApplicationConfigView(configPath.getFileName().toString(), "", 0L, List.of()));
         }
+    }
+
+    private List<ConfigEntry> parseEntries(String content) {
+        if (content == null || content.isBlank()) {
+            return List.of();
+        }
+
+        try {
+            Object loaded = new Yaml().load(content);
+            List<ConfigEntry> entries = new ArrayList<>();
+            flattenYaml("", loaded, entries);
+            return entries;
+        } catch (Exception ex) {
+            log.warn("Unable to parse YAML for admin view: {}", ex.getMessage());
+            return List.of();
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private void flattenYaml(String prefix, Object node, List<ConfigEntry> entries) {
+        if (node instanceof Map<?, ?> map) {
+            map.forEach((key, value) -> {
+                String childPrefix = prefix.isBlank() ? String.valueOf(key) : prefix + "." + key;
+                flattenYaml(childPrefix, value, entries);
+            });
+            return;
+        }
+
+        if (node instanceof Iterable<?> iterable) {
+            int index = 0;
+            for (Object item : iterable) {
+                String childPrefix = prefix + "[" + index++ + "]";
+                flattenYaml(childPrefix, item, entries);
+            }
+            return;
+        }
+
+        String key = prefix.isBlank() ? "value" : prefix;
+        String value = node == null ? "" : String.valueOf(node);
+        entries.add(new ConfigEntry(key, value, detectType(node)));
+    }
+
+    private String detectType(Object node) {
+        if (node instanceof Boolean) {
+            return "boolean";
+        }
+        if (node instanceof Number) {
+            return "number";
+        }
+        return "string";
     }
 
     private Optional<Path> resolveConfigPath() {
@@ -64,5 +120,7 @@ public class AdminConfigController {
         return Optional.empty();
     }
 
-    public record ApplicationConfigView(String fileName, String content, long lastModified) { }
+    public record ApplicationConfigView(String fileName, String content, long lastModified, List<ConfigEntry> entries) { }
+
+    public record ConfigEntry(String key, String value, String type) { }
 }

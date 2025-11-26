@@ -338,6 +338,49 @@ button:disabled {
     font-weight: 700;
 }
 
+.config-editor {
+    margin-top: 0.75rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 1rem;
+    background: #f8fafc;
+}
+
+.config-entry-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 0.75rem;
+}
+
+.config-entry {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0.35rem;
+    padding: 0.75rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    background: #fff;
+}
+
+.config-entry__key {
+    font-weight: 600;
+    font-size: 0.95rem;
+    color: #1f2937;
+}
+
+.config-entry input[type="text"],
+.config-entry input[type="number"] {
+    width: 100%;
+}
+
+.config-empty {
+    padding: 0.75rem 0;
+}
+
+.config-raw {
+    margin-top: 0.75rem;
+}
+
 .config-preview {
     margin-top: 0.75rem;
     min-height: 240px;

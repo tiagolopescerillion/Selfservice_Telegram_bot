@@ -245,7 +245,20 @@
                         </div>
                     </div>
                     <div id="configStatus" class="hint"></div>
-                    <pre id="imConfigContent" class="preview config-preview" aria-live="polite"></pre>
+                    <p class="hint">
+                        Values are editable for review purposes only. Future updates will allow saving the file back to the
+                        server.
+                    </p>
+                    <div class="config-editor">
+                        <div id="configEmptyState" class="config-empty hidden" aria-live="polite">
+                            Configuration entries are not available.
+                        </div>
+                        <div id="configEntryList" class="config-entry-list" aria-live="polite"></div>
+                    </div>
+                    <details class="config-raw">
+                        <summary>Show raw configuration</summary>
+                        <pre id="imConfigContent" class="preview config-preview" aria-live="polite"></pre>
+                    </details>
                 </section>
             </section>
         </main>
