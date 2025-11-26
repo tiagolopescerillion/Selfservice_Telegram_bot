@@ -327,6 +327,79 @@ button:disabled {
     max-width: 1366px;
 }
 
+.config-viewer__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+}
+
+.config-viewer__filename {
+    font-weight: 700;
+}
+
+.config-editor {
+    margin-top: 0.75rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 1rem;
+    background: #f8fafc;
+}
+
+.config-tree {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.config-entry,
+.config-group {
+    display: grid;
+    grid-template-columns: minmax(180px, 280px) 1fr;
+    align-items: center;
+    gap: 0.5rem 0.75rem;
+    padding: 0.5rem 0.75rem;
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    margin-left: calc(var(--depth, 0) * 16px);
+}
+
+.config-group {
+    grid-template-columns: 1fr;
+    font-weight: 700;
+    background: #f1f5f9;
+}
+
+.config-group__divider {
+    border-top: 1px solid #e2e8f0;
+    margin-top: 0.35rem;
+}
+
+.config-entry__key {
+    font-weight: 600;
+    font-size: 0.95rem;
+    color: #1f2937;
+}
+
+.config-entry input[type="text"],
+.config-entry input[type="number"] {
+    width: 100%;
+}
+
+.config-empty {
+    padding: 0.75rem 0;
+}
+
+.config-raw {
+    margin-top: 0.75rem;
+}
+
+.config-preview {
+    margin-top: 0.75rem;
+    min-height: 240px;
+}
+
 .monitoring-vertical {
     display: flex;
     flex-direction: column;
@@ -559,4 +632,29 @@ button:disabled {
     .menu-item-actions {
         justify-content: flex-start;
     }
+}
+
+.floating-download {
+    position: fixed;
+    left: 50%;
+    bottom: 24px;
+    transform: translateX(-50%);
+    padding: 0.85rem 1.25rem;
+    border: none;
+    border-radius: 999px;
+    background: linear-gradient(135deg, #4d7cfe, #6fb2ff);
+    color: #fff;
+    font-weight: 600;
+    box-shadow: 0 10px 30px rgba(77, 124, 254, 0.25);
+    z-index: 10;
+}
+
+.floating-download:hover {
+    background: linear-gradient(135deg, #3f6bf4, #5fa6ff);
+}
+
+.floating-download:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    box-shadow: none;
 }
