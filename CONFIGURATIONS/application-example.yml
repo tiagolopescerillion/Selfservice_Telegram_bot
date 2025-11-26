@@ -29,8 +29,8 @@ endpoints:
   apiman-base-url: YOUR_APIMAN_URL          # Base URL of the API management gateway
 
 login-menu:
-  digital-login: Y  # Show the digital login option in login menus (Y/N)
-  crm-login: Y      # Show the CRM login option in login menus (Y/N)
+  digital-login: true  # Show the digital login option in login menus
+  crm-login: true      # Show the CRM login option in login menus
 
 telegram:
   bot:
