@@ -1055,6 +1055,7 @@ async function loadImServerConfig() {
     configStatus.className = "hint error-state";
     imConfigContent.textContent = "";
     configFileName.textContent = "Unavailable";
+    console.log("TIAGO -- No admin endpoint available for loading IM server configuration");
     renderConfigTree([]);
     return;
   }
