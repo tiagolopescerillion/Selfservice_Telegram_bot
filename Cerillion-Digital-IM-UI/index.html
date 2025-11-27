@@ -1,265 +1,385 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
+  <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="operations-api-base" content="YOUR_SERVER_PUBLIC_URL" />
+    <!-- <meta name="operations-api-base" content="YOUR_SERVER_PUBLIC_URL" /> -->
+    <meta name="operations-api-base" content="http://localhost:8080" />
     <title>Cerillion Digital IM</title>
     <link rel="stylesheet" href="styles.css" />
-</head>
-<body>
-<div class="app-shell">
-    <aside class="sidebar" aria-label="Application navigation">
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar" aria-label="Application navigation">
         <div class="sidebar__title">Admin applications</div>
         <nav class="sidebar__nav">
-            <button id="navImServerAdmin" class="sidebar__link active" type="button">IM Server Admin</button>
-            <button id="navOperationsMonitoring" class="sidebar__link" type="button">Operations Monitoring</button>
-            <button id="navSendMessages" class="sidebar__link" type="button">Send Messages</button>
-            <button id="navMenuConfig" class="sidebar__link" type="button">IM Menus Configurator</button>
+          <button
+            id="navImServerAdmin"
+            class="sidebar__link active"
+            type="button"
+          >
+            IM Server Admin
+          </button>
+          <button
+            id="navOperationsMonitoring"
+            class="sidebar__link"
+            type="button"
+          >
+            Operations Monitoring
+          </button>
+          <button id="navSendMessages" class="sidebar__link" type="button">
+            Send Messages
+          </button>
+          <button id="navMenuConfig" class="sidebar__link" type="button">
+            IM Menus Configurator
+          </button>
         </nav>
-    </aside>
+      </aside>
 
-    <div class="content">
+      <div class="content">
         <header>
-            <h1>Cerillion Digital IM</h1>
-            <p>For Telegram and WhatsApp</p>
+          <h1>Cerillion Digital IM</h1>
+          <p>For Telegram and WhatsApp</p>
         </header>
         <main>
-            <section id="menuConfigurationPanel">
-                <section class="panel">
-                    <h2>Menu explorer</h2>
-                    <p>
-                        Choose a menu to edit, tweak its items, or create nested sub-menus. The root menu is called
-                        <strong>Home</strong> and cannot be renamed or removed.
-                    </p>
-                    <div class="menu-toolbar">
-                        <label>
-                            Edit menu
-                            <select id="menuSelect"></select>
-                        </label>
-                        <div class="menu-toolbar-actions">
-                            <button id="createMenuButton" type="button" class="secondary">Create sub-menu</button>
-                            <button id="deleteMenuButton" type="button" class="danger">Delete selected sub-menu</button>
-                        </div>
-                    </div>
-                    <label>
-                        Menu name
-                        <input id="menuNameEditor" type="text" placeholder="Menu title" />
-                    </label>
-                    <div id="menuContainer" class="menu-list" aria-live="polite"></div>
-                    <div class="panel-actions">
-                        <button id="resetButton" type="button" class="secondary">Reset to default</button>
-                    </div>
-                </section>
-
-                <section class="panel">
-                    <h2>Add a menu item</h2>
-                    <form id="addItemForm" autocomplete="off">
-                        <label>
-                            Place this item inside
-                            <select id="parentMenuSelect" required></select>
-                        </label>
-                        <label>
-                            Menu item name
-                            <input id="itemLabelInput" name="label" type="text" placeholder="e.g. Manage My Services" required />
-                        </label>
-                        <label>
-                            Menu item type
-                            <select id="itemTypeSelect" required>
-                                <option value="function">Function</option>
-                                <option value="submenu">Sub-menu</option>
-                            </select>
-                        </label>
-                        <div id="functionFields" class="conditional-field">
-                            <label>
-                                Menu item function
-                                <select id="menuFunctionSelect" name="function"></select>
-                            </label>
-                            <label class="checkbox">
-                                <input type="checkbox" id="useTranslationInput" />
-                                <span>Use built-in translation</span>
-                            </label>
-                            <p class="hint">
-                                Keeps the original multilingual text for this function. Turn it off to always display the custom label.
-                            </p>
-                        </div>
-                        <div id="submenuFields" class="conditional-field hidden">
-                            <label>
-                                Target sub-menu
-                                <select id="submenuSelect"></select>
-                            </label>
-                            <button id="inlineCreateSubmenu" type="button" class="secondary">Create new sub-menu</button>
-                            <p class="hint">
-                                Sub-menus can be nested infinitely. When you delete a sub-menu, all of its child items and menus are removed.
-                            </p>
-                        </div>
-                        <button type="submit">Add item</button>
-                    </form>
-                    <p class="hint">
-                        The function list mirrors the services available in the current Telegram bot. As new services are developed they can
-                        be appended here without changing the Java backend.
-                    </p>
-                </section>
-
-                <section class="panel">
-                    <h2>Configuration output</h2>
-                    <p>
-                        Download the JSON file, rename it to
-                        <code>business-menu.override.json</code>, and copy it into the
-                        <code>CONFIGURATIONS/</code> directory next to the Telegram bot to
-                        override the default order. When no override exists the bot keeps the packaged
-                        <code>business-menu.default.json</code>.
-                    </p>
-                    <div class="panel-actions">
-                        <label class="file-input">
-                            <span>Load existing configuration</span>
-                            <input type="file" id="importInput" accept="application/json" />
-                        </label>
-                        <button id="downloadButton" type="button">Download configuration</button>
-                    </div>
-                    <pre id="preview" class="preview" aria-live="polite"></pre>
-                </section>
+          <section id="menuConfigurationPanel">
+            <section class="panel">
+              <h2>Menu explorer</h2>
+              <p>
+                Choose a menu to edit, tweak its items, or create nested
+                sub-menus. The root menu is called
+                <strong>Home</strong> and cannot be renamed or removed.
+              </p>
+              <div class="menu-toolbar">
+                <label>
+                  Edit menu
+                  <select id="menuSelect"></select>
+                </label>
+                <div class="menu-toolbar-actions">
+                  <button id="createMenuButton" type="button" class="secondary">
+                    Create sub-menu
+                  </button>
+                  <button id="deleteMenuButton" type="button" class="danger">
+                    Delete selected sub-menu
+                  </button>
+                </div>
+              </div>
+              <label>
+                Menu name
+                <input
+                  id="menuNameEditor"
+                  type="text"
+                  placeholder="Menu title"
+                />
+              </label>
+              <div
+                id="menuContainer"
+                class="menu-list"
+                aria-live="polite"
+              ></div>
+              <div class="panel-actions">
+                <button id="resetButton" type="button" class="secondary">
+                  Reset to default
+                </button>
+              </div>
             </section>
 
-            <section id="operationsMonitoringPanel" class="hidden">
-                <section class="panel panel--wide">
-                    <h2>Operations Monitoring</h2>
-                    <p>
-                        Track live chat sessions and sign-in activity in near real time. The lists refresh automatically while preserving the familiar
-                        Cerillion Digital IM look and feel.
-                    </p>
-                    <div class="monitoring-config">
-                        <label>
-                            Monitoring API base URL
-                            <input id="monitoringApiBase" type="text" value="YOUR_SERVER_PUBLIC_URL" readonly />
-                        </label>
-                        <p class="hint">
-                            Populated from the <code>public-base-url</code> application property. Copy this value when hosting the UI separately so the
-                            Operations Monitoring API can be reached.
-                        </p>
-                    </div>
-                    <div class="monitoring-vertical">
-                        <div class="monitoring-card">
-                            <div class="monitoring-card__header">
-                                <div>
-                                    <h3>Ongoing sessions</h3>
-                                    <p class="hint">Live conversations currently in progress.</p>
-                                </div>
-                                <span class="pill pill--live" aria-label="Live sessions">Live</span>
-                            </div>
-                            <div class="list-header">
-                                <span>Channel</span>
-                                <span>Chat ID / Session ID</span>
-                                <span>Login status &amp; username</span>
-                                <span>Opt-in status</span>
-                                <span>Token</span>
-                                <span>Session start date</span>
-                                <span>Session start time</span>
-                            </div>
-                            <div id="liveSessions" class="session-list scrollable-list" aria-live="polite"></div>
-                        </div>
-
-                        <div class="monitoring-card">
-                            <div class="monitoring-card__header">
-                                <div>
-                                    <h3>Recent history</h3>
-                                    <p class="hint">Completed sessions move here automatically.</p>
-                                </div>
-                                <span class="pill">History</span>
-                            </div>
-                            <div class="list-header">
-                                <span>Channel</span>
-                                <span>Chat ID / Session ID</span>
-                                <span>Login status &amp; username</span>
-                                <span>Opt-in status</span>
-                                <span>Token</span>
-                                <span>Session start date</span>
-                                <span>Session start time</span>
-                            </div>
-                            <div id="sessionHistory" class="session-list scrollable-list" aria-live="polite"></div>
-                        </div>
-                    </div>
-                </section>
+            <section class="panel">
+              <h2>Add a menu item</h2>
+              <form id="addItemForm" autocomplete="off">
+                <label>
+                  Place this item inside
+                  <select id="parentMenuSelect" required></select>
+                </label>
+                <label>
+                  Menu item name
+                  <input
+                    id="itemLabelInput"
+                    name="label"
+                    type="text"
+                    placeholder="e.g. Manage My Services"
+                    required
+                  />
+                </label>
+                <label>
+                  Menu item type
+                  <select id="itemTypeSelect" required>
+                    <option value="function">Function</option>
+                    <option value="submenu">Sub-menu</option>
+                  </select>
+                </label>
+                <div id="functionFields" class="conditional-field">
+                  <label>
+                    Menu item function
+                    <select id="menuFunctionSelect" name="function"></select>
+                  </label>
+                  <label class="checkbox">
+                    <input type="checkbox" id="useTranslationInput" />
+                    <span>Use built-in translation</span>
+                  </label>
+                  <p class="hint">
+                    Keeps the original multilingual text for this function. Turn
+                    it off to always display the custom label.
+                  </p>
+                </div>
+                <div id="submenuFields" class="conditional-field hidden">
+                  <label>
+                    Target sub-menu
+                    <select id="submenuSelect"></select>
+                  </label>
+                  <button
+                    id="inlineCreateSubmenu"
+                    type="button"
+                    class="secondary"
+                  >
+                    Create new sub-menu
+                  </button>
+                  <p class="hint">
+                    Sub-menus can be nested infinitely. When you delete a
+                    sub-menu, all of its child items and menus are removed.
+                  </p>
+                </div>
+                <button type="submit">Add item</button>
+              </form>
+              <p class="hint">
+                The function list mirrors the services available in the current
+                Telegram bot. As new services are developed they can be appended
+                here without changing the Java backend.
+              </p>
             </section>
 
-            <section id="sendMessagesPanel" class="hidden">
-                <section class="panel panel--wide">
-                    <h2>Send Messages</h2>
-                    <p>
-                        Deliver notifications to opted-in users on Telegram or WhatsApp. Users must grant consent from their
-                        chat session before any outbound message is sent.
-                    </p>
-                    <div class="monitoring-config">
-                        <label>
-                            Notifications API base URL
-                            <input id="notificationApiBase" type="text" value="YOUR_SERVER_PUBLIC_URL" readonly />
-                        </label>
-                        <p class="hint">
-                            Populated from the <code>public-base-url</code> application property. Copy this value when hosting the UI separately so the
-                            <code>/notifications</code> endpoint can be reached.
-                        </p>
-                    </div>
-                    <form id="sendMessageForm" class="send-message-form" autocomplete="off">
-                        <label>
-                            Channel
-                            <select id="notificationChannel" required>
-                                <option value="telegram">Telegram</option>
-                                <option value="whatsapp">WhatsApp</option>
-                            </select>
-                        </label>
-                        <label>
-                            Chat ID / Phone Number
-                            <input id="notificationChatId" type="text" placeholder="e.g. 123456789" required />
-                        </label>
-                        <label>
-                            Message
-                            <textarea id="notificationMessage" rows="4" placeholder="Type the notification to send" required></textarea>
-                        </label>
-                        <div class="panel-actions">
-                            <button type="submit">Send notification</button>
-                        </div>
-                    </form>
-                    <div id="notificationResult" class="notification-result" aria-live="polite"></div>
-                </section>
+            <section class="panel">
+              <h2>Configuration output</h2>
+              <p>
+                Download the JSON file, rename it to
+                <code>business-menu.override.json</code>, and copy it into the
+                <code>CONFIGURATIONS/</code> directory next to the Telegram bot
+                to override the default order. When no override exists the bot
+                keeps the packaged <code>business-menu.default.json</code>.
+              </p>
+              <div class="panel-actions">
+                <label class="file-input">
+                  <span>Load existing configuration</span>
+                  <input
+                    type="file"
+                    id="importInput"
+                    accept="application/json"
+                  />
+                </label>
+                <button id="downloadButton" type="button">
+                  Download configuration
+                </button>
+              </div>
+              <pre id="preview" class="preview" aria-live="polite"></pre>
             </section>
+          </section>
 
-            <section id="imServerAdminPanel" class="hidden">
-                <section class="panel panel--wide">
-                    <h2>IM Server Admin</h2>
-                    <p>
-                        Review the active configuration that drives the Cerillion Digital IM Server. When available,
-                        the server prioritises <code>application-local.yml</code>; otherwise the
-                        <code>application-example.yml</code> baseline is shown.
-                    </p>
-                    <div class="monitoring-config config-viewer__header">
-                        <div>
-                            <div class="hint">Configuration source</div>
-                            <div id="configFileName" class="config-viewer__filename">Loading...</div>
-                        </div>
-                        <div class="panel-actions">
-                            <button id="refreshConfigButton" type="button" class="secondary">Reload configuration</button>
-                        </div>
+          <section id="operationsMonitoringPanel" class="hidden">
+            <section class="panel panel--wide">
+              <h2>Operations Monitoring</h2>
+              <p>
+                Track live chat sessions and sign-in activity in near real time.
+                The lists refresh automatically while preserving the familiar
+                Cerillion Digital IM look and feel.
+              </p>
+              <div class="monitoring-config">
+                <label>
+                  Monitoring API base URL
+                  <input
+                    id="monitoringApiBase"
+                    type="text"
+                    value="YOUR_SERVER_PUBLIC_URL"
+                    readonly
+                  />
+                </label>
+                <p class="hint">
+                  Populated from the <code>public-base-url</code> application
+                  property. Copy this value when hosting the UI separately so
+                  the Operations Monitoring API can be reached.
+                </p>
+              </div>
+              <div class="monitoring-vertical">
+                <div class="monitoring-card">
+                  <div class="monitoring-card__header">
+                    <div>
+                      <h3>Ongoing sessions</h3>
+                      <p class="hint">
+                        Live conversations currently in progress.
+                      </p>
                     </div>
-                    <div id="configStatus" class="hint"></div>
-                    <p class="hint">
-                        Values are editable for review purposes only. Future updates will allow saving the file back to the
-                        server.
-                    </p>
-                    <div class="config-editor">
-                        <div id="configEmptyState" class="config-empty hidden" aria-live="polite">
-                            Configuration entries are not available.
-                        </div>
-                        <div id="configTree" class="config-tree" aria-live="polite"></div>
+                    <span class="pill pill--live" aria-label="Live sessions"
+                      >Live</span
+                    >
+                  </div>
+                  <div class="list-header">
+                    <span>Channel</span>
+                    <span>Chat ID / Session ID</span>
+                    <span>Login status &amp; username</span>
+                    <span>Opt-in status</span>
+                    <span>Token</span>
+                    <span>Session start date</span>
+                    <span>Session start time</span>
+                  </div>
+                  <div
+                    id="liveSessions"
+                    class="session-list scrollable-list"
+                    aria-live="polite"
+                  ></div>
+                </div>
+
+                <div class="monitoring-card">
+                  <div class="monitoring-card__header">
+                    <div>
+                      <h3>Recent history</h3>
+                      <p class="hint">
+                        Completed sessions move here automatically.
+                      </p>
                     </div>
-                    <details class="config-raw">
-                        <summary>Show raw configuration</summary>
-                        <pre id="imConfigContent" class="preview config-preview" aria-live="polite"></pre>
-                    </details>
-                </section>
+                    <span class="pill">History</span>
+                  </div>
+                  <div class="list-header">
+                    <span>Channel</span>
+                    <span>Chat ID / Session ID</span>
+                    <span>Login status &amp; username</span>
+                    <span>Opt-in status</span>
+                    <span>Token</span>
+                    <span>Session start date</span>
+                    <span>Session start time</span>
+                  </div>
+                  <div
+                    id="sessionHistory"
+                    class="session-list scrollable-list"
+                    aria-live="polite"
+                  ></div>
+                </div>
+              </div>
             </section>
+          </section>
+
+          <section id="sendMessagesPanel" class="hidden">
+            <section class="panel panel--wide">
+              <h2>Send Messages</h2>
+              <p>
+                Deliver notifications to opted-in users on Telegram or WhatsApp.
+                Users must grant consent from their chat session before any
+                outbound message is sent.
+              </p>
+              <div class="monitoring-config">
+                <label>
+                  Notifications API base URL
+                  <input
+                    id="notificationApiBase"
+                    type="text"
+                    value="YOUR_SERVER_PUBLIC_URL"
+                    readonly
+                  />
+                </label>
+                <p class="hint">
+                  Populated from the <code>public-base-url</code> application
+                  property. Copy this value when hosting the UI separately so
+                  the <code>/notifications</code> endpoint can be reached.
+                </p>
+              </div>
+              <form
+                id="sendMessageForm"
+                class="send-message-form"
+                autocomplete="off"
+              >
+                <label>
+                  Channel
+                  <select id="notificationChannel" required>
+                    <option value="telegram">Telegram</option>
+                    <option value="whatsapp">WhatsApp</option>
+                  </select>
+                </label>
+                <label>
+                  Chat ID / Phone Number
+                  <input
+                    id="notificationChatId"
+                    type="text"
+                    placeholder="e.g. 123456789"
+                    required
+                  />
+                </label>
+                <label>
+                  Message
+                  <textarea
+                    id="notificationMessage"
+                    rows="4"
+                    placeholder="Type the notification to send"
+                    required
+                  ></textarea>
+                </label>
+                <div class="panel-actions">
+                  <button type="submit">Send notification</button>
+                </div>
+              </form>
+              <div
+                id="notificationResult"
+                class="notification-result"
+                aria-live="polite"
+              ></div>
+            </section>
+          </section>
+
+          <section id="imServerAdminPanel" class="hidden">
+            <section class="panel panel--wide">
+              <h2>IM Server Admin</h2>
+              <p>
+                Review the active configuration that drives the Cerillion
+                Digital IM Server. When available, the server prioritises
+                <code>application-local.yml</code>; otherwise the
+                <code>application-example.yml</code> baseline is shown.
+              </p>
+              <div class="monitoring-config config-viewer__header">
+                <div>
+                  <div class="hint">Configuration source</div>
+                  <div id="configFileName" class="config-viewer__filename">
+                    Loading...
+                  </div>
+                </div>
+                <div class="panel-actions">
+                  <button
+                    id="refreshConfigButton"
+                    type="button"
+                    class="secondary"
+                  >
+                    Reload configuration
+                  </button>
+                </div>
+              </div>
+              <div id="configStatus" class="hint"></div>
+              <p class="hint">
+                Values are editable for review purposes only. Future updates
+                will allow saving the file back to the server.
+              </p>
+              <div class="config-editor">
+                <div
+                  id="configEmptyState"
+                  class="config-empty hidden"
+                  aria-live="polite"
+                >
+                  Configuration entries are not available.
+                </div>
+                <div
+                  id="configTree"
+                  class="config-tree"
+                  aria-live="polite"
+                ></div>
+              </div>
+              <details class="config-raw">
+                <summary>Show raw configuration</summary>
+                <pre
+                  id="imConfigContent"
+                  class="preview config-preview"
+                  aria-live="polite"
+                ></pre>
+              </details>
+            </section>
+          </section>
         </main>
+      </div>
     </div>
-</div>
-<script src="app.js"></script>
-</body>
+    <script src="app.js"></script>
+  </body>
 </html>
