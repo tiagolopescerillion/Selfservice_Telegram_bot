@@ -2,12 +2,12 @@ package com.selfservice.application.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.selfservice.application.config.ApimanEndpointsProperties;
 import com.selfservice.application.dto.AccountSummary;
 import com.selfservice.application.dto.FindUserResult;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.HttpStatusCodeException;
@@ -33,11 +33,10 @@ public class FindUserService {
 
     public FindUserService(@Qualifier("loggingRestTemplate") RestTemplate restTemplate,
             ObjectMapper objectMapper,
-            @Value("${apiman.find-user.url:https://lonlinux13.cerillion.com:49987/apiman-gateway/CSS-MASTER-ORG/findUser/1.0}")
-            String findUserEndpoint) {
+            ApimanEndpointsProperties apimanEndpoints) {
         this.restTemplate = restTemplate;
         this.objectMapper = objectMapper;
-        this.findUserEndpoint = (findUserEndpoint == null || findUserEndpoint.isBlank()) ? null : findUserEndpoint;
+        this.findUserEndpoint = apimanEndpoints.getFindUserUrl();
         if (this.findUserEndpoint == null) {
             log.warn("APIMAN find-user endpoint is not configured; account discovery will be disabled.");
         }

@@ -7,7 +7,6 @@ import com.selfservice.application.dto.ServiceListResult;
 import com.selfservice.application.dto.ServiceSummary;
 import com.selfservice.application.dto.TroubleTicketListResult;
 import com.selfservice.application.dto.TroubleTicketSummary;
-import com.selfservice.application.service.ExternalApiService;
 import com.selfservice.application.service.MainServiceCatalogService;
 import com.selfservice.application.service.TroubleTicketService;
 import com.selfservice.telegrambot.config.menu.BusinessMenuItem;
@@ -40,7 +39,6 @@ public class WhatsappWebhookController {
     private final OAuthSessionService oauthSessionService;
     private final WhatsappSessionService sessionService;
     private final KeycloakAuthService keycloakAuthService;
-    private final ExternalApiService externalApiService;
     private final MainServiceCatalogService mainServiceCatalogService;
     private final TroubleTicketService troubleTicketService;
     private final String verifyToken;
@@ -51,7 +49,6 @@ public class WhatsappWebhookController {
             OAuthSessionService oauthSessionService,
             WhatsappSessionService sessionService,
             KeycloakAuthService keycloakAuthService,
-            ExternalApiService externalApiService,
             MainServiceCatalogService mainServiceCatalogService,
             TroubleTicketService troubleTicketService,
             @Value("${whatsapp.verify-token}") String verifyToken,
@@ -60,7 +57,6 @@ public class WhatsappWebhookController {
         this.oauthSessionService = oauthSessionService;
         this.sessionService = sessionService;
         this.keycloakAuthService = keycloakAuthService;
-        this.externalApiService = externalApiService;
         this.mainServiceCatalogService = mainServiceCatalogService;
         this.troubleTicketService = troubleTicketService;
         this.verifyToken = Objects.requireNonNull(verifyToken, "whatsapp.verify-token must be set");
@@ -276,7 +272,7 @@ public class WhatsappWebhookController {
 
                 String apiResponse = whatsappService.translate(from, "NoApiResponse");
                 if (accessToken != null) {
-                    apiResponse = externalApiService.callTroubleTicketApi(accessToken);
+                    apiResponse = troubleTicketService.callTroubleTicket(accessToken);
                 }
                 whatsappService.sendText(from, authMessage + "\n\n" +
                         whatsappService.format(from, "ExternalApiResult", apiResponse));
