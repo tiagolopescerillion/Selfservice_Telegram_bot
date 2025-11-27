@@ -9,9 +9,9 @@ import org.springframework.util.StringUtils;
 public class ApimanEndpointsProperties {
 
     private String baseUrl;
-    private String findUserUrl;
-    private String accountServicesUrl;
-    private String troubleTicketUrl;
+    private Endpoint findUser = new Endpoint();
+    private Endpoint accountServices = new Endpoint();
+    private Endpoint troubleTicket = new Endpoint();
 
     public String getBaseUrl() {
         return normalize(baseUrl);
@@ -22,27 +22,27 @@ public class ApimanEndpointsProperties {
     }
 
     public String getFindUserUrl() {
-        return normalize(findUserUrl);
+        return findUser == null ? null : findUser.getUrl();
     }
 
-    public void setFindUserUrl(String findUserUrl) {
-        this.findUserUrl = findUserUrl;
+    public void setFindUser(Endpoint findUser) {
+        this.findUser = findUser;
     }
 
     public String getAccountServicesUrl() {
-        return normalize(accountServicesUrl);
+        return accountServices == null ? null : accountServices.getUrl();
     }
 
-    public void setAccountServicesUrl(String accountServicesUrl) {
-        this.accountServicesUrl = accountServicesUrl;
+    public void setAccountServices(Endpoint accountServices) {
+        this.accountServices = accountServices;
     }
 
     public String getTroubleTicketUrl() {
-        return normalize(troubleTicketUrl);
+        return troubleTicket == null ? null : troubleTicket.getUrl();
     }
 
-    public void setTroubleTicketUrl(String troubleTicketUrl) {
-        this.troubleTicketUrl = troubleTicketUrl;
+    public void setTroubleTicket(Endpoint troubleTicket) {
+        this.troubleTicket = troubleTicket;
     }
 
     public boolean hasFindUser() {
@@ -62,5 +62,24 @@ public class ApimanEndpointsProperties {
             return null;
         }
         return value.trim();
+    }
+
+    public static class Endpoint {
+        private String url;
+
+        public String getUrl() {
+            return normalize(url);
+        }
+
+        public void setUrl(String url) {
+            this.url = url;
+        }
+
+        private static String normalize(String value) {
+            if (!StringUtils.hasText(value)) {
+                return null;
+            }
+            return value.trim();
+        }
     }
 }
