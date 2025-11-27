@@ -6,7 +6,6 @@ import com.selfservice.application.dto.AccountSummary;
 import com.selfservice.application.dto.ServiceListResult;
 import com.selfservice.application.dto.ServiceSummary;
 import com.selfservice.application.dto.TroubleTicketListResult;
-import com.selfservice.application.service.ExternalApiService;
 import com.selfservice.application.service.MainServiceCatalogService;
 import com.selfservice.application.service.TroubleTicketService;
 import com.selfservice.telegrambot.service.OperationsMonitoringService;
@@ -27,7 +26,6 @@ public class TelegramWebhookController {
     private static final Logger log = LoggerFactory.getLogger(TelegramWebhookController.class);
     private final TelegramService telegramService;
     private final KeycloakAuthService keycloakAuthService;
-    private final ExternalApiService externalApiService;
     private final MainServiceCatalogService mainServiceCatalogService;
     private final OAuthSessionService oauthSessionService;
     private final UserSessionService userSessionService;
@@ -36,7 +34,6 @@ public class TelegramWebhookController {
 
     public TelegramWebhookController(TelegramService telegramService,
             KeycloakAuthService keycloakAuthService,
-            ExternalApiService externalApiService,
             MainServiceCatalogService mainServiceCatalogService,
             OAuthSessionService oauthSessionService,
             UserSessionService userSessionService,
@@ -44,7 +41,6 @@ public class TelegramWebhookController {
             OperationsMonitoringService monitoringService) {
         this.telegramService = telegramService;
         this.keycloakAuthService = keycloakAuthService;
-        this.externalApiService = externalApiService;
         this.mainServiceCatalogService = mainServiceCatalogService;
         this.oauthSessionService = oauthSessionService;
 
@@ -494,7 +490,7 @@ public class TelegramWebhookController {
                     // Step 2: Call the external API using the token
                     String apiResponse = telegramService.translate(chatId, "NoApiResponse");
                     if (token != null) {
-                        apiResponse = externalApiService.callTroubleTicketApi(token);
+                    apiResponse = troubleTicketService.callTroubleTicket(token);
                     }
 
                     // Step 3: Combine and send to Telegram

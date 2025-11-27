@@ -2,12 +2,12 @@ package com.selfservice.application.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.selfservice.application.config.ApimanEndpointsProperties;
 import com.selfservice.application.dto.TroubleTicketListResult;
 import com.selfservice.application.dto.TroubleTicketSummary;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.HttpStatusCodeException;
@@ -27,12 +27,10 @@ public class TroubleTicketService {
     private final ObjectMapper objectMapper;
 
     public TroubleTicketService(@Qualifier("loggingRestTemplate") RestTemplate restTemplate,
-            @Value("${apiman.trouble-ticket.url:${apiman.url:}}") String troubleTicketEndpoint,
+            ApimanEndpointsProperties apimanEndpoints,
             ObjectMapper objectMapper) {
         this.restTemplate = restTemplate;
-        this.troubleTicketEndpoint = (troubleTicketEndpoint == null || troubleTicketEndpoint.isBlank())
-                ? null
-                : troubleTicketEndpoint;
+        this.troubleTicketEndpoint = apimanEndpoints.getTroubleTicketUrl();
         this.objectMapper = objectMapper;
         if (this.troubleTicketEndpoint == null) {
             log.warn("APIMAN trouble-ticket endpoint is not configured; related features will be disabled.");

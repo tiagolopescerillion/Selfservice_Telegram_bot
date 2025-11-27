@@ -3,6 +3,9 @@ spring:
     active: local   # Default profile to load the local configuration below
 
 ---
+# Configuration used when the "local" profile is active. Copy this file to
+# CONFIGURATIONS/application-local.yml and replace the placeholders with
+# environment-specific values.
 spring:
   config:
     activate:
@@ -24,9 +27,9 @@ app:
 
 # Shared base URLs to avoid repetition across services
 endpoints:
-  keycloak-base-url: YOUR_KEYCLOAK_URL      # Base URL of your Keycloak realm (e.g., https://keycloak.example.com/realms/realm)
+  keycloak-base-url: YOUR_KEYCLOAK_URL       # Base URL of your Keycloak realm (e.g., https://keycloak.example.com/realms/realm)
   rest-server-base-url: YOUR_REST_SERVER_URL # Base URL of the backend REST services
-  apiman-base-url: YOUR_APIMAN_URL          # Base URL of the API management gateway
+  apiman-base-url: YOUR_APIMAN_URL           # Base URL of the API management gateway
 
 login-menu:
   digital-login: true  # Show the digital login option in login menus
@@ -64,12 +67,16 @@ keycloak:
     client-id: YOUR_KEYCLOAK_CLIENT_ID         # Client ID for client credentials grant
     client-secret: YOUR_KEYCLOAK_CLIENT_SECRET # Client secret for client credentials grant
 
-external:
-  api:
-    trouble-ticket:
-      url: ${endpoints.rest-server-base-url}/openapi-fun-trouble-ticket/api/v1/troubleTicket?id=28667 # Trouble ticket API endpoint
-
+# APIMAN endpoints consolidated here
 apiman:
-  trouble-ticket-url: ${endpoints.apiman-base-url}/troubleTicket/1.0?id=28970           # Trouble ticket endpoint exposed via API management
-  url2: ${endpoints.apiman-base-url}/openapi-fun-account/api/v1/billingAccounts?billingAccount.id=20000053 # Billing account API example
-  url: ${endpoints.apiman-base-url}/troubleTicket/1.0?                                   # Base API management URL for trouble ticket queries
+  base-url: ${endpoints.apiman-base-url}
+  find-user:
+    url: ${apiman.base-url}/findUser/1.0
+  account-services:
+    url: ${apiman.base-url}/product/1.0
+  trouble-ticket:
+    url: ${apiman.base-url}/troubleTicket/1.0
+  billing-account:
+    url: ${apiman.base-url}/openapi-fun-account/api/v1/billingAccounts?billingAccount.id=20000053
+  trouble-ticket-openapi:
+    url: ${endpoints.rest-server-base-url}/openapi-fun-trouble-ticket/api/v1/troubleTicket?id=28667

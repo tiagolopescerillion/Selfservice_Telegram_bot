@@ -519,6 +519,64 @@ button:disabled {
     gap: 0.4rem;
 }
 
+.table-wrapper {
+    width: 100%;
+    overflow-x: auto;
+}
+
+.endpoint-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 1rem;
+}
+
+.endpoint-table th,
+.endpoint-table td {
+    padding: 0.75rem;
+    border-bottom: 1px solid var(--border);
+    text-align: left;
+}
+
+.endpoint-table th {
+    background: #f1f5f9;
+    font-weight: 700;
+}
+
+.endpoint-table tr:hover td {
+    background: #f8fafc;
+}
+
+.endpoint-table .empty td {
+    text-align: center;
+    font-style: italic;
+    color: #475569;
+}
+
+.tag-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+}
+
+.tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.25rem 0.55rem;
+    border-radius: 999px;
+    background: #eef2ff;
+    color: #1e293b;
+    border: 1px solid var(--border);
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+
+.tag--warning {
+    background: #fff7ed;
+    color: #c2410c;
+    border-color: #fed7aa;
+}
+
 .token-pill {
     padding: 0.2rem 0.6rem;
     border-radius: 999px;

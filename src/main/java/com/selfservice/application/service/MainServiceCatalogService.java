@@ -2,12 +2,12 @@ package com.selfservice.application.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.selfservice.application.config.ApimanEndpointsProperties;
 import com.selfservice.application.dto.ServiceListResult;
 import com.selfservice.application.dto.ServiceSummary;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.HttpStatusCodeException;
@@ -35,11 +35,11 @@ public class MainServiceCatalogService {
     private final String serviceEndpoint;
 
     public MainServiceCatalogService(@Qualifier("loggingRestTemplate") RestTemplate restTemplate,
-            @Value("${apiman.account-services.url:${apiman.url:}}") String serviceEndpoint,
+            ApimanEndpointsProperties apimanEndpoints,
             ObjectMapper objectMapper) {
         this.restTemplate = restTemplate;
         this.objectMapper = objectMapper;
-        this.serviceEndpoint = (serviceEndpoint == null || serviceEndpoint.isBlank()) ? null : serviceEndpoint;
+        this.serviceEndpoint = apimanEndpoints.getAccountServicesUrl();
         if (this.serviceEndpoint == null) {
             log.warn("APIMAN account-services endpoint is not configured; the service menu will be disabled.");
         }

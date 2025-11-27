@@ -81,10 +81,14 @@ const navMenuConfig = document.getElementById("navMenuConfig");
 const navOperationsMonitoring = document.getElementById("navOperationsMonitoring");
 const navSendMessages = document.getElementById("navSendMessages");
 const navImServerAdmin = document.getElementById("navImServerAdmin");
+const navServiceFunctions = document.getElementById("navServiceFunctions");
 const menuConfigurationPanel = document.getElementById("menuConfigurationPanel");
 const operationsMonitoringPanel = document.getElementById("operationsMonitoringPanel");
 const sendMessagesPanel = document.getElementById("sendMessagesPanel");
 const imServerAdminPanel = document.getElementById("imServerAdminPanel");
+const serviceFunctionsPanel = document.getElementById("serviceFunctionsPanel");
+const serviceFunctionsTableBody = document.getElementById("serviceFunctionsTableBody");
+const serviceFunctionsStatus = document.getElementById("serviceFunctionsStatus");
 const liveSessionsContainer = document.getElementById("liveSessions");
 const sessionHistoryContainer = document.getElementById("sessionHistory");
 const monitoringApiBaseInput = document.getElementById("monitoringApiBase");
@@ -855,20 +859,114 @@ function setActiveApp(target) {
   const showOperations = target === "operations";
   const showSendMessages = target === "notifications";
   const showImServerAdmin = target === "admin";
+  const showServiceFunctions = target === "service-functions";
   menuConfigurationPanel.classList.toggle("hidden", !showMenuConfig);
   operationsMonitoringPanel.classList.toggle("hidden", !showOperations);
   sendMessagesPanel.classList.toggle("hidden", !showSendMessages);
   imServerAdminPanel.classList.toggle("hidden", !showImServerAdmin);
+  serviceFunctionsPanel.classList.toggle("hidden", !showServiceFunctions);
   navMenuConfig.classList.toggle("active", showMenuConfig);
   navOperationsMonitoring.classList.toggle("active", showOperations);
   navSendMessages.classList.toggle("active", showSendMessages);
   navImServerAdmin.classList.toggle("active", showImServerAdmin);
+  navServiceFunctions.classList.toggle("active", showServiceFunctions);
   if (showOperations) {
     refreshMonitoringData();
   }
   if (showImServerAdmin) {
     loadImServerConfig();
   }
+  if (showServiceFunctions) {
+    loadServiceFunctions();
+  }
+}
+
+async function loadServiceFunctions() {
+  if (!serviceFunctionsTableBody) {
+    return;
+  }
+  serviceFunctionsStatus.textContent = "Loading endpoints…";
+  serviceFunctionsTableBody.innerHTML = "";
+
+  try {
+    const response = await fetch("/admin/service-functions", { cache: "no-cache" });
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+    const payload = await response.json();
+    const endpoints = Array.isArray(payload?.endpoints) ? payload.endpoints : [];
+    renderServiceFunctionTable(endpoints);
+    serviceFunctionsStatus.textContent = endpoints.length
+      ? ""
+      : "No endpoints are configured in CONFIGURATIONS/application*.yml.";
+  } catch (error) {
+    console.error("Unable to load service function list", error);
+    renderServiceFunctionTable([]);
+    serviceFunctionsStatus.textContent = `Unable to load endpoints: ${error.message}`;
+  }
+}
+
+function renderServiceFunctionTable(endpoints) {
+  serviceFunctionsTableBody.innerHTML = "";
+  if (!endpoints.length) {
+    const row = document.createElement("tr");
+    row.className = "empty";
+    const cell = document.createElement("td");
+    cell.colSpan = 4;
+    cell.textContent = "No endpoints available.";
+    row.append(cell);
+    serviceFunctionsTableBody.append(row);
+    return;
+  }
+
+  endpoints.forEach((endpoint) => {
+    const row = document.createElement("tr");
+
+    const nameCell = document.createElement("td");
+    nameCell.textContent = endpoint.name || endpoint.key || "Endpoint";
+    row.append(nameCell);
+
+    const keyCell = document.createElement("td");
+    keyCell.textContent = endpoint.key || "–";
+    row.append(keyCell);
+
+    const urlCell = document.createElement("td");
+    if (endpoint.url) {
+      const link = document.createElement("a");
+      link.href = endpoint.url;
+      link.textContent = endpoint.url;
+      link.target = "_blank";
+      link.rel = "noreferrer";
+      urlCell.append(link);
+    } else {
+      const badge = document.createElement("span");
+      badge.className = "tag tag--warning";
+      badge.textContent = endpoint.configured === false
+        ? "Not configured"
+        : "Missing URL";
+      urlCell.append(badge);
+    }
+    row.append(urlCell);
+
+    const servicesCell = document.createElement("td");
+    const services = Array.isArray(endpoint.services) ? endpoint.services : [];
+    if (services.length) {
+      const list = document.createElement("div");
+      list.className = "tag-list";
+      services.forEach((svc) => {
+        const chip = document.createElement("span");
+        chip.className = "tag";
+        chip.textContent = svc;
+        list.append(chip);
+      });
+      servicesCell.append(list);
+    } else {
+      servicesCell.textContent = "—";
+    }
+    row.append(servicesCell);
+
+    serviceFunctionsTableBody.append(row);
+  });
 }
 
 function getStoredMonitoringApiBase() {
@@ -1408,6 +1506,7 @@ navMenuConfig.addEventListener("click", () => setActiveApp("menu"));
 navOperationsMonitoring.addEventListener("click", () => setActiveApp("operations"));
 navSendMessages.addEventListener("click", () => setActiveApp("notifications"));
 navImServerAdmin.addEventListener("click", () => setActiveApp("admin"));
+navServiceFunctions.addEventListener("click", () => setActiveApp("service-functions"));
 if (monitoringApiBaseInput) {
   monitoringApiBaseInput.addEventListener("change", handleMonitoringApiBaseChanged);
   monitoringApiBaseInput.addEventListener("blur", handleMonitoringApiBaseChanged);
