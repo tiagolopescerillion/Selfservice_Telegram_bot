@@ -882,14 +882,24 @@ function setActiveApp(target) {
 }
 
 async function loadServiceFunctions() {
-  if (!serviceFunctionsTableBody) {
+  if (!serviceFunctionsTableBody || !serviceFunctionsStatus) {
     return;
   }
-  serviceFunctionsStatus.textContent = "Loading endpoints…";
+  const endpoint = buildAdminEndpoint("/admin/service-functions");
+  if (!endpoint) {
+    serviceFunctionsStatus.textContent = "Set the monitoring API base URL so the Java server can be reached.";
+    serviceFunctionsStatus.className = "hint error-state";
+    renderServiceFunctionTable([]);
+    return;
+  }
+
+  serviceFunctionsStatus.textContent = `Loading endpoints from ${endpoint}...`;
+  serviceFunctionsStatus.className = "hint";
+
   serviceFunctionsTableBody.innerHTML = "";
 
   try {
-    const response = await fetch("/admin/service-functions", { cache: "no-cache" });
+const response = await fetch(endpoint, { cache: "no-cache" });
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}`);
     }
@@ -903,6 +913,7 @@ async function loadServiceFunctions() {
     console.error("Unable to load service function list", error);
     renderServiceFunctionTable([]);
     serviceFunctionsStatus.textContent = `Unable to load endpoints: ${error.message}`;
+     serviceFunctionsStatus.className = "hint error-state";
   }
 }
 
