@@ -891,7 +891,7 @@ async function loadServiceFunctions() {
   if (!serviceFunctionsTableBody || !serviceFunctionsStatus) {
     return;
   }
-  const endpoint = buildAdminEndpoint("/admin/service-functions");
+  const endpoint = buildAdminEndpoint("/admin/application-config");
   if (!endpoint) {
     serviceFunctionsStatus.textContent = "Set the monitoring API base URL so the Java server can be reached.";
     serviceFunctionsStatus.className = "hint error-state";
@@ -905,21 +905,27 @@ async function loadServiceFunctions() {
   serviceFunctionsTableBody.innerHTML = "";
 
   try {
-const response = await fetch(endpoint, { cache: "no-cache" });
+    const response = await fetch(endpoint, { cache: "no-cache" });
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}`);
     }
     const payload = await response.json();
-    const endpoints = Array.isArray(payload?.endpoints) ? payload.endpoints : [];
+    const entries = Array.isArray(payload?.entries) ? payload.entries : [];
+    const endpoints = entries.filter((entry) => {
+      const key = (entry?.key || "").toString().toLowerCase();
+      return key.includes("url");
+    });
     renderServiceFunctionTable(endpoints);
+    const sourceFile = payload?.fileName || "configuration file";
     serviceFunctionsStatus.textContent = endpoints.length
-      ? ""
-      : "No endpoints are configured in CONFIGURATIONS/application*.yml.";
+      ? `Found ${endpoints.length} endpoint values in ${sourceFile}.`
+      : `No endpoint URLs were found in ${sourceFile}.`;
+    serviceFunctionsStatus.className = "hint";
   } catch (error) {
     console.error("Unable to load service function list", error);
     renderServiceFunctionTable([]);
     serviceFunctionsStatus.textContent = `Unable to load endpoints: ${error.message}`;
-     serviceFunctionsStatus.className = "hint error-state";
+    serviceFunctionsStatus.className = "hint error-state";
   }
 }
 
@@ -929,7 +935,7 @@ function renderServiceFunctionTable(endpoints) {
     const row = document.createElement("tr");
     row.className = "empty";
     const cell = document.createElement("td");
-    cell.colSpan = 4;
+    cell.colSpan = 2;
     cell.textContent = "No endpoints available.";
     row.append(cell);
     serviceFunctionsTableBody.append(row);
@@ -939,48 +945,31 @@ function renderServiceFunctionTable(endpoints) {
   endpoints.forEach((endpoint) => {
     const row = document.createElement("tr");
 
-    const nameCell = document.createElement("td");
-    nameCell.textContent = endpoint.name || endpoint.key || "Endpoint";
-    row.append(nameCell);
-
     const keyCell = document.createElement("td");
     keyCell.textContent = endpoint.key || "–";
     row.append(keyCell);
 
     const urlCell = document.createElement("td");
-    if (endpoint.url) {
+    const value = (endpoint.value || "").toString();
+    const isLikelyUrl = /^https?:\/\//i.test(value);
+    if (value) {
       const link = document.createElement("a");
-      link.href = endpoint.url;
-      link.textContent = endpoint.url;
+      link.href = value;
+      link.textContent = value;
       link.target = "_blank";
       link.rel = "noreferrer";
-      urlCell.append(link);
+      if (isLikelyUrl) {
+        urlCell.append(link);
+      } else {
+        urlCell.textContent = value;
+      }
     } else {
       const badge = document.createElement("span");
       badge.className = "tag tag--warning";
-      badge.textContent = endpoint.configured === false
-        ? "Not configured"
-        : "Missing URL";
+      badge.textContent = "Not configured";
       urlCell.append(badge);
     }
     row.append(urlCell);
-
-    const servicesCell = document.createElement("td");
-    const services = Array.isArray(endpoint.services) ? endpoint.services : [];
-    if (services.length) {
-      const list = document.createElement("div");
-      list.className = "tag-list";
-      services.forEach((svc) => {
-        const chip = document.createElement("span");
-        chip.className = "tag";
-        chip.textContent = svc;
-        list.append(chip);
-      });
-      servicesCell.append(list);
-    } else {
-      servicesCell.textContent = "—";
-    }
-    row.append(servicesCell);
 
     serviceFunctionsTableBody.append(row);
   });

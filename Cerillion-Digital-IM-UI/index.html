@@ -50,25 +50,22 @@
             <section class="panel panel--wide">
               <h2>Service Functions</h2>
               <p>
-                A consolidated catalogue of configured API endpoints and the Java
-                services that call them. All endpoints are sourced from the
-                <code>CONFIGURATIONS/application*.yml</code> files so
-                administrators can verify that runtime settings match the
-                deployed code.
+                Configured endpoints pulled directly from
+                <code>CONFIGURATIONS/application*.yml</code>. Use this view to
+                confirm what URLs are set without relying on the running Java
+                services.
               </p>
               <div class="table-wrapper">
                 <table class="endpoint-table">
                   <thead>
                     <tr>
-                      <th scope="col">Name</th>
                       <th scope="col">Config key</th>
                       <th scope="col">Endpoint URL</th>
-                      <th scope="col">Java services</th>
                     </tr>
                   </thead>
                   <tbody id="serviceFunctionsTableBody">
                     <tr class="empty">
-                      <td colspan="4">Loading endpoints…</td>
+                      <td colspan="2">Loading endpoints…</td>
                     </tr>
                   </tbody>
                 </table>
