@@ -93,6 +93,7 @@ const liveSessionsContainer = document.getElementById("liveSessions");
 const sessionHistoryContainer = document.getElementById("sessionHistory");
 const monitoringApiBaseInput = document.getElementById("monitoringApiBase");
 const monitoringApiBaseMeta = document.querySelector("meta[name='operations-api-base']");
+const adminApiBaseMeta = document.querySelector("meta[name='admin-api-base']");
 const notificationApiBaseInput = document.getElementById("notificationApiBase");
 const notificationChannelSelect = document.getElementById("notificationChannel");
 const notificationChatIdInput = document.getElementById("notificationChatId");
@@ -120,6 +121,11 @@ function isPlaceholderBase(value) {
 
 function getConfiguredPublicBaseFromMeta() {
   const metaValue = normalizeApiBase(monitoringApiBaseMeta?.content);
+  return metaValue && metaValue !== PUBLIC_BASE_URL_PLACEHOLDER ? metaValue : "";
+}
+
+function getConfiguredAdminBaseFromMeta() {
+  const metaValue = normalizeApiBase(adminApiBaseMeta?.content);
   return metaValue && metaValue !== PUBLIC_BASE_URL_PLACEHOLDER ? metaValue : "";
 }
 
@@ -1039,6 +1045,10 @@ function getConfiguredMonitoringApiBase() {
   );
 }
 
+function getConfiguredAdminApiBase() {
+  return getConfiguredAdminBaseFromMeta() || getConfiguredMonitoringApiBase();
+}
+
 function persistMonitoringApiBase(value) {
   applyConfiguredApiBase(value);
 }
@@ -1096,7 +1106,7 @@ function buildNotificationEndpoint(path) {
 }
 
 function buildAdminEndpoint(path) {
-  const base = getConfiguredMonitoringApiBase();
+  const base = getConfiguredAdminApiBase();
   const fallbackBase = typeof window !== "undefined" ? window.location.origin : "";
   const candidateBase = !isPlaceholderBase(base) ? base : "";
 
