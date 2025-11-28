@@ -93,6 +93,7 @@ const liveSessionsContainer = document.getElementById("liveSessions");
 const sessionHistoryContainer = document.getElementById("sessionHistory");
 const monitoringApiBaseInput = document.getElementById("monitoringApiBase");
 const monitoringApiBaseMeta = document.querySelector("meta[name='operations-api-base']");
+const adminApiBaseMeta = document.querySelector("meta[name='admin-api-base']");
 const notificationApiBaseInput = document.getElementById("notificationApiBase");
 const notificationChannelSelect = document.getElementById("notificationChannel");
 const notificationChatIdInput = document.getElementById("notificationChatId");
@@ -120,6 +121,11 @@ function isPlaceholderBase(value) {
 
 function getConfiguredPublicBaseFromMeta() {
   const metaValue = normalizeApiBase(monitoringApiBaseMeta?.content);
+  return metaValue && metaValue !== PUBLIC_BASE_URL_PLACEHOLDER ? metaValue : "";
+}
+
+function getConfiguredAdminBaseFromMeta() {
+  const metaValue = normalizeApiBase(adminApiBaseMeta?.content);
   return metaValue && metaValue !== PUBLIC_BASE_URL_PLACEHOLDER ? metaValue : "";
 }
 
@@ -885,7 +891,7 @@ async function loadServiceFunctions() {
   if (!serviceFunctionsTableBody || !serviceFunctionsStatus) {
     return;
   }
-  const endpoint = buildAdminEndpoint("/admin/service-functions");
+  const endpoint = buildAdminEndpoint("/admin/application-config");
   if (!endpoint) {
     serviceFunctionsStatus.textContent = "Set the monitoring API base URL so the Java server can be reached.";
     serviceFunctionsStatus.className = "hint error-state";
@@ -899,22 +905,64 @@ async function loadServiceFunctions() {
   serviceFunctionsTableBody.innerHTML = "";
 
   try {
-const response = await fetch(endpoint, { cache: "no-cache" });
+    const response = await fetch(endpoint, { cache: "no-cache" });
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}`);
     }
     const payload = await response.json();
-    const endpoints = Array.isArray(payload?.endpoints) ? payload.endpoints : [];
+    const entries = Array.isArray(payload?.entries) ? payload.entries : [];
+    const endpoints = entries.filter((entry) => {
+      const key = (entry?.key || "").toString().toLowerCase();
+      const isApimanEntry = key.startsWith("apiman.");
+      const isEndpoint = key.endsWith(".url");
+      return isApimanEntry && isEndpoint;
+    });
     renderServiceFunctionTable(endpoints);
+    const sourceFile = payload?.fileName || "configuration file";
     serviceFunctionsStatus.textContent = endpoints.length
-      ? ""
-      : "No endpoints are configured in CONFIGURATIONS/application*.yml.";
+      ? `Found ${endpoints.length} APIMAN endpoints in ${sourceFile}.`
+      : `No APIMAN endpoint URLs were found in ${sourceFile}.`;
+    serviceFunctionsStatus.className = "hint";
   } catch (error) {
     console.error("Unable to load service function list", error);
     renderServiceFunctionTable([]);
     serviceFunctionsStatus.textContent = `Unable to load endpoints: ${error.message}`;
-     serviceFunctionsStatus.className = "hint error-state";
+    serviceFunctionsStatus.className = "hint error-state";
   }
+}
+
+function extractApiPath(value) {
+  if (!value) {
+    return "";
+  }
+
+  const stringValue = value.toString().trim();
+  if (!stringValue) {
+    return "";
+  }
+
+  const placeholderBases = ["${apiman.base-url}", "${endpoints.apiman-base-url}", "${endpoints.rest-server-base-url}"];
+  for (const base of placeholderBases) {
+    if (stringValue.startsWith(base)) {
+      const remainder = stringValue.slice(base.length);
+      return remainder || "/";
+    }
+  }
+
+  try {
+    const parsed = new URL(stringValue);
+    const path = `${parsed.pathname}${parsed.search}`;
+    return path || "/";
+  } catch (_error) {
+    // Fall through to heuristic parsing for non-URL strings.
+  }
+
+  const withoutProtocol = stringValue.replace(/^https?:\/\/[^/]+/i, "");
+  if (withoutProtocol !== stringValue) {
+    return withoutProtocol || "/";
+  }
+
+  return stringValue;
 }
 
 function renderServiceFunctionTable(endpoints) {
@@ -923,7 +971,7 @@ function renderServiceFunctionTable(endpoints) {
     const row = document.createElement("tr");
     row.className = "empty";
     const cell = document.createElement("td");
-    cell.colSpan = 4;
+    cell.colSpan = 2;
     cell.textContent = "No endpoints available.";
     row.append(cell);
     serviceFunctionsTableBody.append(row);
@@ -933,48 +981,14 @@ function renderServiceFunctionTable(endpoints) {
   endpoints.forEach((endpoint) => {
     const row = document.createElement("tr");
 
-    const nameCell = document.createElement("td");
-    nameCell.textContent = endpoint.name || endpoint.key || "Endpoint";
-    row.append(nameCell);
-
     const keyCell = document.createElement("td");
     keyCell.textContent = endpoint.key || "–";
     row.append(keyCell);
 
     const urlCell = document.createElement("td");
-    if (endpoint.url) {
-      const link = document.createElement("a");
-      link.href = endpoint.url;
-      link.textContent = endpoint.url;
-      link.target = "_blank";
-      link.rel = "noreferrer";
-      urlCell.append(link);
-    } else {
-      const badge = document.createElement("span");
-      badge.className = "tag tag--warning";
-      badge.textContent = endpoint.configured === false
-        ? "Not configured"
-        : "Missing URL";
-      urlCell.append(badge);
-    }
+    const value = extractApiPath(endpoint.value);
+    urlCell.textContent = value || "Not configured";
     row.append(urlCell);
-
-    const servicesCell = document.createElement("td");
-    const services = Array.isArray(endpoint.services) ? endpoint.services : [];
-    if (services.length) {
-      const list = document.createElement("div");
-      list.className = "tag-list";
-      services.forEach((svc) => {
-        const chip = document.createElement("span");
-        chip.className = "tag";
-        chip.textContent = svc;
-        list.append(chip);
-      });
-      servicesCell.append(list);
-    } else {
-      servicesCell.textContent = "—";
-    }
-    row.append(servicesCell);
 
     serviceFunctionsTableBody.append(row);
   });
@@ -1039,6 +1053,10 @@ function getConfiguredMonitoringApiBase() {
   );
 }
 
+function getConfiguredAdminApiBase() {
+  return getConfiguredAdminBaseFromMeta() || getConfiguredMonitoringApiBase();
+}
+
 function persistMonitoringApiBase(value) {
   applyConfiguredApiBase(value);
 }
@@ -1096,7 +1114,7 @@ function buildNotificationEndpoint(path) {
 }
 
 function buildAdminEndpoint(path) {
-  const base = getConfiguredMonitoringApiBase();
+  const base = getConfiguredAdminApiBase();
   const fallbackBase = typeof window !== "undefined" ? window.location.origin : "";
   const candidateBase = !isPlaceholderBase(base) ? base : "";
 
