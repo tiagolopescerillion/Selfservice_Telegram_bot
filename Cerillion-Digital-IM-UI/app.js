@@ -913,13 +913,15 @@ async function loadServiceFunctions() {
     const entries = Array.isArray(payload?.entries) ? payload.entries : [];
     const endpoints = entries.filter((entry) => {
       const key = (entry?.key || "").toString().toLowerCase();
-      return key.includes("url");
+      const isApimanEntry = key.startsWith("apiman.");
+      const isEndpoint = key.endsWith(".url");
+      return isApimanEntry && isEndpoint;
     });
     renderServiceFunctionTable(endpoints);
     const sourceFile = payload?.fileName || "configuration file";
     serviceFunctionsStatus.textContent = endpoints.length
-      ? `Found ${endpoints.length} endpoint values in ${sourceFile}.`
-      : `No endpoint URLs were found in ${sourceFile}.`;
+      ? `Found ${endpoints.length} APIMAN endpoints in ${sourceFile}.`
+      : `No APIMAN endpoint URLs were found in ${sourceFile}.`;
     serviceFunctionsStatus.className = "hint";
   } catch (error) {
     console.error("Unable to load service function list", error);
@@ -927,6 +929,40 @@ async function loadServiceFunctions() {
     serviceFunctionsStatus.textContent = `Unable to load endpoints: ${error.message}`;
     serviceFunctionsStatus.className = "hint error-state";
   }
+}
+
+function extractApiPath(value) {
+  if (!value) {
+    return "";
+  }
+
+  const stringValue = value.toString().trim();
+  if (!stringValue) {
+    return "";
+  }
+
+  const placeholderBases = ["${apiman.base-url}", "${endpoints.apiman-base-url}", "${endpoints.rest-server-base-url}"];
+  for (const base of placeholderBases) {
+    if (stringValue.startsWith(base)) {
+      const remainder = stringValue.slice(base.length);
+      return remainder || "/";
+    }
+  }
+
+  try {
+    const parsed = new URL(stringValue);
+    const path = `${parsed.pathname}${parsed.search}`;
+    return path || "/";
+  } catch (_error) {
+    // Fall through to heuristic parsing for non-URL strings.
+  }
+
+  const withoutProtocol = stringValue.replace(/^https?:\/\/[^/]+/i, "");
+  if (withoutProtocol !== stringValue) {
+    return withoutProtocol || "/";
+  }
+
+  return stringValue;
 }
 
 function renderServiceFunctionTable(endpoints) {
@@ -950,25 +986,8 @@ function renderServiceFunctionTable(endpoints) {
     row.append(keyCell);
 
     const urlCell = document.createElement("td");
-    const value = (endpoint.value || "").toString();
-    const isLikelyUrl = /^https?:\/\//i.test(value);
-    if (value) {
-      const link = document.createElement("a");
-      link.href = value;
-      link.textContent = value;
-      link.target = "_blank";
-      link.rel = "noreferrer";
-      if (isLikelyUrl) {
-        urlCell.append(link);
-      } else {
-        urlCell.textContent = value;
-      }
-    } else {
-      const badge = document.createElement("span");
-      badge.className = "tag tag--warning";
-      badge.textContent = "Not configured";
-      urlCell.append(badge);
-    }
+    const value = extractApiPath(endpoint.value);
+    urlCell.textContent = value || "Not configured";
     row.append(urlCell);
 
     serviceFunctionsTableBody.append(row);
