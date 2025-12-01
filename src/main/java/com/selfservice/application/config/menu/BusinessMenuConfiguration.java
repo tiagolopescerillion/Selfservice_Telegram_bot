@@ -11,6 +11,7 @@ public class BusinessMenuConfiguration {
     private String generatedAt;
     private List<BusinessMenuDefinition> menus;
     private List<BusinessMenuItem> menu;
+    private LoginMenuDefinition loginMenu;
 
     public int getVersion() {
         return version;
@@ -44,6 +45,14 @@ public class BusinessMenuConfiguration {
         this.menu = menu;
     }
 
+    public LoginMenuDefinition getLoginMenu() {
+        return loginMenu;
+    }
+
+    public void setLoginMenu(LoginMenuDefinition loginMenu) {
+        this.loginMenu = loginMenu;
+    }
+
     public List<BusinessMenuDefinition> normalizedMenus() {
         if (menus != null && !menus.isEmpty()) {
             return menus;
@@ -58,5 +67,9 @@ public class BusinessMenuConfiguration {
                 .sorted(Comparator.comparingInt(BusinessMenuItem::order))
                 .toList());
         return List.of(root);
+    }
+
+    public LoginMenuDefinition normalizedLoginMenu() {
+        return loginMenu == null ? new LoginMenuDefinition() : loginMenu;
     }
 }

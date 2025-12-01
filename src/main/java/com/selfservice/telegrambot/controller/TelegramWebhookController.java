@@ -9,6 +9,8 @@ import com.selfservice.application.dto.TroubleTicketListResult;
 import com.selfservice.application.service.ProductService;
 import com.selfservice.application.service.TroubleTicketService;
 import com.selfservice.application.service.OperationsMonitoringService;
+import com.selfservice.application.config.menu.LoginMenuFunction;
+import com.selfservice.application.config.menu.LoginMenuItem;
 import com.selfservice.telegrambot.service.TelegramService;
 import com.selfservice.telegrambot.service.UserSessionService;
 import org.slf4j.Logger;
@@ -134,6 +136,24 @@ public class TelegramWebhookController {
                     monitoringService.toTokenDetails(tokenSnapshot), optedIn);
             String loginReminder = telegramService.format(chatId, "LoginReminder",
                     telegramService.translate(chatId, TelegramService.KEY_BUTTON_SELF_SERVICE_LOGIN));
+
+            LoginMenuItem loginMenuItem = telegramService.findLoginMenuItemByCallback(text);
+            if (loginMenuItem != null) {
+                LoginMenuFunction function = loginMenuItem.resolvedFunction();
+                if (function == LoginMenuFunction.DIGITAL_LOGIN) {
+                    text = TelegramService.CALLBACK_SELF_SERVICE_LOGIN;
+                } else if (function == LoginMenuFunction.CRM_LOGIN) {
+                    text = TelegramService.CALLBACK_DIRECT_LOGIN;
+                } else if (function == LoginMenuFunction.OPT_IN) {
+                    text = TelegramService.CALLBACK_OPT_IN_PROMPT;
+                } else if (function == LoginMenuFunction.CHANGE_LANGUAGE) {
+                    text = TelegramService.CALLBACK_LANGUAGE_MENU;
+                } else if (function == LoginMenuFunction.SETTINGS) {
+                    text = TelegramService.CALLBACK_SETTINGS_MENU;
+                } else if (function == LoginMenuFunction.MENU) {
+                    text = TelegramService.CALLBACK_MENU;
+                }
+            }
 
             if (text.equalsIgnoreCase("unsubscribe")) {
                 userSessionService.setOptIn(chatId, false);

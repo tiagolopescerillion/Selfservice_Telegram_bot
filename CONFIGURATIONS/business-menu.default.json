@@ -1,6 +1,54 @@
 {
   "version": 1,
   "generatedAt": "2024-01-01T00:00:00.000Z",
+  "loginMenu": {
+    "menu": [
+      {
+        "order": 1,
+        "label": "Self-service login",
+        "function": "DIGITAL_LOGIN",
+        "callbackData": "SELF_SERVICE_LOGIN",
+        "translationKey": "ButtonSelfServiceLogin"
+      },
+      {
+        "order": 2,
+        "label": "Direct login",
+        "function": "CRM_LOGIN",
+        "callbackData": "DIRECT_LOGIN",
+        "translationKey": "ButtonDirectLogin"
+      },
+      {
+        "order": 3,
+        "label": "Settings",
+        "function": "SETTINGS",
+        "callbackData": "SETTINGS_MENU",
+        "translationKey": "ButtonSettings"
+      }
+    ],
+    "settingsMenu": [
+      {
+        "order": 1,
+        "label": "Consent management",
+        "function": "OPT_IN",
+        "callbackData": "OPT_IN",
+        "translationKey": "ButtonOptIn"
+      },
+      {
+        "order": 2,
+        "label": "Language settings",
+        "function": "CHANGE_LANGUAGE",
+        "callbackData": "CHANGE_LANGUAGE",
+        "translationKey": "ButtonChangeLanguage"
+      },
+      {
+        "order": 3,
+        "label": "Back to menu",
+        "function": "MENU",
+        "callbackData": "MENU",
+        "translationKey": "ButtonMenu"
+      }
+    ]
+  },
   "menus": [
     {
       "id": "home",

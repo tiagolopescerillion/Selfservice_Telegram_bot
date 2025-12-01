@@ -25,24 +25,32 @@ public class BusinessMenuConfigurationProvider {
     private static final String PACKAGED_DEFAULT = "classpath:config/business-menu.default.json";
 
     private final Map<String, BusinessMenuDefinition> menusById;
+    private final LoginMenuDefinition loginMenuDefinition;
 
     public BusinessMenuConfigurationProvider(
             ObjectMapper objectMapper,
             ResourceLoader resourceLoader) {
 
         String effectiveSource = OVERRIDE_FILE.toString();
-        List<BusinessMenuDefinition> loadedMenus = tryLoadMenus(toFileResource(OVERRIDE_FILE), objectMapper, resourceLoader);
+        BusinessMenuConfiguration configuration = tryLoadConfiguration(
+                toFileResource(OVERRIDE_FILE), objectMapper, resourceLoader);
+        List<BusinessMenuDefinition> loadedMenus = configuration.normalizedMenus();
+        LoginMenuDefinition loadedLoginMenu = configuration.normalizedLoginMenu();
 
         if (loadedMenus.isEmpty()) {
             effectiveSource = DEFAULT_FILE.toString();
             log.info("Business menu override not found, falling back to {}", effectiveSource);
-            loadedMenus = tryLoadMenus(toFileResource(DEFAULT_FILE), objectMapper, resourceLoader);
+            configuration = tryLoadConfiguration(toFileResource(DEFAULT_FILE), objectMapper, resourceLoader);
+            loadedMenus = configuration.normalizedMenus();
+            loadedLoginMenu = configuration.normalizedLoginMenu();
         }
 
         if (loadedMenus.isEmpty()) {
             effectiveSource = PACKAGED_DEFAULT;
             log.warn("Business menu default file missing, loading packaged fallback {}", PACKAGED_DEFAULT);
-            loadedMenus = tryLoadMenus(PACKAGED_DEFAULT, objectMapper, resourceLoader);
+            configuration = tryLoadConfiguration(PACKAGED_DEFAULT, objectMapper, resourceLoader);
+            loadedMenus = configuration.normalizedMenus();
+            loadedLoginMenu = configuration.normalizedLoginMenu();
         }
 
         if (loadedMenus.isEmpty()) {
@@ -71,6 +79,7 @@ public class BusinessMenuConfigurationProvider {
         }
 
         this.menusById = Collections.unmodifiableMap(mapped);
+        this.loginMenuDefinition = loadedLoginMenu == null ? new LoginMenuDefinition() : loadedLoginMenu;
         log.info("Business menu configuration loaded from {} with {} menus", effectiveSource, menusById.size());
     }
 
@@ -90,27 +99,48 @@ public class BusinessMenuConfigurationProvider {
         return definition.sortedItems();
     }
 
-    private List<BusinessMenuDefinition> tryLoadMenus(
+    public LoginMenuDefinition getLoginMenuDefinition() {
+        return loginMenuDefinition;
+    }
+
+    public List<LoginMenuItem> getLoginMenuItems() {
+        return loginMenuDefinition.normalizedMenu();
+    }
+
+    public List<LoginMenuItem> getLoginSettingsMenuItems() {
+        return loginMenuDefinition.normalizedSettingsMenu();
+    }
+
+    public LoginMenuItem findLoginMenuItemByCallback(String callbackData) {
+        if (callbackData == null || callbackData.isBlank()) {
+            return null;
+        }
+        return loginMenuDefinition.allItems()
+                .filter(item -> callbackData.equalsIgnoreCase(item.getCallbackData()))
+                .findFirst()
+                .orElse(null);
+    }
+
+    private BusinessMenuConfiguration tryLoadConfiguration(
             String configPath,
             ObjectMapper objectMapper,
             ResourceLoader resourceLoader) {
         Resource resource = resourceLoader.getResource(configPath);
         if (!resource.exists()) {
             log.warn("Business menu configuration not found at {}", configPath);
-            return List.of();
+            return new BusinessMenuConfiguration();
         }
 
         try (InputStream inputStream = resource.getInputStream()) {
             BusinessMenuConfiguration configuration = objectMapper.readValue(inputStream, BusinessMenuConfiguration.class);
-            List<BusinessMenuDefinition> menus = configuration.normalizedMenus();
-            if (menus.isEmpty()) {
+            if (configuration.normalizedMenus().isEmpty()) {
                 log.warn("Business menu configuration at {} contains no menu entries", configPath);
             }
-            return menus;
+            return configuration;
         } catch (IOException e) {
             log.error("Failed to load business menu configuration from {}: {}", configPath, e.getMessage());
             log.debug("Failed to load business menu configuration", e);
-            return List.of();
+            return new BusinessMenuConfiguration();
         }
     }
 

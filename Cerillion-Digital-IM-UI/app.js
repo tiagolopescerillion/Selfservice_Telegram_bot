@@ -53,6 +53,58 @@ const DEFAULT_STRUCTURE = [
   }
 ];
 
+const LOGIN_FUNCTION_OPTIONS = {
+  DIGITAL_LOGIN: {
+    function: "DIGITAL_LOGIN",
+    label: "Self-service login",
+    translationKey: "ButtonSelfServiceLogin",
+    callbackData: "SELF_SERVICE_LOGIN"
+  },
+  CRM_LOGIN: {
+    function: "CRM_LOGIN",
+    label: "Direct login",
+    translationKey: "ButtonDirectLogin",
+    callbackData: "DIRECT_LOGIN"
+  },
+  SETTINGS: {
+    function: "SETTINGS",
+    label: "Settings",
+    translationKey: "ButtonSettings",
+    callbackData: "SETTINGS_MENU"
+  },
+  OPT_IN: {
+    function: "OPT_IN",
+    label: "Consent management",
+    translationKey: "ButtonOptIn",
+    callbackData: "OPT_IN"
+  },
+  CHANGE_LANGUAGE: {
+    function: "CHANGE_LANGUAGE",
+    label: "Language settings",
+    translationKey: "ButtonChangeLanguage",
+    callbackData: "CHANGE_LANGUAGE"
+  },
+  MENU: {
+    function: "MENU",
+    label: "Back to menu",
+    translationKey: "ButtonMenu",
+    callbackData: "MENU"
+  }
+};
+
+const DEFAULT_LOGIN_MENU_STATE = {
+  menu: [
+    { ...LOGIN_FUNCTION_OPTIONS.DIGITAL_LOGIN, enabled: true },
+    { ...LOGIN_FUNCTION_OPTIONS.CRM_LOGIN, enabled: true },
+    { ...LOGIN_FUNCTION_OPTIONS.SETTINGS, enabled: true }
+  ],
+  settingsMenu: [
+    { ...LOGIN_FUNCTION_OPTIONS.OPT_IN, enabled: true },
+    { ...LOGIN_FUNCTION_OPTIONS.CHANGE_LANGUAGE, enabled: true },
+    { ...LOGIN_FUNCTION_OPTIONS.MENU, enabled: true }
+  ]
+};
+
 const functionDictionary = FUNCTION_OPTIONS.reduce((acc, option) => {
   acc[option.id] = option;
   return acc;
@@ -76,6 +128,8 @@ const inlineCreateSubmenu = document.getElementById("inlineCreateSubmenu");
 const resetButton = document.getElementById("resetButton");
 const downloadButton = document.getElementById("downloadButton");
 const preview = document.getElementById("preview");
+const loginMenuList = document.getElementById("loginMenuList");
+const loginSettingsList = document.getElementById("loginSettingsList");
 const importInput = document.getElementById("importInput");
 const navMenuConfig = document.getElementById("navMenuConfig");
 const navOperationsMonitoring = document.getElementById("navOperationsMonitoring");
@@ -159,6 +213,7 @@ let menuOrder = [];
 let selectedMenuId = ROOT_MENU_ID;
 let menuIdCounter = 0;
 let itemIdCounter = 0;
+let loginMenuState = structuredClone(DEFAULT_LOGIN_MENU_STATE);
 let liveSessions = [];
 let sessionHistory = [];
 let monitoringError = null;
@@ -216,10 +271,11 @@ function ensureRootMenu() {
 }
 
 function resetToDefault() {
-  loadState(structuredClone(DEFAULT_STRUCTURE));
+  loadState({ menus: structuredClone(DEFAULT_STRUCTURE), loginMenu: structuredClone(DEFAULT_LOGIN_MENU_STATE) });
 }
 
-function loadState(menus) {
+function loadState(state) {
+  const menus = Array.isArray(state?.menus) ? state.menus : structuredClone(DEFAULT_STRUCTURE);
   menusById = new Map();
   menuOrder = [];
   itemIdCounter = 0;
@@ -249,10 +305,67 @@ function loadState(menus) {
 
   ensureRootMenu();
   selectedMenuId = menusById.has(selectedMenuId) ? selectedMenuId : ROOT_MENU_ID;
+
+  loadLoginConfig(state?.loginMenu);
   renderAll();
 }
 
+function normalizeLoginList(rawList, defaults) {
+  const available = new Map(Object.entries(LOGIN_FUNCTION_OPTIONS));
+  const normalized = [];
+  const seen = new Set();
+  const items = Array.isArray(rawList) ? rawList : [];
+
+  items.forEach((item) => {
+    const base = available.get(item.function) || available.get((item.function || "").toUpperCase());
+    if (!base) return;
+    seen.add(base.function);
+    normalized.push({
+      ...base,
+      label: item.label?.trim() || base.label,
+      translationKey: item.translationKey || base.translationKey,
+      callbackData: item.callbackData || base.callbackData,
+      enabled: true
+    });
+  });
+
+  defaults.forEach((item) => {
+    if (seen.has(item.function)) return;
+    normalized.push({ ...item, enabled: false });
+  });
+
+  return normalized;
+}
+
+function loadLoginConfig(rawLoginMenu) {
+  const loginMenu = rawLoginMenu || {};
+  loginMenuState = {
+    menu: normalizeLoginList(loginMenu.menu, DEFAULT_LOGIN_MENU_STATE.menu),
+    settingsMenu: normalizeLoginList(loginMenu.settingsMenu, DEFAULT_LOGIN_MENU_STATE.settingsMenu)
+  };
+}
+
+function buildLoginConfig() {
+  const buildSection = (items) =>
+    items
+      .filter((item) => item.enabled)
+      .map((item, index) => ({
+        order: index + 1,
+        label: item.label,
+        function: item.function,
+        callbackData: item.callbackData,
+        translationKey: item.translationKey
+      }));
+
+  return {
+    menu: buildSection(loginMenuState.menu),
+    settingsMenu: buildSection(loginMenuState.settingsMenu)
+  };
+}
+
 function normalizeIncomingConfig(raw) {
+  const loginMenu = raw?.loginMenu;
+
   if (raw && Array.isArray(raw.menus) && raw.menus.length) {
     const seen = new Set();
     const baseMenus = raw.menus.map((menu, index) => {
@@ -306,35 +419,139 @@ function normalizeIncomingConfig(raw) {
         });
       });
     });
-    return Array.from(menuMap.values());
+    return { menus: Array.from(menuMap.values()), loginMenu };
   }
 
   if (raw && Array.isArray(raw.menu) && raw.menu.length) {
-    return [
-      {
-        id: ROOT_MENU_ID,
-        name: "Home",
-        parentId: null,
-        items: raw.menu
-          .filter((item) => functionDictionary[item.function])
-          .map((item) => ({
-            label: item.label ?? functionDictionary[item.function].label,
-            type: "function",
-            function: item.function,
-            useTranslation: Boolean(item.translationKey)
-          }))
-      }
-    ];
+    return {
+      menus: [
+        {
+          id: ROOT_MENU_ID,
+          name: "Home",
+          parentId: null,
+          items: raw.menu
+            .filter((item) => functionDictionary[item.function])
+            .map((item) => ({
+              label: item.label ?? functionDictionary[item.function].label,
+              type: "function",
+              function: item.function,
+              useTranslation: Boolean(item.translationKey)
+            }))
+        }
+      ],
+      loginMenu
+    };
   }
 
-  return structuredClone(DEFAULT_STRUCTURE);
+  return { menus: structuredClone(DEFAULT_STRUCTURE), loginMenu };
 }
 
 function renderAll() {
   renderMenuSelectors();
   renderMenuItems();
+  renderLoginMenus();
   toggleAddFormFields();
   updatePreview();
+}
+
+function renderLoginMenus() {
+  renderLoginList(loginMenuState.menu, loginMenuList, (updated) => {
+    loginMenuState = { ...loginMenuState, menu: updated };
+    updatePreview();
+  });
+  renderLoginList(loginMenuState.settingsMenu, loginSettingsList, (updated) => {
+    loginMenuState = { ...loginMenuState, settingsMenu: updated };
+    updatePreview();
+  });
+}
+
+function renderLoginList(items, container, onUpdate) {
+  if (!container) return;
+  container.innerHTML = "";
+  items.forEach((item, index) => {
+    const row = document.createElement("div");
+    row.className = "login-row";
+
+    const enabledLabel = document.createElement("label");
+    enabledLabel.className = "checkbox";
+    const enabledInput = document.createElement("input");
+    enabledInput.type = "checkbox";
+    enabledInput.checked = item.enabled;
+    enabledInput.addEventListener("change", () => {
+      const next = [...items];
+      next[index] = { ...item, enabled: enabledInput.checked };
+      onUpdate(next);
+    });
+    const enabledText = document.createElement("span");
+    enabledText.textContent = "Show";
+    enabledLabel.append(enabledInput, enabledText);
+
+    const labelInput = document.createElement("input");
+    labelInput.type = "text";
+    labelInput.value = item.label || "";
+    labelInput.placeholder = LOGIN_FUNCTION_OPTIONS[item.function]?.label || "Label";
+    labelInput.addEventListener("input", () => {
+      const next = [...items];
+      next[index] = { ...item, label: labelInput.value };
+      onUpdate(next);
+    });
+
+    const translationInput = document.createElement("input");
+    translationInput.type = "text";
+    translationInput.value = item.translationKey || "";
+    translationInput.placeholder = "Translation key";
+    translationInput.addEventListener("input", () => {
+      const next = [...items];
+      next[index] = { ...item, translationKey: translationInput.value };
+      onUpdate(next);
+    });
+
+    const callbackInput = document.createElement("input");
+    callbackInput.type = "text";
+    callbackInput.value = item.callbackData || "";
+    callbackInput.placeholder = "Callback data";
+    callbackInput.addEventListener("input", () => {
+      const next = [...items];
+      next[index] = { ...item, callbackData: callbackInput.value };
+      onUpdate(next);
+    });
+
+    const controls = document.createElement("div");
+    controls.className = "login-row__controls";
+    const up = document.createElement("button");
+    up.type = "button";
+    up.textContent = "▲";
+    up.disabled = index === 0;
+    up.addEventListener("click", () => {
+      if (index === 0) return;
+      const next = [...items];
+      [next[index - 1], next[index]] = [next[index], next[index - 1]];
+      onUpdate(next);
+    });
+
+    const down = document.createElement("button");
+    down.type = "button";
+    down.textContent = "▼";
+    down.disabled = index === items.length - 1;
+    down.addEventListener("click", () => {
+      if (index === items.length - 1) return;
+      const next = [...items];
+      [next[index + 1], next[index]] = [next[index], next[index + 1]];
+      onUpdate(next);
+    });
+    controls.append(up, down);
+
+    const meta = document.createElement("div");
+    meta.className = "login-row__meta";
+    meta.textContent = item.function;
+
+    const inputs = document.createElement("div");
+    inputs.className = "login-row__inputs";
+    inputs.append(labelInput, translationInput, callbackInput);
+
+    row.append(enabledLabel, inputs, controls, meta);
+    container.append(row);
+  });
 }
 
 function renderMenuSelectors() {
@@ -679,6 +896,7 @@ function buildConfig() {
   return {
     version: 1,
     generatedAt: timestamp,
+    loginMenu: buildLoginConfig(),
     menus: menuOrder
       .filter((id) => menusById.has(id))
       .map((id) => {

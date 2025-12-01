@@ -6,6 +6,8 @@ import com.selfservice.application.dto.ServiceSummary;
 import com.selfservice.application.dto.TroubleTicketSummary;
 import com.selfservice.application.config.menu.BusinessMenuConfigurationProvider;
 import com.selfservice.application.config.menu.BusinessMenuItem;
+import com.selfservice.application.config.menu.LoginMenuFunction;
+import com.selfservice.application.config.menu.LoginMenuItem;
 import com.selfservice.application.service.TranslationService;
 import com.selfservice.whatsapp.config.WhatsappProperties;
 import org.slf4j.Logger;
@@ -46,14 +48,6 @@ public class WhatsappService {
     public static final String INTERACTIVE_ID_OPT_IN = "OPT_IN";
     public static final String INTERACTIVE_ID_SETTINGS = "SETTINGS";
     public static final String INTERACTIVE_ID_MENU = "MENU";
-
-    public enum LoginMenuOption {
-        DIGITAL_LOGIN,
-        CRM_LOGIN,
-        OPT_IN,
-        CHANGE_LANGUAGE,
-        SETTINGS
-    }
 
     private final RestTemplate restTemplate = new RestTemplate();
     private final String phoneNumberId;
@@ -117,23 +111,51 @@ public class WhatsappService {
         postToWhatsapp(payload);
     }
 
-    public List<LoginMenuOption> loginMenuOptions() {
-        List<LoginMenuOption> options = new ArrayList<>();
-        if (loginMenuProperties.isDigitalLoginEnabled()) {
-            options.add(LoginMenuOption.DIGITAL_LOGIN);
+    public List<LoginMenuItem> loginSettingsMenuOptions() {
+        return menuConfigurationProvider.getLoginSettingsMenuItems();
+    }
+
+    public String resolveLoginMenuLabel(String to, LoginMenuItem item) {
+        String translationKey = item.getTranslationKey();
+        if (translationKey != null
+                && !translationKey.isBlank()
+                && translationService.hasTranslation(language(to), translationKey)) {
+            return translate(to, translationKey);
         }
-        if (loginMenuProperties.isCrmLoginEnabled()) {
-            options.add(LoginMenuOption.CRM_LOGIN);
+        if (item.getLabel() != null && !item.getLabel().isBlank()) {
+            return item.getLabel();
         }
-        options.add(LoginMenuOption.OPT_IN);
-        options.add(LoginMenuOption.CHANGE_LANGUAGE);
-        options.add(LoginMenuOption.SETTINGS);
+        LoginMenuFunction function = item.resolvedFunction();
+        return function == null ? "" : function.name();
+    }
+
+    public String callbackId(LoginMenuItem item) {
+        if (item.getCallbackData() != null && !item.getCallbackData().isBlank()) {
+            return item.getCallbackData();
+        }
+        LoginMenuFunction function = item.resolvedFunction();
+        return function == null ? "" : function.name();
+    }
+
+    public List<LoginMenuItem> loginMenuOptions() {
+        List<LoginMenuItem> configured = menuConfigurationProvider.getLoginMenuItems();
+        List<LoginMenuItem> options = new ArrayList<>();
+        for (LoginMenuItem item : configured) {
+            LoginMenuFunction function = item.resolvedFunction();
+            if (function == LoginMenuFunction.DIGITAL_LOGIN && !loginMenuProperties.isDigitalLoginEnabled()) {
+                continue;
+            }
+            if (function == LoginMenuFunction.CRM_LOGIN && !loginMenuProperties.isCrmLoginEnabled()) {
+                continue;
+            }
+            options.add(item);
+        }
         return options;
     }
 
     public void sendLoginMenu(String to) {
         sessionService.setSelectionContext(to, WhatsappSessionService.SelectionContext.NONE);
-        List<LoginMenuOption> options = loginMenuOptions();
+        List<LoginMenuItem> options = loginMenuOptions();
 
         boolean textSent = false;
         if (whatsappProperties.isBasicUxEnabled() || shouldSendFallbackText()) {
@@ -152,61 +174,29 @@ public class WhatsappService {
         }
     }
 
-    private void sendLoginMenuText(String to, List<LoginMenuOption> options) {
+    private void sendLoginMenuText(String to, List<LoginMenuItem> options) {
         StringBuilder menu = new StringBuilder();
         int index = 1;
-        for (LoginMenuOption option : options) {
-            if (option == LoginMenuOption.DIGITAL_LOGIN) {
-                menu.append(index).append(") ")
-                        .append(translate(to, TelegramKey.BUTTON_SELF_SERVICE_LOGIN.toString()))
-                        .append("\n");
-            } else if (option == LoginMenuOption.CRM_LOGIN) {
-                menu.append(index).append(") ")
-                        .append(translate(to, TelegramKey.BUTTON_DIRECT_LOGIN.toString()))
-                        .append("\n");
-            } else if (option == LoginMenuOption.OPT_IN) {
-                menu.append(index).append(") ")
-                        .append(translate(to, TelegramKey.BUTTON_OPT_IN.toString()))
-                        .append("\n");
-            } else if (option == LoginMenuOption.CHANGE_LANGUAGE) {
-                menu.append(index).append(") ")
-                        .append(translate(to, TelegramKey.BUTTON_CHANGE_LANGUAGE.toString()))
-                        .append("\n");
-            } else {
-                menu.append(index).append(") ")
-                        .append(translate(to, TelegramKey.BUTTON_SETTINGS.toString()))
-                        .append("\n");
-            }
+        for (LoginMenuItem option : options) {
+            menu.append(index)
+                    .append(") ")
+                    .append(resolveLoginMenuLabel(to, option))
+                    .append("\n");
             index++;
         }
         menu.append("\n").append(translate(to, "PleaseChooseSignIn"));
         sendText(to, menu.toString());
     }
 
-    private boolean sendLoginMenuCards(String to, List<LoginMenuOption> options) {
+    private boolean sendLoginMenuCards(String to, List<LoginMenuItem> options) {
         if (!isConfigured()) {
             log.warn("WhatsApp messaging is not fully configured; cannot send login menu cards");
             return false;
         }
 
         List<Map<String, Object>> rows = new ArrayList<>();
-        for (LoginMenuOption option : options) {
-            if (option == LoginMenuOption.DIGITAL_LOGIN) {
-                rows.add(buildListRow(INTERACTIVE_ID_DIGITAL_LOGIN,
-                        translate(to, TelegramKey.BUTTON_SELF_SERVICE_LOGIN.toString())));
-            } else if (option == LoginMenuOption.CRM_LOGIN) {
-                rows.add(buildListRow(INTERACTIVE_ID_CRM_LOGIN,
-                        translate(to, TelegramKey.BUTTON_DIRECT_LOGIN.toString())));
-            } else if (option == LoginMenuOption.OPT_IN) {
-                rows.add(buildListRow(INTERACTIVE_ID_OPT_IN,
-                        translate(to, TelegramKey.BUTTON_OPT_IN.toString())));
-            } else if (option == LoginMenuOption.CHANGE_LANGUAGE) {
-                rows.add(buildListRow(INTERACTIVE_ID_CHANGE_LANGUAGE,
-                        translate(to, TelegramKey.BUTTON_CHANGE_LANGUAGE.toString())));
-            } else {
-                rows.add(buildListRow(INTERACTIVE_ID_SETTINGS,
-                        translate(to, TelegramKey.BUTTON_SETTINGS.toString())));
-            }
+        for (LoginMenuItem option : options) {
+            rows.add(buildListRow(callbackId(option), resolveLoginMenuLabel(to, option)));
         }
 
         return sendInteractiveList(to,
@@ -266,28 +256,31 @@ public class WhatsappService {
 
     public void sendSettingsMenu(String to) {
         sessionService.setSelectionContext(to, WhatsappSessionService.SelectionContext.SETTINGS);
+        List<LoginMenuItem> options = loginSettingsMenuOptions();
         StringBuilder menu = new StringBuilder();
-        menu.append(translate(to, "SettingsMenuPrompt")).append("\n\n")
-                .append("1) ").append(translate(to, TelegramKey.BUTTON_OPT_IN.toString())).append("\n")
-                .append("2) ").append(translate(to, TelegramKey.BUTTON_CHANGE_LANGUAGE.toString())).append("\n")
-                .append("3) ").append(translate(to, KEY_BUTTON_MENU)).append("\n");
+        menu.append(translate(to, "SettingsMenuPrompt")).append("\n\n");
+        int index = 1;
+        for (LoginMenuItem option : options) {
+            menu.append(index)
+                    .append(") ")
+                    .append(resolveLoginMenuLabel(to, option))
+                    .append("\n");
+            index++;
+        }
 
         if (whatsappProperties.isBasicUxEnabled() || shouldSendFallbackText()) {
             sendText(to, menu.toString());
         }
 
         if (whatsappProperties.isInteractiveUxEnabled()) {
+            List<Map<String, Object>> rows = new ArrayList<>();
+            for (LoginMenuItem option : options) {
+                rows.add(buildListRow(callbackId(option), resolveLoginMenuLabel(to, option)));
+            }
             sendInteractiveList(to,
                     translate(to, "SettingsMenuPrompt"),
                     translate(to, "SettingsMenuPrompt"),
-                    List.of(
-                            buildListRow(INTERACTIVE_ID_OPT_IN,
-                                    translate(to, TelegramKey.BUTTON_OPT_IN.toString())),
-                            buildListRow(INTERACTIVE_ID_CHANGE_LANGUAGE,
-                                    translate(to, TelegramKey.BUTTON_CHANGE_LANGUAGE.toString())),
-                            buildListRow(INTERACTIVE_ID_MENU,
-                                    translate(to, KEY_BUTTON_MENU))
-                    ));
+                    rows);
         }
     }
 
