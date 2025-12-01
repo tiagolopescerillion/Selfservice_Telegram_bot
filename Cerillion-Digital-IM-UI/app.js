@@ -131,36 +131,23 @@ const DEFAULT_LOGIN_STRUCTURE = [
   }
 ];
 
-function buildConfigPathCandidates(path) {
-  const paths = [path];
-  const monitoringBase = getConfiguredMonitoringApiBase();
-  if (monitoringBase) {
-    try {
-      paths.unshift(new URL(path, monitoringBase).toString());
-    } catch (error) {
-      console.warn("Unable to build menu config URL from base", monitoringBase, error);
-    }
-  }
-  return paths;
-}
-
 function getConfigFetchPaths() {
+  const monitoringBase = getConfiguredMonitoringApiBase();
+  const apiOverride = monitoringBase ? new URL("/menu-config", monitoringBase).toString() : null;
+  const apiDefault = monitoringBase ? new URL("/menu-config/default", monitoringBase).toString() : null;
+
   return {
     override: [
-      ...buildConfigPathCandidates("/menu-config"),
-      "IM-menus.override.json",
+      apiOverride,
+      "/menu-config",
       "CONFIGURATIONS/IM-menus.override.json",
-      "/CONFIGURATIONS/IM-menus.override.json",
-      "/IM-menus.override.json"
+      "IM-menus.override.json"
     ],
     default: [
-      ...buildConfigPathCandidates("/menu-config/default"),
-      "IM-menus.default.json",
+      apiDefault,
+      "/menu-config/default",
       "CONFIGURATIONS/IM-menus.default.json",
-      "/CONFIGURATIONS/IM-menus.default.json",
-      "/IM-menus.default.json",
-      "config/IM-menus.default.json",
-      "/config/IM-menus.default.json"
+      "IM-menus.default.json"
     ]
   };
 }
@@ -515,16 +502,22 @@ function extractLoginMenus(loginMenu) {
 }
 
 async function fetchConfigFromPaths(paths) {
-  for (const path of paths) {
+  const filteredPaths = (paths || []).filter(Boolean);
+  console.info("Attempting to load IM menu configuration from candidates", filteredPaths);
+
+  for (const path of filteredPaths) {
     try {
       const response = await fetch(path, { cache: "no-cache" });
       if (!response.ok) {
+        console.info(`Skipping configuration path ${path} due to status ${response.status}`);
         continue;
       }
       const text = await response.text();
       if (!text?.trim()) {
+        console.info(`Skipping configuration path ${path} because it returned empty content`);
         continue;
       }
+      console.info("Loaded IM menu configuration from", path);
       return JSON.parse(text);
     } catch (error) {
       console.warn(`Unable to load configuration from ${path}`, error);
