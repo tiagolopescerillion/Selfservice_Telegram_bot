@@ -28,6 +28,7 @@ public class WhatsappService {
 
     public static final String KEY_OPT_IN_YES = "OptInYes";
     public static final String KEY_OPT_IN_NO = "OptInNo";
+    public static final String KEY_BUTTON_MENU = "ButtonMenu";
 
 
     private static final Logger log = LoggerFactory.getLogger(WhatsappService.class);
@@ -44,6 +45,7 @@ public class WhatsappService {
     public static final String INTERACTIVE_ID_CHANGE_LANGUAGE = "CHANGE_LANGUAGE";
     public static final String INTERACTIVE_ID_OPT_IN = "OPT_IN";
     public static final String INTERACTIVE_ID_SETTINGS = "SETTINGS";
+    public static final String INTERACTIVE_ID_MENU = "MENU";
 
     public enum LoginMenuOption {
         DIGITAL_LOGIN,
@@ -225,8 +227,9 @@ public class WhatsappService {
         String prompt = translate(to, "OptInPrompt");
         String yes = translate(to, KEY_OPT_IN_YES);
         String no = translate(to, KEY_OPT_IN_NO);
+        String backToMenu = translate(to, KEY_BUTTON_MENU);
         sessionService.setSelectionContext(to, WhatsappSessionService.SelectionContext.OPT_IN);
-        sendText(to, String.format("%s\n\n1) %s\n2) %s", prompt, yes, no));
+        sendText(to, String.format("%s\n\n1) %s\n2) %s\n3) %s", prompt, yes, no, backToMenu));
     }
 
     public void sendOptInAccepted(String to) {
@@ -266,7 +269,8 @@ public class WhatsappService {
         StringBuilder menu = new StringBuilder();
         menu.append(translate(to, "SettingsMenuPrompt")).append("\n\n")
                 .append("1) ").append(translate(to, TelegramKey.BUTTON_OPT_IN.toString())).append("\n")
-                .append("2) ").append(translate(to, TelegramKey.BUTTON_CHANGE_LANGUAGE.toString())).append("\n");
+                .append("2) ").append(translate(to, TelegramKey.BUTTON_CHANGE_LANGUAGE.toString())).append("\n")
+                .append("3) ").append(translate(to, KEY_BUTTON_MENU)).append("\n");
 
         if (whatsappProperties.isBasicUxEnabled() || shouldSendFallbackText()) {
             sendText(to, menu.toString());
@@ -280,7 +284,9 @@ public class WhatsappService {
                             buildListRow(INTERACTIVE_ID_OPT_IN,
                                     translate(to, TelegramKey.BUTTON_OPT_IN.toString())),
                             buildListRow(INTERACTIVE_ID_CHANGE_LANGUAGE,
-                                    translate(to, TelegramKey.BUTTON_CHANGE_LANGUAGE.toString()))
+                                    translate(to, TelegramKey.BUTTON_CHANGE_LANGUAGE.toString())),
+                            buildListRow(INTERACTIVE_ID_MENU,
+                                    translate(to, KEY_BUTTON_MENU))
                     ));
         }
     }
