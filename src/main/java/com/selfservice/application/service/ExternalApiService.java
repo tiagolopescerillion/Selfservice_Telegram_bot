@@ -3,21 +3,22 @@ package com.selfservice.application.service;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.*;
+import org.springframework.http.HttpMethod;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.HttpStatusCodeException;
-import org.springframework.web.client.RestTemplate;
+
+import java.util.Map;
 
 @Service
 public class ExternalApiService {
 
     private static final Logger log = LoggerFactory.getLogger(ExternalApiService.class);
-    
 
-    private final RestTemplate restTemplate = new RestTemplate();
+    private final CommonApiService commonApiService;
     private final String troubleTicketUrl;
 
-    public ExternalApiService(@Value("${external.api.trouble-ticket.url}") String troubleTicketUrl) {
+    public ExternalApiService(CommonApiService commonApiService,
+            @Value("${external.api.trouble-ticket.url}") String troubleTicketUrl) {
+        this.commonApiService = commonApiService;
         this.troubleTicketUrl = troubleTicketUrl;
     }
 
@@ -25,30 +26,18 @@ public class ExternalApiService {
         if (troubleTicketUrl == null || troubleTicketUrl.isBlank()) {
             return "API ERROR: trouble-ticket endpoint is not configured.";
         }
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
-        headers.set("Accept", "application/json");
-        headers.set("Authorization", "Bearer " + bearerToken);
+        CommonApiService.ApiResponse response = commonApiService.execute(
+                new CommonApiService.ApiRequest(troubleTicketUrl, HttpMethod.GET, bearerToken,
+                        Map.of(), null, null));
 
-        HttpEntity<String> entity = new HttpEntity<>(headers);
-
-        try {
-            ResponseEntity<String> resp = restTemplate.exchange(
-                    troubleTicketUrl,
-                    HttpMethod.GET,
-                    entity,
-                    String.class
-            );
-            log.info("External API status={} body={}", resp.getStatusCode().value(), resp.getBody());
-            return "API OK (" + resp.getStatusCode().value() + "):\n" + resp.getBody();
-        } catch (HttpStatusCodeException ex) {
-            String body = ex.getResponseBodyAsString();
-            log.error("API HTTP {} -> {}", ex.getStatusCode().value(), body);
-            return "API ERROR: status=" + ex.getStatusCode().value() + "\n" +
-                   (body == null ? "<no body>" : body);
-        } catch (Exception ex) {
-            log.error("API call failed", ex);
-            return "API ERROR: " + ex.getClass().getSimpleName() + ": " + ex.getMessage();
+        if (!response.success()) {
+            String body = response.body() == null ? "<no body>" : response.body();
+            log.error("API HTTP {} -> {}", response.statusCode(), body);
+            return "API ERROR: " + (response.statusCode() == 0 ? response.errorMessage()
+                    : ("status=" + response.statusCode())) + "\n" + body;
         }
+
+        log.info("External API status={} body={}", response.statusCode(), response.body());
+        return "API OK (" + response.statusCode() + "):\n" + response.body();
     }
 }

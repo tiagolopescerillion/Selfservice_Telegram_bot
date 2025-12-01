@@ -89,6 +89,7 @@ const imServerAdminPanel = document.getElementById("imServerAdminPanel");
 const serviceFunctionsPanel = document.getElementById("serviceFunctionsPanel");
 const serviceFunctionsTableBody = document.getElementById("serviceFunctionsTableBody");
 const serviceFunctionsStatus = document.getElementById("serviceFunctionsStatus");
+const downloadQueryParamsButton = document.getElementById("downloadQueryParamsButton");
 const liveSessionsContainer = document.getElementById("liveSessions");
 const sessionHistoryContainer = document.getElementById("sessionHistory");
 const monitoringApiBaseInput = document.getElementById("monitoringApiBase");
@@ -169,6 +170,8 @@ let monitoringEndpointCache = "";
 let monitoringConfigLoaded = false;
 let notificationEndpointCache = "";
 let configEndpointCache = "";
+let serviceFunctionEntries = [];
+const serviceFunctionOverrides = new Map();
 
 applyConfiguredApiBase(getConfiguredPublicBaseFromMeta());
 
@@ -887,11 +890,38 @@ function setActiveApp(target) {
   }
 }
 
+function formatQueryParams(params) {
+  if (!params || typeof params !== "object") {
+    return "";
+  }
+  return Object.entries(params)
+    .map(([key, value]) => `${key}=${value ?? ""}`)
+    .join("&");
+}
+
+function parseQueryParamString(input) {
+  const result = {};
+  const trimmed = (input || "").trim();
+  if (!trimmed) {
+    return result;
+  }
+  trimmed.split(/[&;]/).forEach((segment) => {
+    if (!segment) return;
+    const [rawKey, ...rest] = segment.split("=");
+    const key = (rawKey || "").trim();
+    const value = rest.join("=").trim();
+    if (key) {
+      result[key] = value;
+    }
+  });
+  return result;
+}
+
 async function loadServiceFunctions() {
   if (!serviceFunctionsTableBody || !serviceFunctionsStatus) {
     return;
   }
-  const endpoint = buildAdminEndpoint("/admin/application-config");
+  const endpoint = buildAdminEndpoint("/admin/service-functions");
   if (!endpoint) {
     serviceFunctionsStatus.textContent = "Set the monitoring API base URL so the Java server can be reached.";
     serviceFunctionsStatus.className = "hint error-state";
@@ -910,18 +940,19 @@ async function loadServiceFunctions() {
       throw new Error(`HTTP ${response.status}`);
     }
     const payload = await response.json();
-    const entries = Array.isArray(payload?.entries) ? payload.entries : [];
-    const endpoints = entries.filter((entry) => {
-      const key = (entry?.key || "").toString().toLowerCase();
-      const isApimanEntry = key.startsWith("apiman.");
-      const isEndpoint = key.endsWith(".url");
-      return isApimanEntry && isEndpoint;
+    const endpoints = Array.isArray(payload?.endpoints) ? payload.endpoints : [];
+    serviceFunctionEntries = endpoints;
+    serviceFunctionOverrides.clear();
+    serviceFunctionEntries.forEach((endpoint) => {
+      serviceFunctionOverrides.set(
+        endpoint.queryParamKey,
+        formatQueryParams(endpoint.configuredQueryParams) || formatQueryParams(endpoint.defaultQueryParams)
+      );
     });
-    renderServiceFunctionTable(endpoints);
-    const sourceFile = payload?.fileName || "configuration file";
+    renderServiceFunctionTable(serviceFunctionEntries);
     serviceFunctionsStatus.textContent = endpoints.length
-      ? `Found ${endpoints.length} APIMAN endpoints in ${sourceFile}.`
-      : `No APIMAN endpoint URLs were found in ${sourceFile}.`;
+      ? `Found ${endpoints.length} APIMAN endpoints.`
+      : "No APIMAN endpoint URLs were found.";
     serviceFunctionsStatus.className = "hint";
   } catch (error) {
     console.error("Unable to load service function list", error);
@@ -971,7 +1002,7 @@ function renderServiceFunctionTable(endpoints) {
     const row = document.createElement("tr");
     row.className = "empty";
     const cell = document.createElement("td");
-    cell.colSpan = 2;
+    cell.colSpan = 4;
     cell.textContent = "No endpoints available.";
     row.append(cell);
     serviceFunctionsTableBody.append(row);
@@ -987,11 +1018,78 @@ function renderServiceFunctionTable(endpoints) {
 
     const urlCell = document.createElement("td");
     const value = extractApiPath(endpoint.value);
-    urlCell.textContent = value || "Not configured";
+    urlCell.textContent = `${endpoint.method || "GET"} ${value || "Not configured"}`;
     row.append(urlCell);
+
+    const defaultCell = document.createElement("td");
+    const defaultParams = formatQueryParams(endpoint.defaultQueryParams);
+    defaultCell.textContent = defaultParams || "None";
+    row.append(defaultCell);
+
+    const overrideCell = document.createElement("td");
+    const overrideInput = document.createElement("input");
+    overrideInput.type = "text";
+    overrideInput.className = "query-param-input";
+    overrideInput.value = serviceFunctionOverrides.get(endpoint.queryParamKey) || "";
+    overrideInput.placeholder = defaultParams || "key=value";
+    overrideInput.addEventListener("input", (event) => {
+      serviceFunctionOverrides.set(endpoint.queryParamKey, event.target.value);
+    });
+    const hint = document.createElement("div");
+    hint.className = "hint";
+    hint.textContent = "Use key=value&key2=value2";
+    overrideCell.append(overrideInput, hint);
+    row.append(overrideCell);
 
     serviceFunctionsTableBody.append(row);
   });
+}
+
+async function downloadQueryParamConfig() {
+  if (!serviceFunctionEntries.length) {
+    alert("Load service functions before downloading.");
+    return;
+  }
+
+  const endpoint = buildAdminEndpoint("/admin/service-functions/export");
+  if (!endpoint) {
+    serviceFunctionsStatus.textContent = "Set the monitoring API base URL so the Java server can be reached.";
+    serviceFunctionsStatus.className = "hint error-state";
+    return;
+  }
+
+  const updates = {};
+  serviceFunctionEntries.forEach((entry) => {
+    const rawValue = (serviceFunctionOverrides.get(entry.queryParamKey) || "").trim();
+    const fallbackValue = formatQueryParams(entry.configuredQueryParams) || "";
+    updates[entry.queryParamKey] = parseQueryParamString(rawValue || fallbackValue);
+  });
+
+  try {
+    serviceFunctionsStatus.textContent = "Preparing application-local.yml for download...";
+    serviceFunctionsStatus.className = "hint";
+    const response = await fetch(endpoint, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ updates })
+    });
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+    const blob = await response.blob();
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = "application-local.yml";
+    anchor.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    serviceFunctionsStatus.textContent = "application-local.yml downloaded with updated query parameters.";
+    serviceFunctionsStatus.className = "hint";
+  } catch (error) {
+    console.error("Unable to export application-local.yml", error);
+    serviceFunctionsStatus.textContent = `Unable to export application-local.yml: ${error.message}`;
+    serviceFunctionsStatus.className = "hint error-state";
+  }
 }
 
 function getStoredMonitoringApiBase() {
@@ -1536,6 +1634,9 @@ navOperationsMonitoring.addEventListener("click", () => setActiveApp("operations
 navSendMessages.addEventListener("click", () => setActiveApp("notifications"));
 navImServerAdmin.addEventListener("click", () => setActiveApp("admin"));
 navServiceFunctions.addEventListener("click", () => setActiveApp("service-functions"));
+if (downloadQueryParamsButton) {
+  downloadQueryParamsButton.addEventListener("click", downloadQueryParamConfig);
+}
 if (monitoringApiBaseInput) {
   monitoringApiBaseInput.addEventListener("change", handleMonitoringApiBaseChanged);
   monitoringApiBaseInput.addEventListener("blur", handleMonitoringApiBaseChanged);
