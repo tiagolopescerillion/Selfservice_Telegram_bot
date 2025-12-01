@@ -1,5 +1,6 @@
 package com.selfservice.application.service;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.selfservice.application.config.ApimanEndpointsProperties;
@@ -89,24 +90,29 @@ public class MainServiceCatalogService {
             return new ServiceListResult(List.of(), null);
         }
 
-        JsonNode root = objectMapper.readTree(body);
-        if (!root.isArray()) {
-            log.warn("Service response was not an array: {}", body);
+        try {
+            JsonNode root = objectMapper.readTree(body);
+            if (!root.isArray()) {
+                log.warn("Service response was not an array: {}", body);
+                return new ServiceListResult(List.of(), "Unexpected service response format.");
+            }
+
+            List<ServiceSummary> services = new ArrayList<>();
+            for (JsonNode node : root) {
+                String id = safeText(node.get("id"));
+                if (id.isBlank()) {
+                    continue;
+                }
+                String description = safeText(node.get("description"));
+                String accessNumber = extractAccessNumber(node.get("productCharacteristic"));
+                services.add(new ServiceSummary(id, description.strip(), accessNumber.strip()));
+            }
+
+            return new ServiceListResult(services, null);
+        } catch (JsonProcessingException e) {
+            log.warn("Failed to parse service response body", e);
             return new ServiceListResult(List.of(), "Unexpected service response format.");
         }
-
-        List<ServiceSummary> services = new ArrayList<>();
-        for (JsonNode node : root) {
-            String id = safeText(node.get("id"));
-            if (id.isBlank()) {
-                continue;
-            }
-            String description = safeText(node.get("description"));
-            String accessNumber = extractAccessNumber(node.get("productCharacteristic"));
-            services.add(new ServiceSummary(id, description.strip(), accessNumber.strip()));
-        }
-
-        return new ServiceListResult(services, null);
     }
 
     private static String extractAccessNumber(JsonNode characteristicsNode) {
