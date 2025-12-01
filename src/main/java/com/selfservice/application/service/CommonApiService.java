@@ -16,6 +16,10 @@ import org.springframework.web.util.UriComponentsBuilder;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * Centralized REST client wrapper that applies shared headers, bearer auth, and query parameter
+ * handling for outbound calls to APIMAN-managed endpoints.
+ */
 @Service
 public class CommonApiService {
 
@@ -27,6 +31,10 @@ public class CommonApiService {
         this.restTemplate = restTemplate;
     }
 
+    /**
+     * Executes an HTTP request using the shared RestTemplate and returns a normalized response
+     * structure that captures headers, body, and status details.
+     */
     public ApiResponse execute(ApiRequest request) {
         if (request.url() == null || request.url().isBlank()) {
             return new ApiResponse(false, 0, new HttpHeaders(), null,
@@ -74,9 +82,16 @@ public class CommonApiService {
         }
     }
 
+    /**
+     * Immutable DTO describing an outbound API call.
+     */
     public record ApiRequest(String url, HttpMethod method, String bearerToken, Map<String, ?> queryParams,
                              HttpHeaders additionalHeaders, Object body) { }
 
+    /**
+     * Immutable response wrapper that indicates whether the call was successful and exposes basic
+     * HTTP details for consumers.
+     */
     public record ApiResponse(boolean success, int statusCode, HttpHeaders headers, String body, String errorMessage) {
         public boolean isJsonResponse() {
             MediaType contentType = headers == null ? null : headers.getContentType();

@@ -15,6 +15,10 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * Handles trouble-ticket lookups by delegating HTTP calls through the shared API client and
+ * translating results into lightweight summaries for messaging channels.
+ */
 @Service
 public class TroubleTicketService {
 
@@ -39,6 +43,10 @@ public class TroubleTicketService {
         }
     }
 
+    /**
+     * Calls the configured trouble-ticket endpoint and returns a formatted debug string with the
+     * status, headers, and a truncated body preview.
+     */
     public String callTroubleTicket(String accessToken) {
         if (troubleTicketEndpoint == null) {
             return "APIMAN[TroubleTicket] ERROR: endpoint URL is not configured.";
@@ -84,6 +92,10 @@ public class TroubleTicketService {
         return s.length() > max ? s.substring(0, max) + "\n…(truncated)" : s;
     }
 
+    /**
+     * Retrieves ticket summaries for a billing account using the configured query parameters plus
+     * the account-specific identifier.
+     */
     public TroubleTicketListResult getTroubleTicketsByAccountId(String accessToken, String accountId) {
         if (troubleTicketEndpoint == null) {
             return new TroubleTicketListResult(List.of(),
@@ -153,6 +165,9 @@ public class TroubleTicketService {
         return new TroubleTicketListResult(tickets, null);
     }
 
+    /**
+     * Returns the first note text from a ticket if present.
+     */
     private static String firstNoteText(JsonNode ticketNode) {
         JsonNode notes = ticketNode.get("note");
         if (notes == null || !notes.isArray() || notes.isEmpty()) {
@@ -165,6 +180,9 @@ public class TroubleTicketService {
         return safeText(first.get("text"));
     }
 
+    /**
+     * Safely converts a JSON node to text, returning an empty string for null nodes.
+     */
     private static String safeText(JsonNode node) {
         return node == null ? "" : node.asText("");
     }

@@ -8,6 +8,10 @@ import org.springframework.stereotype.Service;
 
 import java.util.Map;
 
+/**
+ * Demonstrates invoking non-APIMAN endpoints through the shared API client for parity with the
+ * internal services.
+ */
 @Service
 public class ExternalApiService {
 
@@ -22,6 +26,10 @@ public class ExternalApiService {
         this.troubleTicketUrl = troubleTicketUrl;
     }
 
+    /**
+     * Performs a simple GET to the external trouble-ticket API and returns formatted feedback for
+     * display to chat clients.
+     */
     public String callTroubleTicketApi(String bearerToken) {
         if (troubleTicketUrl == null || troubleTicketUrl.isBlank()) {
             return "API ERROR: trouble-ticket endpoint is not configured.";

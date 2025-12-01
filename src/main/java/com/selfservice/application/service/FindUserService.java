@@ -15,13 +15,15 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * Looks up customer billing accounts through the configured find-user endpoint and extracts a
+ * preferred display name. Query parameters are driven by configuration so API defaults stay in
+ * YAML instead of code.
+ */
 @Service
 public class FindUserService {
 
     private static final Logger log = LoggerFactory.getLogger(FindUserService.class);
-
-    private static final int DEFAULT_OFFSET = 0;
-    private static final int DEFAULT_LIMIT = 1;
 
     private final CommonApiService commonApiService;
     private final ApimanEndpointsProperties apimanEndpoints;
@@ -42,14 +44,19 @@ public class FindUserService {
         }
     }
 
+    /**
+     * Calls the find-user API to retrieve billing account identifiers tied to the authenticated
+     * user.
+     *
+     * @param accessToken bearer token forwarded to the downstream API
+     * @return accounts found plus any descriptive status or error message
+     */
     public FindUserResult fetchAccountNumbers(String accessToken) {
         if (findUserEndpoint == null || findUserEndpoint.isBlank()) {
             return new FindUserResult(false, "APIMAN[FindUser] ERROR: endpoint URL is not configured.", List.of(), null);
         }
 
         Map<String, String> queryParams = new LinkedHashMap<>(configuredQueryParams);
-        queryParams.putIfAbsent("offset", String.valueOf(DEFAULT_OFFSET));
-        queryParams.putIfAbsent("limit", String.valueOf(DEFAULT_LIMIT));
 
         CommonApiService.ApiResponse response = commonApiService.execute(
                 new CommonApiService.ApiRequest(findUserEndpoint, apimanEndpoints.getFindUserMethod(), accessToken,
@@ -91,6 +98,9 @@ public class FindUserService {
         }
     }
 
+    /**
+     * Parses the find-user response body and extracts accounts and a preferred display name.
+     */
     private ParsedResponse extractAccountsAndName(String body) throws Exception {
         if (body == null || body.isBlank()) {
             return new ParsedResponse(List.of(), null);
@@ -113,6 +123,9 @@ public class FindUserService {
         return new ParsedResponse(List.copyOf(accounts.values()), preferredName);
     }
 
+    /**
+     * Collects billing accounts from a relatedParty array on a single individual node.
+     */
     private void collectFromIndividual(JsonNode individual, Map<String, AccountSummary> accounts) {
         if (individual == null) {
             return;
@@ -138,6 +151,9 @@ public class FindUserService {
         }
     }
 
+    /**
+     * Chooses a preferred name from givenName or fullName fields if not already selected.
+     */
     private String pickPreferredName(String current, JsonNode individual) {
         if (current != null && !current.isBlank()) {
             return current;
@@ -156,6 +172,9 @@ public class FindUserService {
         return current;
     }
 
+    /**
+     * Truncates long output when logging or surfacing errors to keep messages readable.
+     */
     private static String truncate(String input, int max) {
         if (input == null) {
             return "<null>";

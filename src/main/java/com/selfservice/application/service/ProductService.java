@@ -14,18 +14,15 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * Queries the product catalog endpoint through the common API client and maps responses into
+ * simplified service summaries for messaging channels. All default query parameters are sourced
+ * from configuration; this class only adds the billing account identifier required per request.
+ */
 @Service
 public class ProductService {
 
     private static final Logger log = LoggerFactory.getLogger(ProductService.class);
-
-    private static final int DEFAULT_OFFSET = 0;
-    private static final int DEFAULT_LIMIT = 50;
-    private static final boolean DEFAULT_IS_MAIN_SERVICE = true;
-    private static final boolean DEFAULT_IS_VISIBLE = true;
-    private static final String DEFAULT_SUB_STATUS = "CU,FA,TA,RP,TP";
-    private static final boolean DEFAULT_COMPLETE_PACKAGES = true;
-    private static final String DEFAULT_FIELDS = "id,isBundle,description,subStatus,isMainService,serviceType,productRelationship,productCharacteristic,billingAccount";
 
     private final CommonApiService commonApiService;
     private final ObjectMapper objectMapper;
@@ -46,6 +43,13 @@ public class ProductService {
         }
     }
 
+    /**
+     * Fetches the main services for a billing account using the configured APIMAN product endpoint.
+     *
+     * @param accessToken bearer token forwarded to the downstream API
+     * @param accountId   billing account identifier appended to the configured query parameters
+     * @return list of simplified service summaries or an error description when the call fails
+     */
     public ServiceListResult getMainServices(String accessToken, String accountId) {
         if (serviceEndpoint == null) {
             return new ServiceListResult(List.of(), "APIMAN service endpoint is not configured.");
@@ -58,13 +62,6 @@ public class ProductService {
         }
 
         Map<String, String> queryParams = new java.util.LinkedHashMap<>(configuredQueryParams);
-        queryParams.putIfAbsent("offset", String.valueOf(DEFAULT_OFFSET));
-        queryParams.putIfAbsent("limit", String.valueOf(DEFAULT_LIMIT));
-        queryParams.putIfAbsent("isMainService", String.valueOf(DEFAULT_IS_MAIN_SERVICE));
-        queryParams.putIfAbsent("isVisible", String.valueOf(DEFAULT_IS_VISIBLE));
-        queryParams.putIfAbsent("subStatus", DEFAULT_SUB_STATUS);
-        queryParams.putIfAbsent("completePackages", String.valueOf(DEFAULT_COMPLETE_PACKAGES));
-        queryParams.putIfAbsent("fields", DEFAULT_FIELDS);
         queryParams.put("billingAccount.id", accountId);
 
         CommonApiService.ApiResponse response = commonApiService.execute(
@@ -115,6 +112,9 @@ public class ProductService {
         }
     }
 
+    /**
+     * Pulls the "number" characteristic value from a product characteristic array when present.
+     */
     private static String extractAccessNumber(JsonNode characteristicsNode) {
         if (characteristicsNode == null || !characteristicsNode.isArray()) {
             return "";
@@ -128,6 +128,9 @@ public class ProductService {
         return "";
     }
 
+    /**
+     * Safely converts a JSON node to text, returning an empty string for null nodes.
+     */
     private static String safeText(JsonNode node) {
         return node == null ? "" : node.asText("");
     }
