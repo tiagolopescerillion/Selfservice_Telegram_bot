@@ -6,6 +6,7 @@ import com.selfservice.telegrambot.dto.ServiceFunctionDescriptor;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -24,6 +25,7 @@ import java.util.Map;
 import java.util.Optional;
 
 @RestController
+@CrossOrigin(origins = "*")
 public class ServiceFunctionController {
 
     private static final Path CONFIG_DIR = Paths.get("CONFIGURATIONS");
