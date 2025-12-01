@@ -1,4 +1,4 @@
-package com.selfservice.telegrambot.config.menu;
+package com.selfservice.application.config.menu;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;

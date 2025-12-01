@@ -9,7 +9,7 @@ import com.selfservice.application.dto.TroubleTicketListResult;
 import com.selfservice.application.dto.TroubleTicketSummary;
 import com.selfservice.application.service.ProductService;
 import com.selfservice.application.service.TroubleTicketService;
-import com.selfservice.telegrambot.config.menu.BusinessMenuItem;
+import com.selfservice.application.config.menu.BusinessMenuItem;
 import com.selfservice.application.service.OperationsMonitoringService;
 import com.selfservice.telegrambot.service.TelegramService;
 import com.selfservice.whatsapp.service.WhatsappService;
