@@ -1,6 +1,12 @@
-const ROOT_MENU_ID = "home";
+const MENU_TYPES = {
+  LOGIN: "login",
+  BUSINESS: "business"
+};
 
-const FUNCTION_OPTIONS = [
+const ROOT_MENU_ID = "home";
+const LOGIN_ROOT_MENU_ID = "login-home";
+
+const BASE_FUNCTION_OPTIONS = [
   {
     id: "HELLO_WORLD",
     label: "Hello World",
@@ -35,6 +41,55 @@ const FUNCTION_OPTIONS = [
     callbackData: "MY_ISSUES",
     translationKey: "ButtonMyIssues",
     description: "Lists the tickets associated with the selected account."
+  },
+  {
+    id: "DIGITAL_LOGIN",
+    label: "Self-service login",
+    callbackData: "SELF_SERVICE_LOGIN",
+    translationKey: "ButtonSelfServiceLogin",
+    description: "Starts the digital self-service login flow."
+  },
+  {
+    id: "CRM_LOGIN",
+    label: "Direct login",
+    callbackData: "DIRECT_LOGIN",
+    translationKey: "ButtonDirectLogin",
+    description: "Performs a direct CRM login."
+  },
+  {
+    id: "SETTINGS",
+    label: "Settings",
+    callbackData: "SETTINGS_MENU",
+    translationKey: "ButtonSettings",
+    description: "Opens the settings sub-menu."
+  },
+  {
+    id: "OPT_IN",
+    label: "Consent management",
+    callbackData: "OPT_IN",
+    translationKey: "ButtonOptIn",
+    description: "Manages user consent preferences."
+  },
+  {
+    id: "CHANGE_LANGUAGE",
+    label: "Language settings",
+    callbackData: "CHANGE_LANGUAGE",
+    translationKey: "ButtonChangeLanguage",
+    description: "Lets the user pick a language."
+  },
+  {
+    id: "MENU",
+    label: "Back to menu",
+    callbackData: "MENU",
+    translationKey: "ButtonMenu",
+    description: "Returns to the previous menu."
+  },
+  {
+    id: "LOGOUT",
+    label: "Logout",
+    callbackData: "LOGOUT",
+    translationKey: "ButtonLogout",
+    description: "Ends the authenticated session."
   }
 ];
 
@@ -53,63 +108,48 @@ const DEFAULT_STRUCTURE = [
   }
 ];
 
-const LOGIN_FUNCTION_OPTIONS = {
-  DIGITAL_LOGIN: {
-    function: "DIGITAL_LOGIN",
-    label: "Self-service login",
-    translationKey: "ButtonSelfServiceLogin",
-    callbackData: "SELF_SERVICE_LOGIN"
+const DEFAULT_LOGIN_STRUCTURE = [
+  {
+    id: LOGIN_ROOT_MENU_ID,
+    name: "Home",
+    parentId: null,
+    items: [
+      { label: "Self-service login", type: "function", function: "DIGITAL_LOGIN", useTranslation: true },
+      { label: "Direct login", type: "function", function: "CRM_LOGIN", useTranslation: true },
+      { label: "Settings", type: "submenu", submenuId: "login-settings" }
+    ]
   },
-  CRM_LOGIN: {
-    function: "CRM_LOGIN",
-    label: "Direct login",
-    translationKey: "ButtonDirectLogin",
-    callbackData: "DIRECT_LOGIN"
-  },
-  SETTINGS: {
-    function: "SETTINGS",
-    label: "Settings",
-    translationKey: "ButtonSettings",
-    callbackData: "SETTINGS_MENU"
-  },
-  OPT_IN: {
-    function: "OPT_IN",
-    label: "Consent management",
-    translationKey: "ButtonOptIn",
-    callbackData: "OPT_IN"
-  },
-  CHANGE_LANGUAGE: {
-    function: "CHANGE_LANGUAGE",
-    label: "Language settings",
-    translationKey: "ButtonChangeLanguage",
-    callbackData: "CHANGE_LANGUAGE"
-  },
-  MENU: {
-    function: "MENU",
-    label: "Back to menu",
-    translationKey: "ButtonMenu",
-    callbackData: "MENU"
+  {
+    id: "login-settings",
+    name: "Settings",
+    parentId: LOGIN_ROOT_MENU_ID,
+    items: [
+      { label: "Consent management", type: "function", function: "OPT_IN", useTranslation: true },
+      { label: "Language settings", type: "function", function: "CHANGE_LANGUAGE", useTranslation: true },
+      { label: "Back to menu", type: "function", function: "MENU", useTranslation: true }
+    ]
   }
-};
+];
 
-const DEFAULT_LOGIN_MENU_STATE = {
-  menu: [
-    { ...LOGIN_FUNCTION_OPTIONS.DIGITAL_LOGIN, enabled: true },
-    { ...LOGIN_FUNCTION_OPTIONS.CRM_LOGIN, enabled: true },
-    { ...LOGIN_FUNCTION_OPTIONS.SETTINGS, enabled: true }
-  ],
-  settingsMenu: [
-    { ...LOGIN_FUNCTION_OPTIONS.OPT_IN, enabled: true },
-    { ...LOGIN_FUNCTION_OPTIONS.CHANGE_LANGUAGE, enabled: true },
-    { ...LOGIN_FUNCTION_OPTIONS.MENU, enabled: true }
-  ]
-};
+const functionDictionary = {};
+const functionOptions = [];
 
-const functionDictionary = FUNCTION_OPTIONS.reduce((acc, option) => {
-  acc[option.id] = option;
-  return acc;
-}, {});
+function registerFunctionOption(option) {
+  if (!option?.id) return;
+  if (functionDictionary[option.id]) return;
+  const normalized = {
+    description: "",
+    translationKey: null,
+    callbackData: option.id,
+    ...option
+  };
+  functionDictionary[normalized.id] = normalized;
+  functionOptions.push(normalized);
+}
 
+BASE_FUNCTION_OPTIONS.forEach(registerFunctionOption);
+
+const menuTypeSelect = document.getElementById("menuTypeSelect");
 const menuContainer = document.getElementById("menuContainer");
 const menuSelect = document.getElementById("menuSelect");
 const parentMenuSelect = document.getElementById("parentMenuSelect");
@@ -128,8 +168,6 @@ const inlineCreateSubmenu = document.getElementById("inlineCreateSubmenu");
 const resetButton = document.getElementById("resetButton");
 const downloadButton = document.getElementById("downloadButton");
 const preview = document.getElementById("preview");
-const loginMenuList = document.getElementById("loginMenuList");
-const loginSettingsList = document.getElementById("loginSettingsList");
 const importInput = document.getElementById("importInput");
 const navMenuConfig = document.getElementById("navMenuConfig");
 const navOperationsMonitoring = document.getElementById("navOperationsMonitoring");
@@ -208,12 +246,18 @@ function applyConfiguredApiBase(base) {
 
 initFunctionSelect(menuFunctionSelect);
 
-let menusById = new Map();
-let menuOrder = [];
-let selectedMenuId = ROOT_MENU_ID;
+const menuStores = {
+  [MENU_TYPES.BUSINESS]: createMenuStore(ROOT_MENU_ID, DEFAULT_STRUCTURE),
+  [MENU_TYPES.LOGIN]: createMenuStore(LOGIN_ROOT_MENU_ID, DEFAULT_LOGIN_STRUCTURE)
+};
+
+let activeMenuType = MENU_TYPES.BUSINESS;
+let currentRootMenuId = ROOT_MENU_ID;
+let menusById = menuStores[MENU_TYPES.BUSINESS].menusById;
+let menuOrder = menuStores[MENU_TYPES.BUSINESS].menuOrder;
+let selectedMenuId = currentRootMenuId;
 let menuIdCounter = 0;
 let itemIdCounter = 0;
-let loginMenuState = structuredClone(DEFAULT_LOGIN_MENU_STATE);
 let liveSessions = [];
 let sessionHistory = [];
 let monitoringError = null;
@@ -231,14 +275,18 @@ const serviceFunctionOverrides = new Map();
 applyConfiguredApiBase(getConfiguredPublicBaseFromMeta());
 
 function initFunctionSelect(selectEl) {
+  if (!selectEl) return;
   selectEl.innerHTML = "";
-  FUNCTION_OPTIONS.forEach((option) => {
-    const opt = document.createElement("option");
-    opt.value = option.id;
-    opt.textContent = option.label;
-    opt.title = option.description;
-    selectEl.append(opt);
-  });
+  functionOptions
+    .slice()
+    .sort((a, b) => a.label.localeCompare(b.label))
+    .forEach((option) => {
+      const opt = document.createElement("option");
+      opt.value = option.id;
+      opt.textContent = option.label;
+      opt.title = option.description;
+      selectEl.append(opt);
+    });
 }
 
 function slugify(value) {
@@ -246,6 +294,48 @@ function slugify(value) {
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
+}
+
+function createMenuStore(rootId, defaults) {
+  return {
+    rootId,
+    defaults,
+    menusById: new Map(),
+    menuOrder: [],
+    selectedMenuId: rootId,
+    menuIdCounter: 0,
+    itemIdCounter: 0
+  };
+}
+
+function persistActiveStore() {
+  const store = menuStores[activeMenuType];
+  store.menusById = menusById;
+  store.menuOrder = menuOrder;
+  store.selectedMenuId = selectedMenuId;
+  store.menuIdCounter = menuIdCounter;
+  store.itemIdCounter = itemIdCounter;
+}
+
+function restoreActiveStore() {
+  const store = menuStores[activeMenuType];
+  currentRootMenuId = store.rootId;
+  menusById = store.menusById;
+  menuOrder = store.menuOrder;
+  selectedMenuId = store.selectedMenuId || currentRootMenuId;
+  menuIdCounter = store.menuIdCounter || 0;
+  itemIdCounter = store.itemIdCounter || 0;
+}
+
+function switchMenuType(type) {
+  if (!menuStores[type]) return;
+  persistActiveStore();
+  activeMenuType = type;
+  restoreActiveStore();
+  if (menuTypeSelect) {
+    menuTypeSelect.value = type;
+  }
+  renderAll();
 }
 
 function nextMenuId(name) {
@@ -264,294 +354,171 @@ function nextItemId() {
 }
 
 function ensureRootMenu() {
-  if (!menusById.has(ROOT_MENU_ID)) {
-    menusById.set(ROOT_MENU_ID, { id: ROOT_MENU_ID, name: "Home", parentId: null, items: [] });
-    menuOrder.unshift(ROOT_MENU_ID);
+  if (!menusById.has(currentRootMenuId)) {
+    menusById.set(currentRootMenuId, { id: currentRootMenuId, name: "Home", parentId: null, items: [] });
+    menuOrder.unshift(currentRootMenuId);
   }
 }
 
 function resetToDefault() {
-  loadState({ menus: structuredClone(DEFAULT_STRUCTURE), loginMenu: structuredClone(DEFAULT_LOGIN_MENU_STATE) });
+  normalizeIncomingConfig({});
 }
 
 function loadState(state) {
-  const menus = Array.isArray(state?.menus) ? state.menus : structuredClone(DEFAULT_STRUCTURE);
-  menusById = new Map();
-  menuOrder = [];
-  itemIdCounter = 0;
-  menuIdCounter = menus.length;
+  normalizeIncomingConfig(state || {});
+}
 
-  menus.forEach((menu) => {
+function applyMenusToStore(menuType, menus) {
+  const previousType = activeMenuType;
+  activeMenuType = menuType;
+  restoreActiveStore();
+
+  const store = menuStores[menuType];
+  store.menusById = new Map();
+  store.menuOrder = [];
+  store.menuIdCounter = Array.isArray(menus) ? menus.length : 0;
+  store.itemIdCounter = 0;
+  menuIdCounter = store.menuIdCounter;
+  itemIdCounter = store.itemIdCounter;
+
+  (Array.isArray(menus) ? menus : []).forEach((menu) => {
     let resolvedId = menu.id || slugify(menu.name || "") || null;
-    if (!resolvedId || menusById.has(resolvedId)) {
-      resolvedId = nextMenuId(menu.name || "menu");
+    if (!resolvedId || store.menusById.has(resolvedId)) {
+      resolvedId = `${menuType}-${resolvedId || nextMenuId(menu.name || "menu")}`;
     }
     const normalized = {
       id: resolvedId,
-      name: menu.name?.trim() || (menu.id === ROOT_MENU_ID ? "Home" : menu.id || "Menu"),
+      name: menu.name?.trim() || (menu.id === store.rootId ? "Home" : menu.id || "Menu"),
       parentId: menu.parentId ?? null,
-      items: (menu.items || []).map((item) => ({
-        id: item.id || nextItemId(),
-        label: item.label?.trim() || (item.function ? functionDictionary[item.function]?.label || item.function : "Sub-menu"),
-        type: item.type === "submenu" ? "submenu" : "function",
-        function: item.type === "submenu" ? null : item.function,
-        useTranslation: Boolean(item.useTranslation),
-        submenuId: item.type === "submenu" ? item.submenuId : null
-      }))
+      items: Array.isArray(menu.items) ? menu.items : []
     };
-    menusById.set(normalized.id, normalized);
-    menuOrder.push(normalized.id);
+    store.menusById.set(normalized.id, { ...normalized, items: [] });
+    store.menuOrder.push(normalized.id);
   });
 
-  ensureRootMenu();
-  selectedMenuId = menusById.has(selectedMenuId) ? selectedMenuId : ROOT_MENU_ID;
+  if (!store.menusById.has(store.rootId)) {
+    store.menusById.set(store.rootId, { id: store.rootId, name: "Home", parentId: null, items: [] });
+    store.menuOrder.unshift(store.rootId);
+  }
 
-  loadLoginConfig(state?.loginMenu);
-  renderAll();
-}
-
-function normalizeLoginList(rawList, defaults) {
-  const available = new Map(Object.entries(LOGIN_FUNCTION_OPTIONS));
-  const normalized = [];
-  const seen = new Set();
-  const items = Array.isArray(rawList) ? rawList : [];
-
-  items.forEach((item) => {
-    const base = available.get(item.function) || available.get((item.function || "").toUpperCase());
-    if (!base) return;
-    seen.add(base.function);
-    normalized.push({
-      ...base,
-      label: item.label?.trim() || base.label,
-      translationKey: item.translationKey || base.translationKey,
-      callbackData: item.callbackData || base.callbackData,
-      enabled: true
+  (Array.isArray(menus) ? menus : []).forEach((menu) => {
+    const target = store.menusById.get(menu.id) || store.menusById.get(store.rootId);
+    target.items = [];
+    const items = Array.isArray(menu.items) ? menu.items : [];
+    items.forEach((item) => {
+      if (item?.submenuId && store.menusById.has(item.submenuId)) {
+        const submenu = store.menusById.get(item.submenuId);
+        submenu.parentId = target.id;
+        target.items.push({
+          id: item.id || nextItemId(),
+          label: item.label ?? submenu.name,
+          type: "submenu",
+          submenuId: submenu.id,
+          function: null,
+          useTranslation: false
+        });
+        return;
+      }
+      const functionId = item.function || item.id;
+      if (functionId && !functionDictionary[functionId]) {
+        registerFunctionOption({ id: functionId, label: item.label || functionId, translationKey: item.translationKey, callbackData: item.callbackData || functionId });
+      }
+      if (functionId) {
+        const meta = functionDictionary[functionId] || { id: functionId, label: functionId };
+        target.items.push({
+          id: item.id || nextItemId(),
+          label: item.label ?? meta.label,
+          type: "function",
+          function: functionId,
+          useTranslation: item.useTranslation ?? Boolean(item.translationKey),
+          submenuId: null
+        });
+      }
     });
   });
 
-  defaults.forEach((item) => {
-    if (seen.has(item.function)) return;
-    normalized.push({ ...item, enabled: false });
-  });
+  store.selectedMenuId = store.menusById.has(store.selectedMenuId) ? store.selectedMenuId : store.rootId;
+  initFunctionSelect(menuFunctionSelect);
 
-  return normalized;
+  persistActiveStore();
+  activeMenuType = previousType;
+  restoreActiveStore();
 }
 
-function loadLoginConfig(rawLoginMenu) {
-  const loginMenu = rawLoginMenu || {};
-  loginMenuState = {
-    menu: normalizeLoginList(loginMenu.menu, DEFAULT_LOGIN_MENU_STATE.menu),
-    settingsMenu: normalizeLoginList(loginMenu.settingsMenu, DEFAULT_LOGIN_MENU_STATE.settingsMenu)
-  };
+function extractLoginMenus(loginMenu) {
+  if (Array.isArray(loginMenu?.menus) && loginMenu.menus.length) {
+    return loginMenu.menus;
+  }
+  if (Array.isArray(loginMenu?.menu) || Array.isArray(loginMenu?.settingsMenu)) {
+    const settingsId = "login-settings";
+    return [
+      {
+        id: LOGIN_ROOT_MENU_ID,
+        name: "Home",
+        parentId: null,
+        items: [
+          ...(Array.isArray(loginMenu.menu) ? loginMenu.menu : []).map((item) => ({
+            label: item.label,
+            function: item.function,
+            useTranslation: Boolean(item.translationKey)
+          })),
+          { label: "Settings", type: "submenu", submenuId: settingsId }
+        ]
+      },
+      {
+        id: settingsId,
+        name: "Settings",
+        parentId: LOGIN_ROOT_MENU_ID,
+        items: (loginMenu.settingsMenu || []).map((item) => ({
+          label: item.label,
+          function: item.function,
+          useTranslation: Boolean(item.translationKey)
+        }))
+      }
+    ];
+  }
+  return null;
 }
 
-function buildLoginConfig() {
-  const buildSection = (items) =>
-    items
-      .filter((item) => item.enabled)
-      .map((item, index) => ({
-        order: index + 1,
-        label: item.label,
-        function: item.function,
-        callbackData: item.callbackData,
-        translationKey: item.translationKey
-      }));
-
-  return {
-    menu: buildSection(loginMenuState.menu),
-    settingsMenu: buildSection(loginMenuState.settingsMenu)
-  };
+function normalizeMenuTree(rawMenus, defaults, rootId) {
+  if (Array.isArray(rawMenus) && rawMenus.length) {
+    return rawMenus.map((menu) => ({
+      id: menu.id || slugify(menu.name || ""),
+      name: menu.name,
+      parentId: menu.parentId ?? null,
+      items: Array.isArray(menu.items) ? menu.items : []
+    }));
+  }
+  return structuredClone(defaults).map((menu) => ({ ...menu, parentId: menu.parentId ?? null, id: menu.id || rootId }));
 }
 
 function normalizeIncomingConfig(raw) {
-  const loginMenu = raw?.loginMenu;
+  const businessSource = Array.isArray(raw?.menus)
+    ? raw.menus
+    : Array.isArray(raw?.menu)
+      ? [
+          {
+            id: ROOT_MENU_ID,
+            name: "Home",
+            parentId: null,
+            items: raw.menu
+          }
+        ]
+      : null;
+  const businessMenus = normalizeMenuTree(businessSource, DEFAULT_STRUCTURE, ROOT_MENU_ID);
+  const loginMenus = normalizeMenuTree(extractLoginMenus(raw?.loginMenu), DEFAULT_LOGIN_STRUCTURE, LOGIN_ROOT_MENU_ID);
 
-  if (raw && Array.isArray(raw.menus) && raw.menus.length) {
-    const seen = new Set();
-    const baseMenus = raw.menus.map((menu, index) => {
-      if (menu.id === ROOT_MENU_ID) {
-        seen.add(ROOT_MENU_ID);
-        return { id: ROOT_MENU_ID, name: menu.name?.trim() || "Home", parentId: null, items: [] };
-      }
-      const base = menu.id || slugify(menu.name || "") || `menu-${index + 1}`;
-      let candidate = base;
-      let suffix = 1;
-      while (seen.has(candidate) || candidate === ROOT_MENU_ID) {
-        candidate = `${base}-${suffix++}`;
-      }
-      seen.add(candidate);
-      return {
-        id: candidate,
-        name: menu.name?.trim() || menu.id || `Menu ${index + 1}`,
-        parentId: null,
-        items: []
-      };
-    });
-    const menuMap = new Map(baseMenus.map((menu) => [menu.id, menu]));
-    if (!menuMap.has(ROOT_MENU_ID)) {
-      const root = { id: ROOT_MENU_ID, name: "Home", parentId: null, items: [] };
-      menuMap.set(ROOT_MENU_ID, root);
-      baseMenus.unshift(root);
-    }
-    raw.menus.forEach((menu) => {
-      const target = menuMap.get(menu.id) || menuMap.get(ROOT_MENU_ID);
-      target.items = [];
-      const items = Array.isArray(menu.items) ? menu.items : [];
-      items.forEach((item) => {
-        if (item?.submenuId && menuMap.has(item.submenuId)) {
-          const submenu = menuMap.get(item.submenuId);
-          submenu.parentId = target.id;
-          target.items.push({
-            label: item.label ?? submenu.name,
-            type: "submenu",
-            submenuId: submenu.id
-          });
-          return;
-        }
-        if (!functionDictionary[item.function]) {
-          return;
-        }
-        target.items.push({
-          label: item.label ?? functionDictionary[item.function].label,
-          type: "function",
-          function: item.function,
-          useTranslation: Boolean(item.translationKey)
-        });
-      });
-    });
-    return { menus: Array.from(menuMap.values()), loginMenu };
-  }
-
-  if (raw && Array.isArray(raw.menu) && raw.menu.length) {
-    return {
-      menus: [
-        {
-          id: ROOT_MENU_ID,
-          name: "Home",
-          parentId: null,
-          items: raw.menu
-            .filter((item) => functionDictionary[item.function])
-            .map((item) => ({
-              label: item.label ?? functionDictionary[item.function].label,
-              type: "function",
-              function: item.function,
-              useTranslation: Boolean(item.translationKey)
-            }))
-        }
-      ],
-      loginMenu
-    };
-  }
-
-  return { menus: structuredClone(DEFAULT_STRUCTURE), loginMenu };
+  applyMenusToStore(MENU_TYPES.BUSINESS, businessMenus);
+  applyMenusToStore(MENU_TYPES.LOGIN, loginMenus);
+  restoreActiveStore();
+  renderAll();
 }
 
 function renderAll() {
   renderMenuSelectors();
   renderMenuItems();
-  renderLoginMenus();
   toggleAddFormFields();
   updatePreview();
-}
-
-function renderLoginMenus() {
-  renderLoginList(loginMenuState.menu, loginMenuList, (updated) => {
-    loginMenuState = { ...loginMenuState, menu: updated };
-    updatePreview();
-  });
-  renderLoginList(loginMenuState.settingsMenu, loginSettingsList, (updated) => {
-    loginMenuState = { ...loginMenuState, settingsMenu: updated };
-    updatePreview();
-  });
-}
-
-function renderLoginList(items, container, onUpdate) {
-  if (!container) return;
-  container.innerHTML = "";
-  items.forEach((item, index) => {
-    const row = document.createElement("div");
-    row.className = "login-row";
-
-    const enabledLabel = document.createElement("label");
-    enabledLabel.className = "checkbox";
-    const enabledInput = document.createElement("input");
-    enabledInput.type = "checkbox";
-    enabledInput.checked = item.enabled;
-    enabledInput.addEventListener("change", () => {
-      const next = [...items];
-      next[index] = { ...item, enabled: enabledInput.checked };
-      onUpdate(next);
-    });
-    const enabledText = document.createElement("span");
-    enabledText.textContent = "Show";
-    enabledLabel.append(enabledInput, enabledText);
-
-    const labelInput = document.createElement("input");
-    labelInput.type = "text";
-    labelInput.value = item.label || "";
-    labelInput.placeholder = LOGIN_FUNCTION_OPTIONS[item.function]?.label || "Label";
-    labelInput.addEventListener("input", () => {
-      const next = [...items];
-      next[index] = { ...item, label: labelInput.value };
-      onUpdate(next);
-    });
-
-    const translationInput = document.createElement("input");
-    translationInput.type = "text";
-    translationInput.value = item.translationKey || "";
-    translationInput.placeholder = "Translation key";
-    translationInput.addEventListener("input", () => {
-      const next = [...items];
-      next[index] = { ...item, translationKey: translationInput.value };
-      onUpdate(next);
-    });
-
-    const callbackInput = document.createElement("input");
-    callbackInput.type = "text";
-    callbackInput.value = item.callbackData || "";
-    callbackInput.placeholder = "Callback data";
-    callbackInput.addEventListener("input", () => {
-      const next = [...items];
-      next[index] = { ...item, callbackData: callbackInput.value };
-      onUpdate(next);
-    });
-
-    const controls = document.createElement("div");
-    controls.className = "login-row__controls";
-    const up = document.createElement("button");
-    up.type = "button";
-    up.textContent = "▲";
-    up.disabled = index === 0;
-    up.addEventListener("click", () => {
-      if (index === 0) return;
-      const next = [...items];
-      [next[index - 1], next[index]] = [next[index], next[index - 1]];
-      onUpdate(next);
-    });
-
-    const down = document.createElement("button");
-    down.type = "button";
-    down.textContent = "▼";
-    down.disabled = index === items.length - 1;
-    down.addEventListener("click", () => {
-      if (index === items.length - 1) return;
-      const next = [...items];
-      [next[index + 1], next[index]] = [next[index], next[index + 1]];
-      onUpdate(next);
-    });
-    controls.append(up, down);
-
-    const meta = document.createElement("div");
-    meta.className = "login-row__meta";
-    meta.textContent = item.function;
-
-    const inputs = document.createElement("div");
-    inputs.className = "login-row__inputs";
-    inputs.append(labelInput, translationInput, callbackInput);
-
-    row.append(enabledLabel, inputs, controls, meta);
-    container.append(row);
-  });
 }
 
 function renderMenuSelectors() {
@@ -559,8 +526,8 @@ function renderMenuSelectors() {
   parentMenuSelect.innerHTML = "";
 
   menuOrder = menuOrder.filter((id) => menusById.has(id));
-  if (!menuOrder.includes(ROOT_MENU_ID)) {
-    menuOrder.unshift(ROOT_MENU_ID);
+  if (!menuOrder.includes(currentRootMenuId)) {
+    menuOrder.unshift(currentRootMenuId);
   }
 
   menuOrder.forEach((id) => {
@@ -571,14 +538,14 @@ function renderMenuSelectors() {
   });
 
   if (!menusById.has(selectedMenuId)) {
-    selectedMenuId = ROOT_MENU_ID;
+    selectedMenuId = currentRootMenuId;
   }
 
   menuSelect.value = selectedMenuId;
   parentMenuSelect.value = selectedMenuId;
   menuNameEditor.value = menusById.get(selectedMenuId)?.name ?? "";
-  menuNameEditor.disabled = selectedMenuId === ROOT_MENU_ID;
-  deleteMenuButton.disabled = selectedMenuId === ROOT_MENU_ID;
+  menuNameEditor.disabled = selectedMenuId === currentRootMenuId;
+  deleteMenuButton.disabled = selectedMenuId === currentRootMenuId;
 
   updateAddFormSubmenuOptions();
 }
@@ -727,7 +694,7 @@ function availableSubmenus(parentId, currentSubmenuId) {
   return menuOrder
     .map((id) => menusById.get(id))
     .filter(Boolean)
-    .filter((menu) => menu.id !== ROOT_MENU_ID)
+    .filter((menu) => menu.id !== currentRootMenuId)
     .filter((menu) => menu.id !== parentId)
     .filter((menu) => {
       if (isAncestor(menu.id, parentId)) {
@@ -837,7 +804,7 @@ function linkSubmenu(parentId, submenuId) {
     alert("Unknown sub-menu selected.");
     return false;
   }
-  if (submenuId === ROOT_MENU_ID) {
+  if (submenuId === currentRootMenuId) {
     alert("The Home menu cannot be nested inside another menu.");
     return false;
   }
@@ -858,7 +825,7 @@ function linkSubmenu(parentId, submenuId) {
 }
 
 function updateAddFormSubmenuOptions() {
-  const parentId = parentMenuSelect.value || ROOT_MENU_ID;
+  const parentId = parentMenuSelect.value || currentRootMenuId;
   const options = availableSubmenus(parentId);
   submenuSelect.innerHTML = "";
   if (!options.length) {
@@ -892,42 +859,89 @@ function updatePreview() {
 }
 
 function buildConfig() {
+  persistActiveStore();
   const timestamp = new Date().toISOString();
+  const loginMenus = serializeStore(menuStores[MENU_TYPES.LOGIN]);
+  const businessMenus = serializeStore(menuStores[MENU_TYPES.BUSINESS]);
+  const legacyLogin = buildLegacyLoginSections(loginMenus);
   return {
     version: 1,
     generatedAt: timestamp,
-    loginMenu: buildLoginConfig(),
-    menus: menuOrder
-      .filter((id) => menusById.has(id))
-      .map((id) => {
-        const menu = menusById.get(id);
-        return {
-          id: menu.id,
-          name: menu.name,
-          items: menu.items.map((item, index) => {
-            if (item.type === "submenu") {
-              return {
-                order: index + 1,
-                label: item.label,
-                function: null,
-                callbackData: null,
-                translationKey: null,
-                submenuId: item.submenuId
-              };
-            }
-            const meta = functionDictionary[item.function] || {};
+    loginMenu: { menus: loginMenus, ...legacyLogin },
+    menus: businessMenus
+  };
+}
+
+function serializeStore(store) {
+  return store.menuOrder
+    .filter((id) => store.menusById.has(id))
+    .map((id) => {
+      const menu = store.menusById.get(id);
+      return {
+        id: menu.id,
+        name: menu.name,
+        parentId: menu.parentId ?? null,
+        items: menu.items.map((item, index) => {
+          if (item.type === "submenu") {
             return {
               order: index + 1,
               label: item.label,
-              function: item.function,
-              callbackData: meta.callbackData || item.function,
-              translationKey: item.useTranslation && meta.translationKey ? meta.translationKey : null,
-              submenuId: null
+              function: null,
+              callbackData: null,
+              translationKey: null,
+              submenuId: item.submenuId
             };
-          })
-        };
-      })
-  };
+          }
+          const meta = functionDictionary[item.function] || {};
+          return {
+            order: index + 1,
+            label: item.label,
+            function: item.function,
+            callbackData: meta.callbackData || item.function,
+            translationKey: item.useTranslation && meta.translationKey ? meta.translationKey : null,
+            submenuId: null
+          };
+        })
+      };
+    });
+}
+
+function buildLegacyLoginSections(loginMenus) {
+  const legacyMenu = [];
+  const legacySettings = [];
+  const rootMenu = loginMenus.find((menu) => menu.id === LOGIN_ROOT_MENU_ID) || loginMenus[0];
+  const rootItems = Array.isArray(rootMenu?.items) ? rootMenu.items : [];
+
+  rootItems
+    .filter((item) => item.type !== "submenu")
+    .forEach((item, index) => {
+      const meta = functionDictionary[item.function] || {};
+      legacyMenu.push({
+        order: index + 1,
+        label: item.label,
+        function: item.function,
+        callbackData: meta.callbackData || item.function,
+        translationKey: item.useTranslation && meta.translationKey ? meta.translationKey : null
+      });
+    });
+
+  const settingsTargetId = rootItems.find((item) => item.type === "submenu")?.submenuId;
+  const settingsMenu = loginMenus.find((menu) => menu.id === settingsTargetId);
+  const settingsItems = Array.isArray(settingsMenu?.items) ? settingsMenu.items : [];
+  settingsItems
+    .filter((item) => item.type !== "submenu")
+    .forEach((item, index) => {
+      const meta = functionDictionary[item.function] || {};
+      legacySettings.push({
+        order: index + 1,
+        label: item.label,
+        function: item.function,
+        callbackData: meta.callbackData || item.function,
+        translationKey: item.useTranslation && meta.translationKey ? meta.translationKey : null
+      });
+    });
+
+  return { menu: legacyMenu, settingsMenu: legacySettings };
 }
 
 function promptForMenuName() {
@@ -947,7 +961,7 @@ function createSubmenu(initialName) {
 }
 
 function deleteMenuWithConfirmation(menuId) {
-  if (menuId === ROOT_MENU_ID) {
+  if (menuId === currentRootMenuId) {
     return;
   }
   const menu = menusById.get(menuId);
@@ -962,7 +976,7 @@ function deleteMenuWithConfirmation(menuId) {
   }
   const toRemove = collectDescendants(menuId);
   toRemove.forEach(removeMenu);
-  selectedMenuId = ROOT_MENU_ID;
+  selectedMenuId = currentRootMenuId;
   renderAll();
 }
 
@@ -996,7 +1010,7 @@ function removeMenu(id) {
 }
 
 function downloadConfig() {
-  const rootMenu = menusById.get(ROOT_MENU_ID);
+  const rootMenu = menusById.get(currentRootMenuId);
   if (!rootMenu || rootMenu.items.length === 0) {
     alert("Please configure at least one menu item before downloading.");
     return;
@@ -1020,8 +1034,7 @@ function importConfig(event) {
   reader.onload = () => {
     try {
       const parsed = JSON.parse(reader.result);
-      const normalized = normalizeIncomingConfig(parsed);
-      loadState(normalized);
+      normalizeIncomingConfig(parsed);
     } catch (error) {
       alert(`Unable to import configuration: ${error.message}`);
     } finally {
@@ -1033,7 +1046,7 @@ function importConfig(event) {
 
 function addMenuItem(event) {
   event.preventDefault();
-  const parentId = parentMenuSelect.value || ROOT_MENU_ID;
+  const parentId = parentMenuSelect.value || currentRootMenuId;
   const parentMenu = menusById.get(parentId);
   if (!parentMenu) {
     alert("Please select a valid menu.");
@@ -1852,6 +1865,10 @@ createMenuButton.addEventListener("click", () => {
 
 deleteMenuButton.addEventListener("click", () => deleteMenuWithConfirmation(selectedMenuId));
 
+if (menuTypeSelect) {
+  menuTypeSelect.addEventListener("change", (event) => switchMenuType(event.target.value));
+}
+
 parentMenuSelect.addEventListener("change", updateAddFormSubmenuOptions);
 itemTypeSelect.addEventListener("change", toggleAddFormFields);
 inlineCreateSubmenu.addEventListener("click", () => {
@@ -1892,6 +1909,10 @@ if (sendMessageForm) {
 }
 if (refreshConfigButton) {
   refreshConfigButton.addEventListener("click", loadImServerConfig);
+}
+
+if (menuTypeSelect) {
+  menuTypeSelect.value = activeMenuType;
 }
 
 toggleAddFormFields();
