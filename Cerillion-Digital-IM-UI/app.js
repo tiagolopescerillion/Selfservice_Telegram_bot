@@ -402,6 +402,8 @@ function applyMenusToStore(menuType, menus) {
   menuIdCounter = store.menuIdCounter;
   itemIdCounter = store.itemIdCounter;
 
+  console.info(`Applying ${menus?.length || 0} menus to store`, { menuType, menus });
+
   (Array.isArray(menus) ? menus : []).forEach((menu) => {
     let resolvedId = menu.id || slugify(menu.name || "") || null;
     if (!resolvedId || store.menusById.has(resolvedId)) {
@@ -426,6 +428,7 @@ function applyMenusToStore(menuType, menus) {
     const target = store.menusById.get(menu.id) || store.menusById.get(store.rootId);
     target.items = [];
     const items = Array.isArray(menu.items) ? menu.items : [];
+    console.info(`Processing ${items.length} items for menu ${menu.id}`, items);
     items.forEach((item) => {
       if (item?.submenuId && store.menusById.has(item.submenuId)) {
         const submenu = store.menusById.get(item.submenuId);
@@ -468,9 +471,11 @@ function applyMenusToStore(menuType, menus) {
 
 function extractLoginMenus(loginMenu) {
   if (Array.isArray(loginMenu?.menus) && loginMenu.menus.length) {
+    console.info("Using nested login menu definition", loginMenu.menus);
     return loginMenu.menus;
   }
   if (Array.isArray(loginMenu?.menu) || Array.isArray(loginMenu?.settingsMenu)) {
+    console.info("Using legacy login menu definition with settingsMenu");
     const settingsId = "login-settings";
     return [
       {
@@ -562,6 +567,7 @@ function normalizeMenuTree(rawMenus, defaults, rootId) {
 }
 
 function normalizeIncomingConfig(raw) {
+  console.info("Normalizing incoming IM menu config", raw);
   const businessSource = Array.isArray(raw?.menus)
     ? raw.menus
     : Array.isArray(raw?.menu)
@@ -572,10 +578,19 @@ function normalizeIncomingConfig(raw) {
             parentId: null,
             items: raw.menu
           }
-        ]
+      ]
       : null;
   const businessMenus = normalizeMenuTree(businessSource, DEFAULT_STRUCTURE, ROOT_MENU_ID);
   const loginMenus = normalizeMenuTree(extractLoginMenus(raw?.loginMenu), DEFAULT_LOGIN_STRUCTURE, LOGIN_ROOT_MENU_ID);
+
+  console.info(
+    "Normalized menus", {
+      businessMenusCount: businessMenus.length,
+      loginMenusCount: loginMenus.length,
+      businessMenus,
+      loginMenus
+    }
+  );
 
   applyMenusToStore(MENU_TYPES.BUSINESS, businessMenus);
   applyMenusToStore(MENU_TYPES.LOGIN, loginMenus);
