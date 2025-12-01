@@ -60,20 +60,8 @@
                   Download updated application-local.yml
                 </button>
               </div>
-              <div class="table-wrapper">
-                <table class="endpoint-table endpoint-table--stacked">
-                  <thead>
-                    <tr>
-                      <th scope="col">Service function</th>
-                      <th scope="col">Query parameters</th>
-                    </tr>
-                  </thead>
-                  <tbody id="serviceFunctionsTableBody">
-                    <tr class="empty">
-                      <td colspan="2">Loading endpoints…</td>
-                    </tr>
-                  </tbody>
-                </table>
+              <div class="service-function-list" id="serviceFunctionsTableBody">
+                <div class="empty">Loading endpoints…</div>
               </div>
               <p id="serviceFunctionsStatus" class="hint" aria-live="polite"></p>
             </section>

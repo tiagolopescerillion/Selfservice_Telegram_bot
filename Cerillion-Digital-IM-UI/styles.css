@@ -535,61 +535,74 @@ button:disabled {
     justify-content: flex-end;
 }
 
-.endpoint-table {
-    width: 100%;
-    border-collapse: collapse;
+.service-function-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
     margin-top: 1rem;
 }
 
-.endpoint-table th,
-.endpoint-table td {
-    padding: 0.75rem;
-    border-bottom: 1px solid var(--border);
-    text-align: left;
+.service-function-card {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 0.9rem 1rem;
+    background: #fff;
+    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.04);
 }
 
-.endpoint-table th {
-    background: #f1f5f9;
-    font-weight: 700;
-}
-
-.endpoint-table tr:hover td {
-    background: #f8fafc;
-}
-
-.endpoint-table .empty td {
+.service-function-list .empty {
     text-align: center;
     font-style: italic;
     color: #475569;
 }
 
-.endpoint-table--stacked th,
-.endpoint-table--stacked td {
-    vertical-align: top;
+.service-function__line {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
 }
 
-.service-function__header {
+.service-function__line + .service-function__line {
+    margin-top: 0.55rem;
+    padding-top: 0.55rem;
+    border-top: 1px dashed var(--border);
+}
+
+.service-function__summary {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.service-function__title {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+    min-width: 220px;
+}
+
+.service-function__name {
+    font-weight: 700;
+    word-break: break-word;
+}
+
+.service-function__services {
+    color: #475569;
+    font-size: 0.95rem;
+}
+
+.service-function__endpoint {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    gap: 0.75rem;
-    margin-bottom: 0.35rem;
-}
-
-.service-function__key {
-    font-weight: 700;
-    word-break: break-all;
+    flex-wrap: wrap;
+    gap: 0.5rem;
 }
 
 .service-function__path {
     color: #475569;
     word-break: break-all;
-}
-
-.service-function__params {
-    display: flex;
-    flex-direction: column;
-    gap: 0.4rem;
 }
 
 .service-function__label {

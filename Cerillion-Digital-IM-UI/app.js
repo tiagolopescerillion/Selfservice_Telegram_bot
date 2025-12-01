@@ -999,45 +999,48 @@ function extractApiPath(value) {
 function renderServiceFunctionTable(endpoints) {
   serviceFunctionsTableBody.innerHTML = "";
   if (!endpoints.length) {
-    const row = document.createElement("tr");
-    row.className = "empty";
-    const cell = document.createElement("td");
-    cell.colSpan = 2;
-    cell.textContent = "No endpoints available.";
-    row.append(cell);
-    serviceFunctionsTableBody.append(row);
+    const empty = document.createElement("div");
+    empty.className = "empty";
+    empty.textContent = "No endpoints available.";
+    serviceFunctionsTableBody.append(empty);
     return;
   }
 
   endpoints.forEach((endpoint) => {
-    const row = document.createElement("tr");
+    const card = document.createElement("div");
+    card.className = "service-function-card";
 
-    const endpointCell = document.createElement("td");
-    const endpointHeader = document.createElement("div");
-    endpointHeader.className = "service-function__header";
+    const summary = document.createElement("div");
+    summary.className = "service-function__line service-function__summary";
 
-    const key = document.createElement("div");
-    key.className = "service-function__key";
-    key.textContent = endpoint.key || "–";
+    const title = document.createElement("div");
+    title.className = "service-function__title";
+    const name = document.createElement("div");
+    name.className = "service-function__name";
+    name.textContent = endpoint.name || endpoint.key || "–";
+    const services = document.createElement("div");
+    services.className = "service-function__services";
+    services.textContent = endpoint.services?.length
+      ? `Java services: ${endpoint.services.join(", ")}`
+      : "Java services: None";
+    title.append(name, services);
 
-    const method = document.createElement("span");
-    method.className = "pill pill--method";
-    method.textContent = endpoint.method || "GET";
-
-    endpointHeader.append(key, method);
-
+    const endpointMeta = document.createElement("div");
+    endpointMeta.className = "service-function__endpoint";
     const path = document.createElement("div");
     path.className = "service-function__path";
     path.textContent = extractApiPath(endpoint.value) || "Not configured";
+    const method = document.createElement("span");
+    method.className = "pill pill--method";
+    method.textContent = endpoint.method || "GET";
+    endpointMeta.append(path, method);
 
-    endpointCell.append(endpointHeader, path);
+    summary.append(title, endpointMeta);
 
-    const paramsCell = document.createElement("td");
-    paramsCell.className = "service-function__params";
     const defaultParams = formatQueryParams(endpoint.defaultQueryParams) || "None";
 
     const defaultRow = document.createElement("div");
-    defaultRow.className = "service-function__default";
+    defaultRow.className = "service-function__line service-function__default";
     const defaultLabel = document.createElement("div");
     defaultLabel.className = "service-function__label";
     defaultLabel.textContent = "Default query params";
@@ -1047,7 +1050,7 @@ function renderServiceFunctionTable(endpoints) {
     defaultRow.append(defaultLabel, defaultValue);
 
     const overrideRow = document.createElement("div");
-    overrideRow.className = "service-function__override";
+    overrideRow.className = "service-function__line service-function__override";
     const overrideLabel = document.createElement("div");
     overrideLabel.className = "service-function__label";
     overrideLabel.textContent = "Override query params";
@@ -1064,11 +1067,9 @@ function renderServiceFunctionTable(endpoints) {
     hint.textContent = "Use key=value&key2=value2";
     overrideRow.append(overrideLabel, overrideInput, hint);
 
-    paramsCell.append(defaultRow, overrideRow);
+    card.append(summary, defaultRow, overrideRow);
 
-    row.append(endpointCell, paramsCell);
-
-    serviceFunctionsTableBody.append(row);
+    serviceFunctionsTableBody.append(card);
   });
 }
 
