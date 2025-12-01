@@ -6,6 +6,8 @@ import com.selfservice.application.dto.ServiceSummary;
 import com.selfservice.application.dto.TroubleTicketSummary;
 import com.selfservice.application.config.menu.BusinessMenuConfigurationProvider;
 import com.selfservice.application.config.menu.BusinessMenuItem;
+import com.selfservice.application.config.menu.LoginMenuFunction;
+import com.selfservice.application.config.menu.LoginMenuItem;
 import com.selfservice.application.service.TranslationService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -138,31 +140,89 @@ public class TelegramService {
         post(url, body, headers);
     }
 
+    public List<LoginMenuItem> loginMenuOptions() {
+        List<LoginMenuItem> configured = menuConfigurationProvider.getLoginMenuItems();
+        List<LoginMenuItem> options = new ArrayList<>();
+        for (LoginMenuItem item : configured) {
+            LoginMenuFunction function = item.resolvedFunction();
+            if (function == LoginMenuFunction.DIGITAL_LOGIN && !loginMenuProperties.isDigitalLoginEnabled()) {
+                continue;
+            }
+            if (function == LoginMenuFunction.CRM_LOGIN && !loginMenuProperties.isCrmLoginEnabled()) {
+                continue;
+            }
+            options.add(item);
+        }
+        return options;
+    }
+
+    public List<LoginMenuItem> loginSettingsMenuOptions() {
+        return menuConfigurationProvider.getLoginSettingsMenuItems();
+    }
+
+    public LoginMenuItem findLoginMenuItemByCallback(String callbackData) {
+        return menuConfigurationProvider.findLoginMenuItemByCallback(callbackData);
+    }
+
+    private String resolveLoginMenuLabel(long chatId, LoginMenuItem item) {
+        String translationKey = item.getTranslationKey();
+        if (translationKey != null
+                && !translationKey.isBlank()
+                && translationService.hasTranslation(language(chatId), translationKey)) {
+            return translate(chatId, translationKey);
+        }
+        if (item.getLabel() != null && !item.getLabel().isBlank()) {
+            return item.getLabel();
+        }
+        LoginMenuFunction function = item.resolvedFunction();
+        return function == null ? "" : function.name();
+    }
+
+    private String resolveLoginCallback(LoginMenuItem item) {
+        if (item.getCallbackData() != null && !item.getCallbackData().isBlank()) {
+            return item.getCallbackData();
+        }
+        LoginMenuFunction function = item.resolvedFunction();
+        if (function == LoginMenuFunction.DIGITAL_LOGIN) {
+            return CALLBACK_SELF_SERVICE_LOGIN;
+        }
+        if (function == LoginMenuFunction.CRM_LOGIN) {
+            return CALLBACK_DIRECT_LOGIN;
+        }
+        if (function == LoginMenuFunction.OPT_IN) {
+            return CALLBACK_OPT_IN_PROMPT;
+        }
+        if (function == LoginMenuFunction.CHANGE_LANGUAGE) {
+            return CALLBACK_LANGUAGE_MENU;
+        }
+        if (function == LoginMenuFunction.SETTINGS) {
+            return CALLBACK_SETTINGS_MENU;
+        }
+        if (function == LoginMenuFunction.MENU) {
+            return CALLBACK_MENU;
+        }
+        return CALLBACK_MENU;
+    }
+
     public void sendLoginMenu(long chatId, String loginUrl) {
         String url = baseUrl + "/sendMessage";
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
 
         List<List<Map<String, Object>>> keyboard = new ArrayList<>();
-        if (loginMenuProperties.isDigitalLoginEnabled()) {
-            if (loginUrl != null && !loginUrl.isBlank()) {
+        List<LoginMenuItem> options = loginMenuOptions();
+        for (LoginMenuItem option : options) {
+            LoginMenuFunction function = option.resolvedFunction();
+            if (function == LoginMenuFunction.DIGITAL_LOGIN && loginUrl != null && !loginUrl.isBlank()) {
                 keyboard.add(List.of(Map.of(
-                        "text", translate(chatId, KEY_BUTTON_SELF_SERVICE_LOGIN),
+                        "text", resolveLoginMenuLabel(chatId, option),
                         "url", loginUrl)));
-            } else {
-                keyboard.add(List.of(Map.of(
-                        "text", translate(chatId, KEY_BUTTON_SELF_SERVICE_LOGIN),
-                        "callback_data", CALLBACK_SELF_SERVICE_LOGIN)));
+                continue;
             }
-        }
-        if (loginMenuProperties.isCrmLoginEnabled()) {
             keyboard.add(List.of(Map.of(
-                "text", translate(chatId, KEY_BUTTON_DIRECT_LOGIN),
-                "callback_data", CALLBACK_DIRECT_LOGIN)));
+                    "text", resolveLoginMenuLabel(chatId, option),
+                    "callback_data", resolveLoginCallback(option))));
         }
-        keyboard.add(List.of(Map.of(
-                "text", translate(chatId, KEY_BUTTON_SETTINGS),
-                "callback_data", CALLBACK_SETTINGS_MENU)));
 
         Map<String, Object> replyMarkup = Map.of("inline_keyboard", keyboard);
 
@@ -298,16 +358,13 @@ public class TelegramService {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
 
+        List<LoginMenuItem> options = loginSettingsMenuOptions();
         List<List<Map<String, Object>>> keyboard = new ArrayList<>();
-        keyboard.add(List.of(Map.of(
-                "text", translate(chatId, KEY_BUTTON_OPT_IN),
-                "callback_data", CALLBACK_OPT_IN_PROMPT)));
-        keyboard.add(List.of(Map.of(
-                "text", translate(chatId, KEY_BUTTON_CHANGE_LANGUAGE),
-                "callback_data", CALLBACK_LANGUAGE_MENU)));
-        keyboard.add(List.of(Map.of(
-                "text", translate(chatId, KEY_BUTTON_MENU),
-                "callback_data", CALLBACK_MENU)));
+        for (LoginMenuItem option : options) {
+            keyboard.add(List.of(Map.of(
+                    "text", resolveLoginMenuLabel(chatId, option),
+                    "callback_data", resolveLoginCallback(option))));
+        }
 
         Map<String, Object> replyMarkup = Map.of("inline_keyboard", keyboard);
 
