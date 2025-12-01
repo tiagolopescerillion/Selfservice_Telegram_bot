@@ -76,7 +76,7 @@ apiman:
     query-params:
       offset: 0
       limit: 1
-  account-services:
+  product:
     url: ${apiman.base-url}/product/1.0
     method: GET
     query-params:

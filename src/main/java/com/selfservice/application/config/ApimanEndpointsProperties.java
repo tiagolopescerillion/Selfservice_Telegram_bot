@@ -14,7 +14,7 @@ public class ApimanEndpointsProperties {
 
     private String baseUrl;
     private Endpoint findUser = new Endpoint();
-    private Endpoint accountServices = new Endpoint();
+    private Endpoint product = new Endpoint();
     private Endpoint troubleTicket = new Endpoint();
 
     private static final Map<String, String> DEFAULT_FIND_USER_QUERY_PARAMS = Map.of(
@@ -22,7 +22,7 @@ public class ApimanEndpointsProperties {
             "limit", "1"
     );
 
-    private static final Map<String, String> DEFAULT_ACCOUNT_SERVICES_QUERY_PARAMS = Map.of(
+    private static final Map<String, String> DEFAULT_PRODUCT_QUERY_PARAMS = Map.of(
             "offset", "0",
             "limit", "50",
             "isMainService", "true",
@@ -64,24 +64,33 @@ public class ApimanEndpointsProperties {
         this.findUser = findUser;
     }
 
-    public String getAccountServicesUrl() {
-        return accountServices == null ? null : accountServices.getUrl();
+    public String getProductUrl() {
+        return product == null ? null : product.getUrl();
     }
 
-    public HttpMethod getAccountServicesMethod() {
-        return resolveMethod(accountServices);
+    public HttpMethod getProductMethod() {
+        return resolveMethod(product);
     }
 
-    public Map<String, String> getAccountServicesQueryParams() {
-        return resolveQueryParams(accountServices, DEFAULT_ACCOUNT_SERVICES_QUERY_PARAMS);
+    public Map<String, String> getProductQueryParams() {
+        return resolveQueryParams(product, DEFAULT_PRODUCT_QUERY_PARAMS);
     }
 
-    public Map<String, String> getDefaultAccountServicesQueryParams() {
-        return DEFAULT_ACCOUNT_SERVICES_QUERY_PARAMS;
+    public Map<String, String> getDefaultProductQueryParams() {
+        return DEFAULT_PRODUCT_QUERY_PARAMS;
     }
 
+    public void setProduct(Endpoint product) {
+        this.product = product;
+    }
+
+    /**
+     * Temporary backward-compatibility shim to support legacy configuration keys
+     * using "account-services". New deployments should migrate to "product".
+     */
+    @Deprecated(forRemoval = true)
     public void setAccountServices(Endpoint accountServices) {
-        this.accountServices = accountServices;
+        this.product = accountServices;
     }
 
     public String getTroubleTicketUrl() {
@@ -108,8 +117,8 @@ public class ApimanEndpointsProperties {
         return getFindUserUrl() != null;
     }
 
-    public boolean hasAccountServices() {
-        return getAccountServicesUrl() != null;
+    public boolean hasProduct() {
+        return getProductUrl() != null;
     }
 
     public boolean hasTroubleTicket() {

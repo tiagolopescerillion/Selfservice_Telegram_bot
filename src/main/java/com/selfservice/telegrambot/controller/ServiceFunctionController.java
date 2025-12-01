@@ -48,10 +48,10 @@ public class ServiceFunctionController {
                 apimanEndpoints.getDefaultFindUserQueryParams(), apimanEndpoints.getFindUserQueryParams(),
                 apimanEndpoints.getFindUserMethod(), "apiman.find-user.query-params");
 
-        addEndpoint(endpoints, "apiman.account-services.url", "Account services (APIMAN)",
-                apimanEndpoints.getAccountServicesUrl(), List.of("MainServiceCatalogService"),
-                apimanEndpoints.getDefaultAccountServicesQueryParams(), apimanEndpoints.getAccountServicesQueryParams(),
-                apimanEndpoints.getAccountServicesMethod(), "apiman.account-services.query-params");
+        addEndpoint(endpoints, "apiman.product.url", "Product (APIMAN)",
+                apimanEndpoints.getProductUrl(), List.of("ProductService"),
+                apimanEndpoints.getDefaultProductQueryParams(), apimanEndpoints.getProductQueryParams(),
+                apimanEndpoints.getProductMethod(), "apiman.product.query-params");
 
         addEndpoint(endpoints, "apiman.trouble-ticket.url", "Trouble ticket (APIMAN)",
                 apimanEndpoints.getTroubleTicketUrl(), List.of("TroubleTicketService"),

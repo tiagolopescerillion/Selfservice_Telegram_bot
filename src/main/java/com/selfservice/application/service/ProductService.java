@@ -15,9 +15,9 @@ import java.util.List;
 import java.util.Map;
 
 @Service
-public class MainServiceCatalogService {
+public class ProductService {
 
-    private static final Logger log = LoggerFactory.getLogger(MainServiceCatalogService.class);
+    private static final Logger log = LoggerFactory.getLogger(ProductService.class);
 
     private static final int DEFAULT_OFFSET = 0;
     private static final int DEFAULT_LIMIT = 50;
@@ -33,16 +33,16 @@ public class MainServiceCatalogService {
     private final ApimanEndpointsProperties apimanEndpoints;
     private final Map<String, String> configuredQueryParams;
 
-    public MainServiceCatalogService(CommonApiService commonApiService,
+    public ProductService(CommonApiService commonApiService,
             ApimanEndpointsProperties apimanEndpoints,
             ObjectMapper objectMapper) {
         this.commonApiService = commonApiService;
         this.objectMapper = objectMapper;
-        this.serviceEndpoint = apimanEndpoints.getAccountServicesUrl();
+        this.serviceEndpoint = apimanEndpoints.getProductUrl();
         this.apimanEndpoints = apimanEndpoints;
-        this.configuredQueryParams = apimanEndpoints.getAccountServicesQueryParams();
+        this.configuredQueryParams = apimanEndpoints.getProductQueryParams();
         if (this.serviceEndpoint == null) {
-            log.warn("APIMAN account-services endpoint is not configured; the service menu will be disabled.");
+            log.warn("APIMAN product endpoint is not configured; the service menu will be disabled.");
         }
     }
 
@@ -68,7 +68,7 @@ public class MainServiceCatalogService {
         queryParams.put("billingAccount.id", accountId);
 
         CommonApiService.ApiResponse response = commonApiService.execute(
-                new CommonApiService.ApiRequest(serviceEndpoint, apimanEndpoints.getAccountServicesMethod(), accessToken,
+                new CommonApiService.ApiRequest(serviceEndpoint, apimanEndpoints.getProductMethod(), accessToken,
                         queryParams, null, null));
 
         if (!response.success()) {
