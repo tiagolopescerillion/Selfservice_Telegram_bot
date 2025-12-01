@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
+import org.yaml.snakeyaml.DumperOptions;
 import org.yaml.snakeyaml.Yaml;
 
 import java.io.IOException;
@@ -106,7 +107,7 @@ public class ServiceFunctionController {
 
     private String mergeQueryParams(Path configPath, Map<String, Map<String, String>> updates) throws IOException {
         String content = Files.readString(configPath, StandardCharsets.UTF_8);
-        Yaml yaml = new Yaml();
+        Yaml yaml = new Yaml(buildDumperOptions());
 
         List<Object> documents = new ArrayList<>();
         yaml.loadAll(content).forEach(documents::add);
@@ -121,6 +122,14 @@ public class ServiceFunctionController {
         }
 
         return yaml.dumpAll(mutated.iterator());
+    }
+
+    private DumperOptions buildDumperOptions() {
+        DumperOptions options = new DumperOptions();
+        options.setDefaultFlowStyle(DumperOptions.FlowStyle.BLOCK);
+        options.setPrettyFlow(true);
+        options.setWidth(80);
+        return options;
     }
 
     @SuppressWarnings("unchecked")

@@ -1002,7 +1002,7 @@ function renderServiceFunctionTable(endpoints) {
     const row = document.createElement("tr");
     row.className = "empty";
     const cell = document.createElement("td");
-    cell.colSpan = 4;
+    cell.colSpan = 2;
     cell.textContent = "No endpoints available.";
     row.append(cell);
     serviceFunctionsTableBody.append(row);
@@ -1012,21 +1012,45 @@ function renderServiceFunctionTable(endpoints) {
   endpoints.forEach((endpoint) => {
     const row = document.createElement("tr");
 
-    const keyCell = document.createElement("td");
-    keyCell.textContent = endpoint.key || "–";
-    row.append(keyCell);
+    const endpointCell = document.createElement("td");
+    const endpointHeader = document.createElement("div");
+    endpointHeader.className = "service-function__header";
 
-    const urlCell = document.createElement("td");
-    const value = extractApiPath(endpoint.value);
-    urlCell.textContent = `${endpoint.method || "GET"} ${value || "Not configured"}`;
-    row.append(urlCell);
+    const key = document.createElement("div");
+    key.className = "service-function__key";
+    key.textContent = endpoint.key || "–";
 
-    const defaultCell = document.createElement("td");
-    const defaultParams = formatQueryParams(endpoint.defaultQueryParams);
-    defaultCell.textContent = defaultParams || "None";
-    row.append(defaultCell);
+    const method = document.createElement("span");
+    method.className = "pill pill--method";
+    method.textContent = endpoint.method || "GET";
 
-    const overrideCell = document.createElement("td");
+    endpointHeader.append(key, method);
+
+    const path = document.createElement("div");
+    path.className = "service-function__path";
+    path.textContent = extractApiPath(endpoint.value) || "Not configured";
+
+    endpointCell.append(endpointHeader, path);
+
+    const paramsCell = document.createElement("td");
+    paramsCell.className = "service-function__params";
+    const defaultParams = formatQueryParams(endpoint.defaultQueryParams) || "None";
+
+    const defaultRow = document.createElement("div");
+    defaultRow.className = "service-function__default";
+    const defaultLabel = document.createElement("div");
+    defaultLabel.className = "service-function__label";
+    defaultLabel.textContent = "Default query params";
+    const defaultValue = document.createElement("div");
+    defaultValue.className = "service-function__value";
+    defaultValue.textContent = defaultParams;
+    defaultRow.append(defaultLabel, defaultValue);
+
+    const overrideRow = document.createElement("div");
+    overrideRow.className = "service-function__override";
+    const overrideLabel = document.createElement("div");
+    overrideLabel.className = "service-function__label";
+    overrideLabel.textContent = "Override query params";
     const overrideInput = document.createElement("input");
     overrideInput.type = "text";
     overrideInput.className = "query-param-input";
@@ -1038,8 +1062,11 @@ function renderServiceFunctionTable(endpoints) {
     const hint = document.createElement("div");
     hint.className = "hint";
     hint.textContent = "Use key=value&key2=value2";
-    overrideCell.append(overrideInput, hint);
-    row.append(overrideCell);
+    overrideRow.append(overrideLabel, overrideInput, hint);
+
+    paramsCell.append(defaultRow, overrideRow);
+
+    row.append(endpointCell, paramsCell);
 
     serviceFunctionsTableBody.append(row);
   });

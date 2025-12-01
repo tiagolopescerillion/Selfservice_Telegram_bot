@@ -563,6 +563,55 @@ button:disabled {
     color: #475569;
 }
 
+.endpoint-table--stacked th,
+.endpoint-table--stacked td {
+    vertical-align: top;
+}
+
+.service-function__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin-bottom: 0.35rem;
+}
+
+.service-function__key {
+    font-weight: 700;
+    word-break: break-all;
+}
+
+.service-function__path {
+    color: #475569;
+    word-break: break-all;
+}
+
+.service-function__params {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+
+.service-function__label {
+    font-weight: 700;
+    font-size: 0.95rem;
+}
+
+.service-function__value {
+    color: #0f172a;
+    word-break: break-word;
+}
+
+.service-function__override input {
+    margin-top: 0.2rem;
+}
+
+.pill--method {
+    background: #eef2ff;
+    color: #1d4ed8;
+    border-color: #c7d2fe;
+}
+
 .query-param-input {
     width: 100%;
     box-sizing: border-box;
