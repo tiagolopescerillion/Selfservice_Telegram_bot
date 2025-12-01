@@ -158,7 +158,10 @@ public class WhatsappWebhookController {
         monitoringService.recordActivity("WhatsApp", userId, null, hasValidToken,
                 monitoringService.toTokenDetails(tokenSnapshot), optedIn);
         WhatsappSessionService.SelectionContext selectionContext = sessionService.getSelectionContext(userId);
-        WhatsappService.LoginMenuOption numericLoginSelection = parseLoginMenuSelection(body);
+        WhatsappService.LoginMenuOption numericLoginSelection = (!hasValidToken
+                && selectionContext == WhatsappSessionService.SelectionContext.NONE)
+                ? parseLoginMenuSelection(body)
+                : null;
 
         boolean isCrmLogin = numericLoginSelection == WhatsappService.LoginMenuOption.CRM_LOGIN
                 || lower.equals(WhatsappService.INTERACTIVE_ID_CRM_LOGIN.toLowerCase())
