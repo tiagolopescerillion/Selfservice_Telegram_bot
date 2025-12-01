@@ -1,5 +1,6 @@
 package com.selfservice.application.service;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.selfservice.application.config.ApimanEndpointsProperties;
@@ -121,7 +122,14 @@ public class TroubleTicketService {
             return new TroubleTicketListResult(List.of(), null);
         }
 
-        JsonNode root = objectMapper.readTree(body);
+        JsonNode root;
+        try {
+            root = objectMapper.readTree(body);
+        } catch (JsonProcessingException e) {
+            log.warn("Trouble ticket response was not valid JSON", e);
+            return new TroubleTicketListResult(List.of(),
+                    "Failed to parse trouble ticket response.");
+        }
         if (!root.isArray()) {
             log.warn("Trouble ticket response was not an array: {}", body);
             return new TroubleTicketListResult(List.of(),
