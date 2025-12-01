@@ -131,22 +131,39 @@ const DEFAULT_LOGIN_STRUCTURE = [
   }
 ];
 
-const CONFIG_FETCH_PATHS = {
-  override: [
-    "IM-menus.override.json",
-    "CONFIGURATIONS/IM-menus.override.json",
-    "/CONFIGURATIONS/IM-menus.override.json",
-    "/IM-menus.override.json"
-  ],
-  default: [
-    "IM-menus.default.json",
-    "CONFIGURATIONS/IM-menus.default.json",
-    "/CONFIGURATIONS/IM-menus.default.json",
-    "/IM-menus.default.json",
-    "config/IM-menus.default.json",
-    "/config/IM-menus.default.json"
-  ]
-};
+function buildConfigPathCandidates(path) {
+  const paths = [path];
+  const monitoringBase = getConfiguredMonitoringApiBase();
+  if (monitoringBase) {
+    try {
+      paths.unshift(new URL(path, monitoringBase).toString());
+    } catch (error) {
+      console.warn("Unable to build menu config URL from base", monitoringBase, error);
+    }
+  }
+  return paths;
+}
+
+function getConfigFetchPaths() {
+  return {
+    override: [
+      ...buildConfigPathCandidates("/menu-config"),
+      "IM-menus.override.json",
+      "CONFIGURATIONS/IM-menus.override.json",
+      "/CONFIGURATIONS/IM-menus.override.json",
+      "/IM-menus.override.json"
+    ],
+    default: [
+      ...buildConfigPathCandidates("/menu-config/default"),
+      "IM-menus.default.json",
+      "CONFIGURATIONS/IM-menus.default.json",
+      "/CONFIGURATIONS/IM-menus.default.json",
+      "/IM-menus.default.json",
+      "config/IM-menus.default.json",
+      "/config/IM-menus.default.json"
+    ]
+  };
+}
 
 const functionDictionary = {};
 const functionOptions = [];
@@ -518,8 +535,9 @@ async function fetchConfigFromPaths(paths) {
 
 async function loadRemoteMenuConfig(options = {}) {
   const preferDefault = Boolean(options.preferDefault);
-  const overrideConfig = preferDefault ? null : await fetchConfigFromPaths(CONFIG_FETCH_PATHS.override);
-  const defaultConfig = await fetchConfigFromPaths(CONFIG_FETCH_PATHS.default);
+  const fetchPaths = getConfigFetchPaths();
+  const overrideConfig = preferDefault ? null : await fetchConfigFromPaths(fetchPaths.override);
+  const defaultConfig = await fetchConfigFromPaths(fetchPaths.default);
   const selected = overrideConfig || defaultConfig;
 
   if (selected) {
