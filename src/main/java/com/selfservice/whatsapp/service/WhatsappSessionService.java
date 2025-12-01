@@ -61,7 +61,8 @@ public class WhatsappSessionService {
         ACCOUNT,
         SERVICE,
         TICKET,
-        OPT_IN
+        OPT_IN,
+        SETTINGS
     }
 
     public void save(String userId, String accessToken, String refreshToken, String idToken, long expiresInSeconds) {

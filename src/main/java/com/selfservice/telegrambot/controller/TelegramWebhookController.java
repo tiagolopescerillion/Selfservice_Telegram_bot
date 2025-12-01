@@ -114,6 +114,8 @@ public class TelegramWebhookController {
                 text = TelegramService.CALLBACK_DIRECT_LOGIN;
             } else if (text.equals(telegramService.translate(chatId, TelegramService.KEY_BUTTON_OPT_IN))) {
                 text = TelegramService.CALLBACK_OPT_IN_PROMPT;
+            } else if (text.equals(telegramService.translate(chatId, TelegramService.KEY_BUTTON_SETTINGS))) {
+                text = TelegramService.CALLBACK_SETTINGS_MENU;
             } else if (text.equalsIgnoreCase(telegramService.translate(chatId, TelegramService.KEY_OPT_IN_YES))) {
                 text = TelegramService.CALLBACK_OPT_IN_ACCEPT;
             } else if (text.equalsIgnoreCase(telegramService.translate(chatId, TelegramService.KEY_OPT_IN_NO))) {
@@ -148,6 +150,11 @@ public class TelegramWebhookController {
                 } else {
                     telegramService.sendLoginMenu(chatId, oauthSessionService.buildAuthUrl(chatId));
                 }
+                return ResponseEntity.ok().build();
+            }
+
+            if (text.equals(TelegramService.CALLBACK_SETTINGS_MENU)) {
+                telegramService.sendSettingsMenu(chatId);
                 return ResponseEntity.ok().build();
             }
 

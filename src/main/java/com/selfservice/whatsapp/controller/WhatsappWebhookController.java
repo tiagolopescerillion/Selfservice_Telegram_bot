@@ -171,6 +171,9 @@ public class WhatsappWebhookController {
         boolean isChangeLanguage = numericLoginSelection == WhatsappService.LoginMenuOption.CHANGE_LANGUAGE
                 || lower.equals(WhatsappService.INTERACTIVE_ID_CHANGE_LANGUAGE.toLowerCase())
                 || lower.equals(WhatsappService.COMMAND_CHANGE_LANGUAGE);
+        boolean isSettingsSelection = numericLoginSelection == WhatsappService.LoginMenuOption.SETTINGS
+                || lower.equals(WhatsappService.INTERACTIVE_ID_SETTINGS.toLowerCase())
+                || lower.equals("settings");
 
         if (selectionContext == WhatsappSessionService.SelectionContext.OPT_IN && parseIndex(lower) >= 1) {
             int choice = parseIndex(lower);
@@ -190,6 +193,21 @@ public class WhatsappWebhookController {
                 whatsappService.sendText(from, whatsappService.translate(from, "OptOutConfirmation"));
                 sessionService.setSelectionContext(userId, WhatsappSessionService.SelectionContext.NONE);
                 sendLoginPrompt(from, sessionKey);
+                return;
+            }
+        }
+
+        if (selectionContext == WhatsappSessionService.SelectionContext.SETTINGS && parseIndex(lower) >= 1) {
+            int choice = parseIndex(lower);
+            if (choice == 1) {
+                sessionService.setSelectionContext(userId, WhatsappSessionService.SelectionContext.NONE);
+                whatsappService.sendOptInPrompt(from);
+                return;
+            }
+            if (choice == 2) {
+                sessionService.setSelectionContext(userId, WhatsappSessionService.SelectionContext.NONE);
+                sessionService.setAwaitingLanguageSelection(userId, true);
+                whatsappService.sendLanguageMenu(from);
                 return;
             }
         }
@@ -287,7 +305,16 @@ public class WhatsappWebhookController {
                 whatsappService.sendLanguageMenu(from);
                 return;
             }
+            if (isSettingsSelection) {
+                whatsappService.sendSettingsMenu(from);
+                return;
+            }
             sendLoginPrompt(from, sessionKey);
+            return;
+        }
+
+        if (isSettingsSelection) {
+            whatsappService.sendSettingsMenu(from);
             return;
         }
 
@@ -505,6 +532,12 @@ public class WhatsappWebhookController {
                 }
                 return;
             }
+        }
+
+        actionIndex++;
+        if (numeric == actionIndex) {
+            whatsappService.sendSettingsMenu(from);
+            return;
         }
 
         actionIndex++;
