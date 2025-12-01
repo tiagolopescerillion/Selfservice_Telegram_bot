@@ -109,7 +109,7 @@ public class HttpLoggingConfig {
 
         @Override
         public int getRawStatusCode() throws IOException {
-            return delegate.getRawStatusCode();
+            return getStatusCode().value();
         }
 
         @Override
