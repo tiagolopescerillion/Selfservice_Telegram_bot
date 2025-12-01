@@ -590,19 +590,16 @@ button:disabled {
 
 .service-function__services {
     color: #475569;
-    font-size: 0.95rem;
-}
-
-.service-function__endpoint {
-    display: flex;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 0.5rem;
+    font-size: 1rem;
+    word-break: break-word;
 }
 
 .service-function__path {
     color: #475569;
     word-break: break-all;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
 }
 
 .service-function__label {

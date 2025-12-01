@@ -1019,23 +1019,22 @@ function renderServiceFunctionTable(endpoints) {
     name.className = "service-function__name";
     name.textContent = endpoint.name || endpoint.key || "–";
     const services = document.createElement("div");
-    services.className = "service-function__services";
+    services.className = "service-function__path service-function__services";
     services.textContent = endpoint.services?.length
       ? `Java services: ${endpoint.services.join(", ")}`
       : "Java services: None";
     title.append(name, services);
 
-    const endpointMeta = document.createElement("div");
-    endpointMeta.className = "service-function__endpoint";
     const path = document.createElement("div");
     path.className = "service-function__path";
-    path.textContent = extractApiPath(endpoint.value) || "Not configured";
+    const apiPath = extractApiPath(endpoint.value);
+    path.textContent = apiPath || "";
     const method = document.createElement("span");
     method.className = "pill pill--method";
     method.textContent = endpoint.method || "GET";
-    endpointMeta.append(path, method);
+    path.append(method);
 
-    summary.append(title, endpointMeta);
+    summary.append(title, path);
 
     const defaultParams = formatQueryParams(endpoint.defaultQueryParams) || "None";
 
@@ -1062,10 +1061,7 @@ function renderServiceFunctionTable(endpoints) {
     overrideInput.addEventListener("input", (event) => {
       serviceFunctionOverrides.set(endpoint.queryParamKey, event.target.value);
     });
-    const hint = document.createElement("div");
-    hint.className = "hint";
-    hint.textContent = "Use key=value&key2=value2";
-    overrideRow.append(overrideLabel, overrideInput, hint);
+    overrideRow.append(overrideLabel, overrideInput);
 
     card.append(summary, defaultRow, overrideRow);
 
