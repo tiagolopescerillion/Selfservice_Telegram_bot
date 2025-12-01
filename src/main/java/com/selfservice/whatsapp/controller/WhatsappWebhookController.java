@@ -7,7 +7,7 @@ import com.selfservice.application.dto.ServiceListResult;
 import com.selfservice.application.dto.ServiceSummary;
 import com.selfservice.application.dto.TroubleTicketListResult;
 import com.selfservice.application.dto.TroubleTicketSummary;
-import com.selfservice.application.service.MainServiceCatalogService;
+import com.selfservice.application.service.ProductService;
 import com.selfservice.application.service.TroubleTicketService;
 import com.selfservice.telegrambot.config.menu.BusinessMenuItem;
 import com.selfservice.telegrambot.service.OperationsMonitoringService;
@@ -39,7 +39,7 @@ public class WhatsappWebhookController {
     private final OAuthSessionService oauthSessionService;
     private final WhatsappSessionService sessionService;
     private final KeycloakAuthService keycloakAuthService;
-    private final MainServiceCatalogService mainServiceCatalogService;
+    private final ProductService productService;
     private final TroubleTicketService troubleTicketService;
     private final String verifyToken;
     private final OperationsMonitoringService monitoringService;
@@ -49,7 +49,7 @@ public class WhatsappWebhookController {
             OAuthSessionService oauthSessionService,
             WhatsappSessionService sessionService,
             KeycloakAuthService keycloakAuthService,
-            MainServiceCatalogService mainServiceCatalogService,
+            ProductService productService,
             TroubleTicketService troubleTicketService,
             @Value("${whatsapp.verify-token}") String verifyToken,
             OperationsMonitoringService monitoringService) {
@@ -57,7 +57,7 @@ public class WhatsappWebhookController {
         this.oauthSessionService = oauthSessionService;
         this.sessionService = sessionService;
         this.keycloakAuthService = keycloakAuthService;
-        this.mainServiceCatalogService = mainServiceCatalogService;
+        this.productService = productService;
         this.troubleTicketService = troubleTicketService;
         this.verifyToken = Objects.requireNonNull(verifyToken, "whatsapp.verify-token must be set");
         this.monitoringService = monitoringService;
@@ -620,7 +620,7 @@ public class WhatsappWebhookController {
             return;
         }
         AccountSummary selected = sessionService.getSelectedAccount(userId);
-        ServiceListResult services = mainServiceCatalogService.getMainServices(token, selected.accountId());
+        ServiceListResult services = productService.getMainServices(token, selected.accountId());
         if (services.hasError()) {
             sessionService.clearServices(userId);
             whatsappService.sendText(userId,

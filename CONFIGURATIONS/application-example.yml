@@ -72,10 +72,26 @@ apiman:
   base-url: ${endpoints.apiman-base-url}
   find-user:
     url: ${apiman.base-url}/findUser/1.0
-  account-services:
+    method: GET
+    query-params:
+      offset: 0
+      limit: 1
+  product:
     url: ${apiman.base-url}/product/1.0
+    method: GET
+    query-params:
+      offset: 0
+      limit: 50
+      isMainService: true
+      isVisible: true
+      subStatus: "CU,FA,TA,RP,TP"
+      completePackages: true
+      fields: "id,isBundle,description,subStatus,isMainService,serviceType,productRelationship,productCharacteristic,billingAccount"
   trouble-ticket:
     url: ${apiman.base-url}/troubleTicket/1.0
+    method: GET
+    query-params:
+      relatedEntity.billingAccount.id: ""
   billing-account:
     url: ${apiman.base-url}/openapi-fun-account/api/v1/billingAccounts?billingAccount.id=20000053
   trouble-ticket-openapi:

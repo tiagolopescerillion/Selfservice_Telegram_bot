@@ -6,7 +6,7 @@ import com.selfservice.application.dto.AccountSummary;
 import com.selfservice.application.dto.ServiceListResult;
 import com.selfservice.application.dto.ServiceSummary;
 import com.selfservice.application.dto.TroubleTicketListResult;
-import com.selfservice.application.service.MainServiceCatalogService;
+import com.selfservice.application.service.ProductService;
 import com.selfservice.application.service.TroubleTicketService;
 import com.selfservice.telegrambot.service.OperationsMonitoringService;
 import com.selfservice.telegrambot.service.TelegramService;
@@ -26,7 +26,7 @@ public class TelegramWebhookController {
     private static final Logger log = LoggerFactory.getLogger(TelegramWebhookController.class);
     private final TelegramService telegramService;
     private final KeycloakAuthService keycloakAuthService;
-    private final MainServiceCatalogService mainServiceCatalogService;
+    private final ProductService productService;
     private final OAuthSessionService oauthSessionService;
     private final UserSessionService userSessionService;
     private final TroubleTicketService troubleTicketService;
@@ -34,14 +34,14 @@ public class TelegramWebhookController {
 
     public TelegramWebhookController(TelegramService telegramService,
             KeycloakAuthService keycloakAuthService,
-            MainServiceCatalogService mainServiceCatalogService,
+            ProductService productService,
             OAuthSessionService oauthSessionService,
             UserSessionService userSessionService,
             TroubleTicketService troubleTicketService,
             OperationsMonitoringService monitoringService) {
         this.telegramService = telegramService;
         this.keycloakAuthService = keycloakAuthService;
-        this.mainServiceCatalogService = mainServiceCatalogService;
+        this.productService = productService;
         this.oauthSessionService = oauthSessionService;
 
         this.userSessionService = userSessionService;
@@ -409,7 +409,7 @@ public class TelegramWebhookController {
                             break;
                         }
                         AccountSummary selected = userSessionService.getSelectedAccount(chatId);
-                        ServiceListResult services = mainServiceCatalogService
+                        ServiceListResult services = productService
                                 .getMainServices(existingToken, selected.accountId());
                         if (services.hasError()) {
                             userSessionService.clearServices(chatId);

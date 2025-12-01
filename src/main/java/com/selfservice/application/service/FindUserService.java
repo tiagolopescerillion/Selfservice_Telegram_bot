@@ -7,111 +7,100 @@ import com.selfservice.application.dto.AccountSummary;
 import com.selfservice.application.dto.FindUserResult;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.http.*;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.HttpStatusCodeException;
-import org.springframework.web.client.RestTemplate;
-import org.springframework.web.util.UriComponentsBuilder;
 
 import java.nio.charset.StandardCharsets;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * Looks up customer billing accounts through the configured find-user endpoint and extracts a
+ * preferred display name. Query parameters are driven by configuration so API defaults stay in
+ * YAML instead of code.
+ */
 @Service
 public class FindUserService {
 
     private static final Logger log = LoggerFactory.getLogger(FindUserService.class);
 
-    private static final int DEFAULT_OFFSET = 0;
-    private static final int DEFAULT_LIMIT = 1;
-
-    private final RestTemplate restTemplate;
+    private final CommonApiService commonApiService;
+    private final ApimanEndpointsProperties apimanEndpoints;
     private final ObjectMapper objectMapper;
     private final String findUserEndpoint;
+    private final Map<String, String> configuredQueryParams;
 
-    public FindUserService(@Qualifier("loggingRestTemplate") RestTemplate restTemplate,
+    public FindUserService(CommonApiService commonApiService,
             ObjectMapper objectMapper,
             ApimanEndpointsProperties apimanEndpoints) {
-        this.restTemplate = restTemplate;
+        this.commonApiService = commonApiService;
+        this.apimanEndpoints = apimanEndpoints;
         this.objectMapper = objectMapper;
         this.findUserEndpoint = apimanEndpoints.getFindUserUrl();
+        this.configuredQueryParams = apimanEndpoints.getFindUserQueryParams();
         if (this.findUserEndpoint == null) {
             log.warn("APIMAN find-user endpoint is not configured; account discovery will be disabled.");
         }
     }
 
+    /**
+     * Calls the find-user API to retrieve billing account identifiers tied to the authenticated
+     * user.
+     *
+     * @param accessToken bearer token forwarded to the downstream API
+     * @return accounts found plus any descriptive status or error message
+     */
     public FindUserResult fetchAccountNumbers(String accessToken) {
         if (findUserEndpoint == null || findUserEndpoint.isBlank()) {
             return new FindUserResult(false, "APIMAN[FindUser] ERROR: endpoint URL is not configured.", List.of(), null);
         }
 
-        final String url;
-        try {
-            url = UriComponentsBuilder.fromHttpUrl(findUserEndpoint)
-                    .queryParam("offset", DEFAULT_OFFSET)
-                    .queryParam("limit", DEFAULT_LIMIT)
-                    .build(true)
-                    .toUriString();
-        } catch (IllegalArgumentException ex) {
-            log.error("Invalid findUser endpoint configured: {}", findUserEndpoint, ex);
-            return new FindUserResult(false, "APIMAN[FindUser] ERROR: invalid endpoint URL.", List.of(), null);
+        Map<String, String> queryParams = new LinkedHashMap<>(configuredQueryParams);
+
+        CommonApiService.ApiResponse response = commonApiService.execute(
+                new CommonApiService.ApiRequest(findUserEndpoint, apimanEndpoints.getFindUserMethod(), accessToken,
+                        queryParams, null, null));
+
+        if (!response.success()) {
+            String body = response.body() == null ? "<empty body>" : truncate(response.body(), 3500);
+            String summary = response.statusCode() == 0
+                    ? "APIMAN[FindUser] ERROR: " + response.errorMessage()
+                    : "APIMAN[FindUser] ERROR: status=" + response.statusCode();
+            return new FindUserResult(false, summary + "\n" + body, List.of(), null);
         }
 
-        HttpHeaders headers = new HttpHeaders();
-        headers.setAccept(List.of(MediaType.APPLICATION_JSON));
-        headers.setContentType(MediaType.APPLICATION_JSON);
-        headers.setBearerAuth(accessToken);
-        headers.set("User-Agent", "SelfserviceTelegramBot/1.0");
+        String body = response.body() == null ? "" : response.body();
+        String contentType = response.headers().getContentType() == null
+                ? "<none>"
+                : response.headers().getContentType().toString();
+        int bodyBytes = body.getBytes(StandardCharsets.UTF_8).length;
+
+        String summary = "APIMAN[FindUser] "
+                + response.statusCode()
+                + " (" + contentType + ", " + bodyBytes + " bytes)";
+
+        if (response.statusCode() < 200 || response.statusCode() >= 300) {
+            return new FindUserResult(false, summary + "\n" + (body.isBlank() ? "<empty body>" : body), List.of(), null);
+        }
+
+        if (response.headers().getContentType() == null
+                || !MediaType.APPLICATION_JSON.isCompatibleWith(response.headers().getContentType())) {
+            log.warn("findUser response is not JSON (Content-Type={})", response.headers().getContentType());
+        }
 
         try {
-            ResponseEntity<String> response = restTemplate.exchange(
-                    url,
-                    HttpMethod.GET,
-                    new HttpEntity<>(headers),
-                    String.class);
-
-            String body = response.getBody() == null ? "" : response.getBody();
-            String contentType = response.getHeaders().getContentType() == null
-                    ? "<none>"
-                    : response.getHeaders().getContentType().toString();
-            int bodyBytes = body.getBytes(StandardCharsets.UTF_8).length;
-
-            String summary = "APIMAN[FindUser] "
-                    + response.getStatusCode().value()
-                    + " (" + contentType + ", " + bodyBytes + " bytes)";
-
-            if (!response.getStatusCode().is2xxSuccessful()) {
-                return new FindUserResult(false, summary + "\n" + (body.isBlank() ? "<empty body>" : body), List.of(), null);
-            }
-
-            if (response.getHeaders().getContentType() == null
-                    || !MediaType.APPLICATION_JSON.isCompatibleWith(response.getHeaders().getContentType())) {
-                log.warn("findUser response is not JSON (Content-Type={})", response.getHeaders().getContentType());
-            }
-
-            try {
-                ParsedResponse parsed = extractAccountsAndName(body);
-                return new FindUserResult(true, summary, parsed.accounts(), parsed.givenName());
-            } catch (Exception parseError) {
-                log.error("Unable to parse findUser response body", parseError);
-                return new FindUserResult(false, summary + "\nParse error: " + parseError.getMessage(), List.of(), null);
-            }
-        } catch (HttpStatusCodeException ex) {
-            String body = ex.getResponseBodyAsString();
-            MediaType ct = ex.getResponseHeaders() == null ? null : ex.getResponseHeaders().getContentType();
-            String contentType = ct == null ? "<none>" : ct.toString();
-            String summary = "APIMAN[FindUser] ERROR: status=" + ex.getStatusCode().value()
-                    + " (" + contentType + ")";
-            return new FindUserResult(false, summary + "\n" + (body == null ? "<no-body>" : truncate(body, 3500)), List.of(), null);
-        } catch (Exception ex) {
-            String summary = "APIMAN[FindUser] ERROR: " + ex.getClass().getSimpleName()
-                    + ": " + (ex.getMessage() == null ? "<no-message>" : ex.getMessage());
-            return new FindUserResult(false, summary, List.of(), null);
+            ParsedResponse parsed = extractAccountsAndName(body);
+            return new FindUserResult(true, summary, parsed.accounts(), parsed.givenName());
+        } catch (Exception parseError) {
+            log.error("Unable to parse findUser response body", parseError);
+            return new FindUserResult(false, summary + "\nParse error: " + parseError.getMessage(), List.of(), null);
         }
     }
 
+    /**
+     * Parses the find-user response body and extracts accounts and a preferred display name.
+     */
     private ParsedResponse extractAccountsAndName(String body) throws Exception {
         if (body == null || body.isBlank()) {
             return new ParsedResponse(List.of(), null);
@@ -134,6 +123,9 @@ public class FindUserService {
         return new ParsedResponse(List.copyOf(accounts.values()), preferredName);
     }
 
+    /**
+     * Collects billing accounts from a relatedParty array on a single individual node.
+     */
     private void collectFromIndividual(JsonNode individual, Map<String, AccountSummary> accounts) {
         if (individual == null) {
             return;
@@ -159,6 +151,9 @@ public class FindUserService {
         }
     }
 
+    /**
+     * Chooses a preferred name from givenName or fullName fields if not already selected.
+     */
     private String pickPreferredName(String current, JsonNode individual) {
         if (current != null && !current.isBlank()) {
             return current;
@@ -177,6 +172,9 @@ public class FindUserService {
         return current;
     }
 
+    /**
+     * Truncates long output when logging or surfacing errors to keep messages readable.
+     */
     private static String truncate(String input, int max) {
         if (input == null) {
             return "<null>";

@@ -52,23 +52,16 @@
               <p>
                 APIMAN endpoints pulled directly from
                 <code>CONFIGURATIONS/application*.yml</code>. Use this view to
-                confirm what URLs are set without relying on the running Java
-                services.
+                confirm what URLs and query parameters are set without relying
+                on the running Java services.
               </p>
-              <div class="table-wrapper">
-                <table class="endpoint-table">
-                  <thead>
-                    <tr>
-                      <th scope="col">Config key</th>
-                      <th scope="col">API</th>
-                    </tr>
-                  </thead>
-                  <tbody id="serviceFunctionsTableBody">
-                    <tr class="empty">
-                      <td colspan="2">Loading endpoints…</td>
-                    </tr>
-                  </tbody>
-                </table>
+              <div class="toolbar toolbar--end">
+                <button id="downloadQueryParamsButton" class="button" type="button">
+                  Download updated application-local.yml
+                </button>
+              </div>
+              <div class="service-function-list" id="serviceFunctionsTableBody">
+                <div class="empty">Loading endpoints…</div>
               </div>
               <p id="serviceFunctionsStatus" class="hint" aria-live="polite"></p>
             </section>
