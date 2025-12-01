@@ -1,4 +1,4 @@
-package com.selfservice.telegrambot.config;
+package com.selfservice.application.config;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -109,7 +109,7 @@ public class HttpLoggingConfig {
 
         @Override
         public int getRawStatusCode() throws IOException {
-            return delegate.getRawStatusCode();
+            return getStatusCode().value();
         }
 
         @Override

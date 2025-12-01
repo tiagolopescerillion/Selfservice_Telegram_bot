@@ -1,4 +1,4 @@
-package com.selfservice.telegrambot.config.menu;
+package com.selfservice.application.config.menu;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 

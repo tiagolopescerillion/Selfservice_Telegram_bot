@@ -1,4 +1,4 @@
-package com.selfservice.telegrambot.dto;
+package com.selfservice.application.dto;
 
 import java.util.Map;
 

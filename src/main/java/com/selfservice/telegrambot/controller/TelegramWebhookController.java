@@ -8,7 +8,7 @@ import com.selfservice.application.dto.ServiceSummary;
 import com.selfservice.application.dto.TroubleTicketListResult;
 import com.selfservice.application.service.ProductService;
 import com.selfservice.application.service.TroubleTicketService;
-import com.selfservice.telegrambot.service.OperationsMonitoringService;
+import com.selfservice.application.service.OperationsMonitoringService;
 import com.selfservice.telegrambot.service.TelegramService;
 import com.selfservice.telegrambot.service.UserSessionService;
 import org.slf4j.Logger;

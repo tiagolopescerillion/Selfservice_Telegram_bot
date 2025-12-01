@@ -1,6 +1,6 @@
-package com.selfservice.telegrambot.controller;
+package com.selfservice.application.controller;
 
-import com.selfservice.telegrambot.service.OperationsMonitoringService;
+import com.selfservice.application.service.OperationsMonitoringService;
 import com.selfservice.telegrambot.service.TelegramService;
 import com.selfservice.telegrambot.service.UserSessionService;
 import com.selfservice.whatsapp.service.WhatsappService;

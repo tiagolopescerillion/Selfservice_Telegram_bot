@@ -1,4 +1,4 @@
-package com.selfservice.telegrambot.controller;
+package com.selfservice.application.controller;
 
 import com.selfservice.application.auth.OAuthSessionService;
 import com.selfservice.application.dto.AccountSummary;
@@ -8,7 +8,7 @@ import com.selfservice.telegrambot.service.TelegramService;
 import com.selfservice.telegrambot.service.UserSessionService;
 import com.selfservice.whatsapp.service.WhatsappService;
 import com.selfservice.whatsapp.service.WhatsappSessionService;
-import com.selfservice.telegrambot.service.OperationsMonitoringService;
+import com.selfservice.application.service.OperationsMonitoringService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.MediaType;

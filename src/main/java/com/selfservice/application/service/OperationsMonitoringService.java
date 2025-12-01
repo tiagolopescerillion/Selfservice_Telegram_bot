@@ -1,5 +1,6 @@
-package com.selfservice.telegrambot.service;
+package com.selfservice.application.service;
 
+import com.selfservice.telegrambot.service.UserSessionService;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;

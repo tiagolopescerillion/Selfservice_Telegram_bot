@@ -1,4 +1,4 @@
-package com.selfservice.telegrambot.config;
+package com.selfservice.application.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;

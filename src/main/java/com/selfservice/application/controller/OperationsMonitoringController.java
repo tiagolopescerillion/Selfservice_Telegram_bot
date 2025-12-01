@@ -1,7 +1,7 @@
-package com.selfservice.telegrambot.controller;
+package com.selfservice.application.controller;
 
-import com.selfservice.telegrambot.service.OperationsMonitoringService;
-import com.selfservice.telegrambot.service.OperationsMonitoringService.SessionSnapshot;
+import com.selfservice.application.service.OperationsMonitoringService;
+import com.selfservice.application.service.OperationsMonitoringService.SessionSnapshot;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
