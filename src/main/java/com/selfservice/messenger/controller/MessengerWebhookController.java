@@ -1,7 +1,7 @@
 package com.selfservice.messenger.controller;
 
 import com.selfservice.messenger.service.MessengerService;
-import com.selfservice.telegrambot.service.OperationsMonitoringService;
+import com.selfservice.application.service.OperationsMonitoringService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;

@@ -1,4 +1,4 @@
-package com.selfservice.telegrambot.config;
+package com.selfservice.application.config;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

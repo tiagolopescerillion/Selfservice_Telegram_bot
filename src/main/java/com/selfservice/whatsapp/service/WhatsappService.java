@@ -6,7 +6,7 @@ import com.selfservice.application.dto.ServiceSummary;
 import com.selfservice.application.dto.TroubleTicketSummary;
 import com.selfservice.telegrambot.config.menu.BusinessMenuConfigurationProvider;
 import com.selfservice.telegrambot.config.menu.BusinessMenuItem;
-import com.selfservice.telegrambot.service.TranslationService;
+import com.selfservice.application.service.TranslationService;
 import com.selfservice.whatsapp.config.WhatsappProperties;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

@@ -1,8 +1,8 @@
-package com.selfservice.telegrambot.controller;
+package com.selfservice.application.controller;
 
 import com.selfservice.application.config.ApimanEndpointsProperties;
-import com.selfservice.telegrambot.dto.QueryParamExportRequest;
-import com.selfservice.telegrambot.dto.ServiceFunctionDescriptor;
+import com.selfservice.application.dto.QueryParamExportRequest;
+import com.selfservice.application.dto.ServiceFunctionDescriptor;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;

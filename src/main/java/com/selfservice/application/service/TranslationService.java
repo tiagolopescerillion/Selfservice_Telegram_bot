@@ -1,4 +1,4 @@
-package com.selfservice.telegrambot.service;
+package com.selfservice.application.service;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;

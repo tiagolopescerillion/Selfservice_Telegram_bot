@@ -6,6 +6,7 @@ import com.selfservice.application.dto.ServiceSummary;
 import com.selfservice.application.dto.TroubleTicketSummary;
 import com.selfservice.telegrambot.config.menu.BusinessMenuConfigurationProvider;
 import com.selfservice.telegrambot.config.menu.BusinessMenuItem;
+import com.selfservice.application.service.TranslationService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;

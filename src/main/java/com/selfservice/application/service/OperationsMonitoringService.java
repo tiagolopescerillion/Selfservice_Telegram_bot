@@ -1,4 +1,4 @@
-package com.selfservice.telegrambot.service;
+package com.selfservice.application.service;
 
 import org.springframework.stereotype.Service;
 
