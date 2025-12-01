@@ -114,6 +114,10 @@ public class TelegramWebhookController {
                 text = TelegramService.CALLBACK_DIRECT_LOGIN;
             } else if (text.equals(telegramService.translate(chatId, TelegramService.KEY_BUTTON_OPT_IN))) {
                 text = TelegramService.CALLBACK_OPT_IN_PROMPT;
+            } else if (text.equals(telegramService.translate(chatId, TelegramService.KEY_BUTTON_SETTINGS))) {
+                text = TelegramService.CALLBACK_SETTINGS_MENU;
+            } else if (text.equals(telegramService.translate(chatId, TelegramService.KEY_BUTTON_MENU))) {
+                text = TelegramService.CALLBACK_MENU;
             } else if (text.equalsIgnoreCase(telegramService.translate(chatId, TelegramService.KEY_OPT_IN_YES))) {
                 text = TelegramService.CALLBACK_OPT_IN_ACCEPT;
             } else if (text.equalsIgnoreCase(telegramService.translate(chatId, TelegramService.KEY_OPT_IN_NO))) {
@@ -141,6 +145,22 @@ public class TelegramWebhookController {
 
             if (text.equals(TelegramService.CALLBACK_BUSINESS_MENU_HOME)) {
                 telegramService.goHomeBusinessMenu(chatId);
+                if (hasValidToken && ensureAccountSelected(chatId)) {
+                    AccountSummary selected = userSessionService.getSelectedAccount(chatId);
+                    telegramService.sendLoggedInMenu(chatId, selected,
+                            userSessionService.getAccounts(chatId).size() > 1);
+                } else {
+                    telegramService.sendLoginMenu(chatId, oauthSessionService.buildAuthUrl(chatId));
+                }
+                return ResponseEntity.ok().build();
+            }
+
+            if (text.equals(TelegramService.CALLBACK_SETTINGS_MENU)) {
+                telegramService.sendSettingsMenu(chatId);
+                return ResponseEntity.ok().build();
+            }
+
+            if (text.equals(TelegramService.CALLBACK_MENU)) {
                 if (hasValidToken && ensureAccountSelected(chatId)) {
                     AccountSummary selected = userSessionService.getSelectedAccount(chatId);
                     telegramService.sendLoggedInMenu(chatId, selected,
@@ -229,7 +249,13 @@ public class TelegramWebhookController {
                 monitoringService.recordActivity("Telegram", Long.toString(chatId), chatUsername, hasValidToken,
                         monitoringService.toTokenDetails(tokenSnapshot), true);
                 telegramService.sendMessageWithKey(chatId, "OptInAccepted");
-                telegramService.sendLoginMenu(chatId, oauthSessionService.buildAuthUrl(chatId));
+                if (hasValidToken && ensureAccountSelected(chatId)) {
+                    AccountSummary selected = userSessionService.getSelectedAccount(chatId);
+                    telegramService.sendLoggedInMenu(chatId, selected,
+                            userSessionService.getAccounts(chatId).size() > 1);
+                } else {
+                    telegramService.sendLoginMenu(chatId, oauthSessionService.buildAuthUrl(chatId));
+                }
                 return ResponseEntity.ok().build();
             }
 
@@ -238,7 +264,13 @@ public class TelegramWebhookController {
                 monitoringService.recordActivity("Telegram", Long.toString(chatId), chatUsername, hasValidToken,
                         monitoringService.toTokenDetails(tokenSnapshot), false);
                 telegramService.sendMessageWithKey(chatId, "OptInDeclined");
-                telegramService.sendLoginMenu(chatId, oauthSessionService.buildAuthUrl(chatId));
+                if (hasValidToken && ensureAccountSelected(chatId)) {
+                    AccountSummary selected = userSessionService.getSelectedAccount(chatId);
+                    telegramService.sendLoggedInMenu(chatId, selected,
+                            userSessionService.getAccounts(chatId).size() > 1);
+                } else {
+                    telegramService.sendLoginMenu(chatId, oauthSessionService.buildAuthUrl(chatId));
+                }
                 return ResponseEntity.ok().build();
             }
 

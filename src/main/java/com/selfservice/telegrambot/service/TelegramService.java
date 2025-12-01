@@ -36,6 +36,8 @@ public class TelegramService {
     public static final String KEY_BUTTON_MY_ISSUES = "ButtonMyIssues";
     public static final String KEY_BUTTON_CHANGE_ACCOUNT = "ButtonChangeAccount";
     public static final String KEY_BUTTON_CHANGE_LANGUAGE = "ButtonChangeLanguage";
+    public static final String KEY_BUTTON_MENU = "ButtonMenu";
+    public static final String KEY_BUTTON_SETTINGS = "ButtonSettings";
     public static final String KEY_BUTTON_OPT_IN = "ButtonOptIn";
     public static final String KEY_OPT_IN_YES = "OptInYes";
     public static final String KEY_OPT_IN_NO = "OptInNo";
@@ -57,6 +59,8 @@ public class TelegramService {
     public static final String CALLBACK_SELECT_SERVICE = "SELECT_SERVICE";
     public static final String CALLBACK_CHANGE_ACCOUNT = "CHANGE_ACCOUNT";
     public static final String CALLBACK_LANGUAGE_MENU = "LANGUAGE_MENU";
+    public static final String CALLBACK_MENU = "MENU";
+    public static final String CALLBACK_SETTINGS_MENU = "SETTINGS_MENU";
     public static final String CALLBACK_LANGUAGE_PREFIX = "LANGUAGE:";
     public static final String CALLBACK_LOGOUT = "LOGOUT";
     public static final String CALLBACK_SHOW_MORE_ACCOUNTS_PREFIX = "SHOW_MORE_ACCOUNTS:";
@@ -153,15 +157,12 @@ public class TelegramService {
         }
         if (loginMenuProperties.isCrmLoginEnabled()) {
             keyboard.add(List.of(Map.of(
-                    "text", translate(chatId, KEY_BUTTON_DIRECT_LOGIN),
-                    "callback_data", CALLBACK_DIRECT_LOGIN)));
+                "text", translate(chatId, KEY_BUTTON_DIRECT_LOGIN),
+                "callback_data", CALLBACK_DIRECT_LOGIN)));
         }
         keyboard.add(List.of(Map.of(
-                "text", translate(chatId, KEY_BUTTON_OPT_IN),
-                "callback_data", CALLBACK_OPT_IN_PROMPT)));
-        keyboard.add(List.of(Map.of(
-                "text", translate(chatId, KEY_BUTTON_CHANGE_LANGUAGE),
-                "callback_data", CALLBACK_LANGUAGE_MENU)));
+                "text", translate(chatId, KEY_BUTTON_SETTINGS),
+                "callback_data", CALLBACK_SETTINGS_MENU)));
 
         Map<String, Object> replyMarkup = Map.of("inline_keyboard", keyboard);
 
@@ -178,9 +179,13 @@ public class TelegramService {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
 
-        List<List<Map<String, Object>>> keyboard = List.of(List.of(
+        List<List<Map<String, Object>>> keyboard = new ArrayList<>();
+        keyboard.add(List.of(
                 Map.of("text", translate(chatId, KEY_OPT_IN_YES), "callback_data", CALLBACK_OPT_IN_ACCEPT),
                 Map.of("text", translate(chatId, KEY_OPT_IN_NO), "callback_data", CALLBACK_OPT_IN_DECLINE)));
+        keyboard.add(List.of(Map.of(
+                "text", translate(chatId, KEY_BUTTON_MENU),
+                "callback_data", CALLBACK_MENU)));
 
         Map<String, Object> replyMarkup = Map.of("inline_keyboard", keyboard);
 
@@ -233,6 +238,9 @@ public class TelegramService {
                     "callback_data", CALLBACK_CHANGE_ACCOUNT)));
         }
         keyboard.add(List.of(Map.of(
+                "text", translate(chatId, KEY_BUTTON_SETTINGS),
+                "callback_data", CALLBACK_SETTINGS_MENU)));
+        keyboard.add(List.of(Map.of(
                 "text", translate(chatId, KEY_BUTTON_LOGOUT),
                 "callback_data", CALLBACK_LOGOUT)));
 
@@ -271,12 +279,41 @@ public class TelegramService {
         keyboard.add(List.of(Map.of(
                 "text", translate(chatId, "LanguageRussian"),
                 "callback_data", CALLBACK_LANGUAGE_PREFIX + "ru")));
+        keyboard.add(List.of(Map.of(
+                "text", translate(chatId, KEY_BUTTON_MENU),
+                "callback_data", CALLBACK_MENU)));
 
         Map<String, Object> replyMarkup = Map.of("inline_keyboard", keyboard);
 
         Map<String, Object> body = Map.of(
                 "chat_id", chatId,
                 "text", translate(chatId, "ChooseLanguagePrompt"),
+                "reply_markup", replyMarkup);
+
+        post(url, body, headers);
+    }
+
+    public void sendSettingsMenu(long chatId) {
+        String url = baseUrl + "/sendMessage";
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+
+        List<List<Map<String, Object>>> keyboard = new ArrayList<>();
+        keyboard.add(List.of(Map.of(
+                "text", translate(chatId, KEY_BUTTON_OPT_IN),
+                "callback_data", CALLBACK_OPT_IN_PROMPT)));
+        keyboard.add(List.of(Map.of(
+                "text", translate(chatId, KEY_BUTTON_CHANGE_LANGUAGE),
+                "callback_data", CALLBACK_LANGUAGE_MENU)));
+        keyboard.add(List.of(Map.of(
+                "text", translate(chatId, KEY_BUTTON_MENU),
+                "callback_data", CALLBACK_MENU)));
+
+        Map<String, Object> replyMarkup = Map.of("inline_keyboard", keyboard);
+
+        Map<String, Object> body = Map.of(
+                "chat_id", chatId,
+                "text", translate(chatId, "SettingsMenuPrompt"),
                 "reply_markup", replyMarkup);
 
         post(url, body, headers);

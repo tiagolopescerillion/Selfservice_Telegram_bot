@@ -147,6 +147,9 @@ public class WhatsappWebhookController {
         String sessionKey = "wa-" + from;
         String userId = from;
         String lower = body.toLowerCase();
+        String optInYesText = whatsappService.translate(userId, WhatsappService.KEY_OPT_IN_YES).toLowerCase();
+        String optInNoText = whatsappService.translate(userId, WhatsappService.KEY_OPT_IN_NO).toLowerCase();
+        String menuText = whatsappService.translate(userId, WhatsappService.KEY_BUTTON_MENU).toLowerCase();
         boolean awaitingLanguage = sessionService.isAwaitingLanguageSelection(userId);
         var tokenSnapshot = sessionService.getTokenSnapshot(userId);
         String token = sessionService.getValidAccessToken(userId);
@@ -155,7 +158,10 @@ public class WhatsappWebhookController {
         monitoringService.recordActivity("WhatsApp", userId, null, hasValidToken,
                 monitoringService.toTokenDetails(tokenSnapshot), optedIn);
         WhatsappSessionService.SelectionContext selectionContext = sessionService.getSelectionContext(userId);
-        WhatsappService.LoginMenuOption numericLoginSelection = parseLoginMenuSelection(body);
+        WhatsappService.LoginMenuOption numericLoginSelection = (!hasValidToken
+                && selectionContext == WhatsappSessionService.SelectionContext.NONE)
+                ? parseLoginMenuSelection(body)
+                : null;
 
         boolean isCrmLogin = numericLoginSelection == WhatsappService.LoginMenuOption.CRM_LOGIN
                 || lower.equals(WhatsappService.INTERACTIVE_ID_CRM_LOGIN.toLowerCase())
@@ -164,32 +170,90 @@ public class WhatsappWebhookController {
                 || lower.equals(WhatsappService.INTERACTIVE_ID_DIGITAL_LOGIN.toLowerCase())
                 || lower.contains(TelegramService.CALLBACK_SELF_SERVICE_LOGIN.toLowerCase())
                 || lower.equals("login"));
+        boolean isMenuSelection = lower.equals(WhatsappService.INTERACTIVE_ID_MENU.toLowerCase())
+                || lower.equals(menuText);
         boolean isOptInSelection = numericLoginSelection == WhatsappService.LoginMenuOption.OPT_IN
                 || lower.equals(WhatsappService.INTERACTIVE_ID_OPT_IN.toLowerCase())
                 || lower.contains(TelegramService.CALLBACK_OPT_IN_PROMPT.toLowerCase())
-                || lower.equals("opt in");
+                || lower.equals(optInYesText)
+                || lower.equals(optInNoText)
+                || isMenuSelection;
         boolean isChangeLanguage = numericLoginSelection == WhatsappService.LoginMenuOption.CHANGE_LANGUAGE
                 || lower.equals(WhatsappService.INTERACTIVE_ID_CHANGE_LANGUAGE.toLowerCase())
                 || lower.equals(WhatsappService.COMMAND_CHANGE_LANGUAGE);
+        boolean isSettingsSelection = numericLoginSelection == WhatsappService.LoginMenuOption.SETTINGS
+                || lower.equals(WhatsappService.INTERACTIVE_ID_SETTINGS.toLowerCase())
+                || lower.equals("settings");
 
-        if (selectionContext == WhatsappSessionService.SelectionContext.OPT_IN && parseIndex(lower) >= 1) {
+        if (isMenuSelection && selectionContext == WhatsappSessionService.SelectionContext.NONE) {
+            if (hasValidToken && ensureAccountSelected(sessionKey, userId)) {
+                sendBusinessMenu(from, userId);
+            } else {
+                sendLoginPrompt(from, sessionKey);
+            }
+            return;
+        }
+
+        if (selectionContext == WhatsappSessionService.SelectionContext.OPT_IN) {
             int choice = parseIndex(lower);
-            if (choice == 1) {
+            if (choice == 1 || lower.equals(optInYesText)) {
                 sessionService.setOptIn(userId, true);
                 monitoringService.recordActivity("WhatsApp", userId, null, hasValidToken,
                         monitoringService.toTokenDetails(tokenSnapshot), true);
                 whatsappService.sendOptInAccepted(from);
                 sessionService.setSelectionContext(userId, WhatsappSessionService.SelectionContext.NONE);
-                sendLoginPrompt(from, sessionKey);
+                if (hasValidToken && ensureAccountSelected(sessionKey, userId)) {
+                    sendBusinessMenu(from, userId);
+                } else {
+                    sendLoginPrompt(from, sessionKey);
+                }
                 return;
             }
-            if (choice == 2) {
+            if (choice == 2 || lower.equals(optInNoText)) {
                 sessionService.setOptIn(userId, false);
                 monitoringService.recordActivity("WhatsApp", userId, null, hasValidToken,
                         monitoringService.toTokenDetails(tokenSnapshot), false);
                 whatsappService.sendText(from, whatsappService.translate(from, "OptOutConfirmation"));
                 sessionService.setSelectionContext(userId, WhatsappSessionService.SelectionContext.NONE);
-                sendLoginPrompt(from, sessionKey);
+                if (hasValidToken && ensureAccountSelected(sessionKey, userId)) {
+                    sendBusinessMenu(from, userId);
+                } else {
+                    sendLoginPrompt(from, sessionKey);
+                }
+                return;
+            }
+            if (choice == 3 || lower.equals(menuText)) {
+                sessionService.setSelectionContext(userId, WhatsappSessionService.SelectionContext.NONE);
+                if (hasValidToken && ensureAccountSelected(sessionKey, userId)) {
+                    sendBusinessMenu(from, userId);
+                } else {
+                    sendLoginPrompt(from, sessionKey);
+                }
+                return;
+            }
+        }
+
+        if (selectionContext == WhatsappSessionService.SelectionContext.SETTINGS && parseIndex(lower) >= 1
+                || selectionContext == WhatsappSessionService.SelectionContext.SETTINGS && lower.equals(menuText)) {
+            int choice = parseIndex(lower);
+            if (choice == 1) {
+                sessionService.setSelectionContext(userId, WhatsappSessionService.SelectionContext.NONE);
+                whatsappService.sendOptInPrompt(from);
+                return;
+            }
+            if (choice == 2) {
+                sessionService.setSelectionContext(userId, WhatsappSessionService.SelectionContext.NONE);
+                sessionService.setAwaitingLanguageSelection(userId, true);
+                whatsappService.sendLanguageMenu(from);
+                return;
+            }
+            if (choice == 3 || lower.equals(menuText)) {
+                sessionService.setSelectionContext(userId, WhatsappSessionService.SelectionContext.NONE);
+                if (hasValidToken && ensureAccountSelected(sessionKey, userId)) {
+                    sendBusinessMenu(from, userId);
+                } else {
+                    sendLoginPrompt(from, sessionKey);
+                }
                 return;
             }
         }
@@ -287,7 +351,16 @@ public class WhatsappWebhookController {
                 whatsappService.sendLanguageMenu(from);
                 return;
             }
+            if (isSettingsSelection) {
+                whatsappService.sendSettingsMenu(from);
+                return;
+            }
             sendLoginPrompt(from, sessionKey);
+            return;
+        }
+
+        if (isSettingsSelection) {
+            whatsappService.sendSettingsMenu(from);
             return;
         }
 
@@ -505,6 +578,12 @@ public class WhatsappWebhookController {
                 }
                 return;
             }
+        }
+
+        actionIndex++;
+        if (numeric == actionIndex) {
+            whatsappService.sendSettingsMenu(from);
+            return;
         }
 
         actionIndex++;
