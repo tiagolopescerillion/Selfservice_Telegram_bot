@@ -1006,7 +1006,7 @@ function downloadConfig() {
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement("a");
   anchor.href = url;
-  anchor.download = "business-menu.override.json";
+  anchor.download = "IM-menus.override.json";
   anchor.click();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }

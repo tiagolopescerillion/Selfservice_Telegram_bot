@@ -20,9 +20,9 @@ import java.util.Map;
 public class BusinessMenuConfigurationProvider {
     private static final Logger log = LoggerFactory.getLogger(BusinessMenuConfigurationProvider.class);
     private static final Path CONFIG_DIR = Paths.get("CONFIGURATIONS");
-    private static final Path DEFAULT_FILE = CONFIG_DIR.resolve("business-menu.default.json");
-    private static final Path OVERRIDE_FILE = CONFIG_DIR.resolve("business-menu.override.json");
-    private static final String PACKAGED_DEFAULT = "classpath:config/business-menu.default.json";
+    private static final Path DEFAULT_FILE = CONFIG_DIR.resolve("IM-menus.default.json");
+    private static final Path OVERRIDE_FILE = CONFIG_DIR.resolve("IM-menus.override.json");
+    private static final String PACKAGED_DEFAULT = "classpath:config/IM-menus.default.json";
 
     private final Map<String, BusinessMenuDefinition> menusById;
     private final LoginMenuDefinition loginMenuDefinition;
