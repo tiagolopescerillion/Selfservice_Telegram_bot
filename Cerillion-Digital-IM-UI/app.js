@@ -131,6 +131,23 @@ const DEFAULT_LOGIN_STRUCTURE = [
   }
 ];
 
+const CONFIG_FETCH_PATHS = {
+  override: [
+    "IM-menus.override.json",
+    "CONFIGURATIONS/IM-menus.override.json",
+    "/CONFIGURATIONS/IM-menus.override.json",
+    "/IM-menus.override.json"
+  ],
+  default: [
+    "IM-menus.default.json",
+    "CONFIGURATIONS/IM-menus.default.json",
+    "/CONFIGURATIONS/IM-menus.default.json",
+    "/IM-menus.default.json",
+    "config/IM-menus.default.json",
+    "/config/IM-menus.default.json"
+  ]
+};
+
 const functionDictionary = {};
 const functionOptions = [];
 
@@ -360,8 +377,8 @@ function ensureRootMenu() {
   }
 }
 
-function resetToDefault() {
-  normalizeIncomingConfig({});
+async function resetToDefault() {
+  await loadRemoteMenuConfig({ preferDefault: true });
 }
 
 function loadState(state) {
@@ -478,6 +495,47 @@ function extractLoginMenus(loginMenu) {
     ];
   }
   return null;
+}
+
+async function fetchConfigFromPaths(paths) {
+  for (const path of paths) {
+    try {
+      const response = await fetch(path, { cache: "no-cache" });
+      if (!response.ok) {
+        continue;
+      }
+      const text = await response.text();
+      if (!text?.trim()) {
+        continue;
+      }
+      return JSON.parse(text);
+    } catch (error) {
+      console.warn(`Unable to load configuration from ${path}`, error);
+    }
+  }
+  return null;
+}
+
+async function loadRemoteMenuConfig(options = {}) {
+  const preferDefault = Boolean(options.preferDefault);
+  const overrideConfig = preferDefault ? null : await fetchConfigFromPaths(CONFIG_FETCH_PATHS.override);
+  const defaultConfig = await fetchConfigFromPaths(CONFIG_FETCH_PATHS.default);
+  const selected = overrideConfig || defaultConfig;
+
+  if (selected) {
+    normalizeIncomingConfig(selected);
+    return true;
+  }
+
+  normalizeIncomingConfig({});
+  return false;
+}
+
+async function bootstrapMenuConfig() {
+  const loaded = await loadRemoteMenuConfig();
+  if (!loaded) {
+    console.warn("Falling back to built-in menu structure because no configuration file was found.");
+  }
 }
 
 function normalizeMenuTree(rawMenus, defaults, rootId) {
@@ -1916,7 +1974,7 @@ if (menuTypeSelect) {
 }
 
 toggleAddFormFields();
-resetToDefault();
+bootstrapMenuConfig();
 initMonitoring();
 restoreNotificationApiBase();
 setActiveApp("admin");
