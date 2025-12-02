@@ -293,6 +293,21 @@ let configEndpointCache = "";
 let serviceFunctionEntries = [];
 const serviceFunctionOverrides = new Map();
 
+function getServiceFunctionOverride(key) {
+  const existing = serviceFunctionOverrides.get(key);
+  return {
+    queryParams: "",
+    accountContext: false,
+    serviceContext: false,
+    ...existing
+  };
+}
+
+function setServiceFunctionOverride(key, updates) {
+  const current = getServiceFunctionOverride(key);
+  serviceFunctionOverrides.set(key, { ...current, ...updates });
+}
+
 applyConfiguredApiBase(getConfiguredPublicBaseFromMeta());
 
 function initFunctionSelect(selectEl) {
@@ -1259,10 +1274,12 @@ async function loadServiceFunctions() {
     serviceFunctionEntries = endpoints;
     serviceFunctionOverrides.clear();
     serviceFunctionEntries.forEach((endpoint) => {
-      serviceFunctionOverrides.set(
-        endpoint.queryParamKey,
-        formatQueryParams(endpoint.configuredQueryParams) || formatQueryParams(endpoint.defaultQueryParams)
-      );
+      setServiceFunctionOverride(endpoint.queryParamKey, {
+        queryParams:
+          formatQueryParams(endpoint.configuredQueryParams) || formatQueryParams(endpoint.defaultQueryParams) || "",
+        accountContext: Boolean(endpoint.accountContextEnabled),
+        serviceContext: Boolean(endpoint.serviceContextEnabled)
+      });
     });
     renderServiceFunctionTable(serviceFunctionEntries);
     serviceFunctionsStatus.textContent = endpoints.length
@@ -1352,6 +1369,7 @@ function renderServiceFunctionTable(endpoints) {
     summary.append(title, path);
 
     const defaultParams = formatQueryParams(endpoint.defaultQueryParams) || "None";
+    const overrideState = getServiceFunctionOverride(endpoint.queryParamKey);
 
     const defaultRow = document.createElement("div");
     defaultRow.className = "service-function__line service-function__default";
@@ -1371,14 +1389,57 @@ function renderServiceFunctionTable(endpoints) {
     const overrideInput = document.createElement("input");
     overrideInput.type = "text";
     overrideInput.className = "query-param-input";
-    overrideInput.value = serviceFunctionOverrides.get(endpoint.queryParamKey) || "";
+    overrideInput.value = overrideState.queryParams || "";
     overrideInput.placeholder = defaultParams || "key=value";
     overrideInput.addEventListener("input", (event) => {
-      serviceFunctionOverrides.set(endpoint.queryParamKey, event.target.value);
+      setServiceFunctionOverride(endpoint.queryParamKey, { queryParams: event.target.value });
     });
     overrideRow.append(overrideLabel, overrideInput);
 
-    card.append(summary, defaultRow, overrideRow);
+    const contextRows = [];
+    if (endpoint.accountContextParam) {
+      const accountRow = document.createElement("div");
+      accountRow.className = "service-function__line service-function__context";
+      const accountLabel = document.createElement("div");
+      accountLabel.className = "service-function__label";
+      accountLabel.textContent = "Account context";
+      const accountValue = document.createElement("label");
+      accountValue.className = "service-function__value checkbox";
+      const accountCheckbox = document.createElement("input");
+      accountCheckbox.type = "checkbox";
+      accountCheckbox.checked = Boolean(overrideState.accountContext);
+      accountCheckbox.addEventListener("change", (event) => {
+        setServiceFunctionOverride(endpoint.queryParamKey, { accountContext: event.target.checked });
+      });
+      const accountText = document.createElement("span");
+      accountText.textContent = `Add ${endpoint.accountContextParam} using Account Context`;
+      accountValue.append(accountCheckbox, accountText);
+      accountRow.append(accountLabel, accountValue);
+      contextRows.push(accountRow);
+    }
+
+    if (endpoint.serviceContextParam) {
+      const serviceRow = document.createElement("div");
+      serviceRow.className = "service-function__line service-function__context";
+      const serviceLabel = document.createElement("div");
+      serviceLabel.className = "service-function__label";
+      serviceLabel.textContent = "Service context";
+      const serviceValue = document.createElement("label");
+      serviceValue.className = "service-function__value checkbox";
+      const serviceCheckbox = document.createElement("input");
+      serviceCheckbox.type = "checkbox";
+      serviceCheckbox.checked = Boolean(overrideState.serviceContext);
+      serviceCheckbox.addEventListener("change", (event) => {
+        setServiceFunctionOverride(endpoint.queryParamKey, { serviceContext: event.target.checked });
+      });
+      const serviceText = document.createElement("span");
+      serviceText.textContent = `Add ${endpoint.serviceContextParam} using Service Context`;
+      serviceValue.append(serviceCheckbox, serviceText);
+      serviceRow.append(serviceLabel, serviceValue);
+      contextRows.push(serviceRow);
+    }
+
+    card.append(summary, defaultRow, overrideRow, ...contextRows);
 
     serviceFunctionsTableBody.append(card);
   });
@@ -1399,9 +1460,26 @@ async function downloadQueryParamConfig() {
 
   const updates = {};
   serviceFunctionEntries.forEach((entry) => {
-    const rawValue = (serviceFunctionOverrides.get(entry.queryParamKey) || "").trim();
-    const fallbackValue = formatQueryParams(entry.configuredQueryParams) || "";
-    updates[entry.queryParamKey] = parseQueryParamString(rawValue || fallbackValue);
+    const overrideState = getServiceFunctionOverride(entry.queryParamKey);
+    const rawValue = (overrideState.queryParams || "").trim();
+    const fallbackValue =
+      formatQueryParams(entry.configuredQueryParams) || formatQueryParams(entry.defaultQueryParams) || "";
+    const parsed = parseQueryParamString(rawValue || fallbackValue);
+    if (entry.accountContextParam) {
+      if (overrideState.accountContext) {
+        parsed[entry.accountContextParam] = "";
+      } else {
+        delete parsed[entry.accountContextParam];
+      }
+    }
+    if (entry.serviceContextParam) {
+      if (overrideState.serviceContext) {
+        parsed[entry.serviceContextParam] = "";
+      } else {
+        delete parsed[entry.serviceContextParam];
+      }
+    }
+    updates[entry.queryParamKey] = parsed;
   });
 
   try {

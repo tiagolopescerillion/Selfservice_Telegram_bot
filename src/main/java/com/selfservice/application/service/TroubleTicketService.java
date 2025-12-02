@@ -96,7 +96,7 @@ public class TroubleTicketService {
      * Retrieves ticket summaries for a billing account using the configured query parameters plus
      * the account-specific identifier.
      */
-    public TroubleTicketListResult getTroubleTicketsByAccountId(String accessToken, String accountId) {
+    public TroubleTicketListResult getTroubleTicketsByAccountId(String accessToken, String accountId, String serviceId) {
         if (troubleTicketEndpoint == null) {
             return new TroubleTicketListResult(List.of(),
                     "APIMAN trouble-ticket endpoint is not configured.");
@@ -110,6 +110,9 @@ public class TroubleTicketService {
 
         Map<String, String> queryParams = new java.util.LinkedHashMap<>(configuredQueryParams);
         queryParams.put("relatedEntity.billingAccount.id", accountId);
+        if (serviceId != null && !serviceId.isBlank()) {
+            queryParams.put("relatedEntity.product.id", serviceId);
+        }
 
         CommonApiService.ApiResponse response = commonApiService.execute(
                 new CommonApiService.ApiRequest(troubleTicketEndpoint, apimanEndpoints.getTroubleTicketMethod(), accessToken,

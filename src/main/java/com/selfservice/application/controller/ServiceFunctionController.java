@@ -46,17 +46,18 @@ public class ServiceFunctionController {
         addEndpoint(endpoints, "apiman.find-user.url", "Find user (APIMAN)",
                 apimanEndpoints.getFindUserUrl(), List.of("FindUserService"),
                 apimanEndpoints.getDefaultFindUserQueryParams(), apimanEndpoints.getFindUserQueryParams(),
-                apimanEndpoints.getFindUserMethod(), "apiman.find-user.query-params");
+                apimanEndpoints.getFindUserMethod(), "apiman.find-user.query-params", null, null);
 
         addEndpoint(endpoints, "apiman.product.url", "Product (APIMAN)",
                 apimanEndpoints.getProductUrl(), List.of("ProductService"),
                 apimanEndpoints.getDefaultProductQueryParams(), apimanEndpoints.getProductQueryParams(),
-                apimanEndpoints.getProductMethod(), "apiman.product.query-params");
+                apimanEndpoints.getProductMethod(), "apiman.product.query-params", "billingAccount.id", null);
 
         addEndpoint(endpoints, "apiman.trouble-ticket.url", "Trouble ticket (APIMAN)",
                 apimanEndpoints.getTroubleTicketUrl(), List.of("TroubleTicketService"),
                 apimanEndpoints.getDefaultTroubleTicketQueryParams(), apimanEndpoints.getTroubleTicketQueryParams(),
-                apimanEndpoints.getTroubleTicketMethod(), "apiman.trouble-ticket.query-params");
+                apimanEndpoints.getTroubleTicketMethod(), "apiman.trouble-ticket.query-params",
+                "billingAccount.id", "relatedEntity.product.id");
 
         return Map.of("endpoints", endpoints);
     }
@@ -86,10 +87,17 @@ public class ServiceFunctionController {
     private void addEndpoint(List<ServiceFunctionDescriptor> endpoints, String key, String name, String url,
                              List<String> services, Map<String, String> defaultParams,
                              Map<String, String> configuredParams, org.springframework.http.HttpMethod method,
-                             String queryParamKey) {
+                             String queryParamKey, String accountContextParam, String serviceContextParam) {
         boolean configured = url != null && !url.isBlank();
+        Map<String, String> safeDefaults = defaultParams == null ? Map.of() : Map.copyOf(defaultParams);
+        Map<String, String> safeConfigured = configuredParams == null ? Map.of() : Map.copyOf(configuredParams);
+        boolean accountContextEnabled = accountContextParam != null
+                && (safeConfigured.containsKey(accountContextParam) || safeDefaults.containsKey(accountContextParam)
+                        || safeConfigured.isEmpty());
+        boolean serviceContextEnabled = serviceContextParam != null && safeConfigured.containsKey(serviceContextParam);
         endpoints.add(new ServiceFunctionDescriptor(key, name, configured ? url : null, configured, services,
-                method == null ? "GET" : method.name(), defaultParams, configuredParams, queryParamKey));
+                method == null ? "GET" : method.name(), safeDefaults, safeConfigured, queryParamKey,
+                accountContextParam, accountContextEnabled, serviceContextParam, serviceContextEnabled));
     }
 
     private Optional<Path> resolveConfigPath() {

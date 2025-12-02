@@ -12,5 +12,9 @@ public record ServiceFunctionDescriptor(
         String method,
         Map<String, String> defaultQueryParams,
         Map<String, String> configuredQueryParams,
-        String queryParamKey) {
+        String queryParamKey,
+        String accountContextParam,
+        boolean accountContextEnabled,
+        String serviceContextParam,
+        boolean serviceContextEnabled) {
 }
