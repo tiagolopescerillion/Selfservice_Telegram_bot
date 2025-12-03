@@ -424,6 +424,8 @@ function applyMenusToStore(menuType, menus) {
   store.menuOrder = [];
   store.menuIdCounter = Array.isArray(menus) ? menus.length : 0;
   store.itemIdCounter = 0;
+  menusById = store.menusById;
+  menuOrder = store.menuOrder;
   menuIdCounter = store.menuIdCounter;
   itemIdCounter = store.itemIdCounter;
 
@@ -487,6 +489,7 @@ function applyMenusToStore(menuType, menus) {
   });
 
   store.selectedMenuId = store.menusById.has(store.selectedMenuId) ? store.selectedMenuId : store.rootId;
+  selectedMenuId = store.selectedMenuId;
   initFunctionSelect(menuFunctionSelect);
 
   persistActiveStore();
