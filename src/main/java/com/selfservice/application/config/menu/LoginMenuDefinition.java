@@ -61,7 +61,7 @@ public class LoginMenuDefinition {
                 .filter(menu -> menu.getId() != null && menu.getId().equalsIgnoreCase("login-home"))
                 .findFirst()
                 .orElse(menus.get(0));
-        return convertActions(root);
+        return convertMenuEntries(root);
     }
 
     private List<LoginMenuItem> normalizedTreeSettingsMenu() {
@@ -98,6 +98,35 @@ public class LoginMenuDefinition {
         return menuDefinition.sortedItems().stream()
                 .filter(BusinessMenuItem::isAction)
                 .map(LoginMenuDefinition::toLoginMenuItem)
+                .filter(item -> item.resolvedFunction() != null)
+                .toList();
+    }
+
+    private List<LoginMenuItem> convertMenuEntries(BusinessMenuDefinition menuDefinition) {
+        if (menuDefinition == null) {
+            return List.of();
+        }
+        return menuDefinition.sortedItems().stream()
+                .map(item -> {
+                    if (item.isSubMenu()) {
+                        LoginMenuItem settings = new LoginMenuItem();
+                        settings.setOrder(item.order());
+                        settings.setLabel(item.label() == null || item.label().isBlank() ? "Settings" : item.label());
+                        settings.setFunction(LoginMenuFunction.SETTINGS);
+                        settings.setTranslationKey(item.translationKey() == null || item.translationKey().isBlank()
+                                ? "ButtonSettings"
+                                : item.translationKey());
+                        settings.setCallbackData(item.callbackData() == null || item.callbackData().isBlank()
+                                ? "SETTINGS_MENU"
+                                : item.callbackData());
+                        return settings;
+                    }
+                    if (item.isAction()) {
+                        return toLoginMenuItem(item);
+                    }
+                    return null;
+                })
+                .filter(Objects::nonNull)
                 .filter(item -> item.resolvedFunction() != null)
                 .toList();
     }
