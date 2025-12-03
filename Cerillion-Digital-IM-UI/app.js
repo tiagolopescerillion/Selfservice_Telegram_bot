@@ -103,7 +103,18 @@ const DEFAULT_STRUCTURE = [
       { label: "Hello Cerillion", type: "function", function: "HELLO_CERILLION", useTranslation: true },
       { label: "Trouble Ticket", type: "function", function: "VIEW_TROUBLE_TICKET", useTranslation: true },
       { label: "Select a Service", type: "function", function: "SELECT_SERVICE", useTranslation: true },
-      { label: "My Issues", type: "function", function: "MY_ISSUES", useTranslation: true }
+      { label: "My Issues", type: "function", function: "MY_ISSUES", useTranslation: true },
+      { label: "Settings", type: "submenu", submenuId: "settings" }
+    ]
+  },
+  {
+    id: "settings",
+    name: "Settings",
+    parentId: ROOT_MENU_ID,
+    items: [
+      { label: "Consent management", type: "function", function: "OPT_IN", useTranslation: true },
+      { label: "Language settings", type: "function", function: "CHANGE_LANGUAGE", useTranslation: true },
+      { label: "Back to menu", type: "function", function: "MENU", useTranslation: true }
     ]
   }
 ];

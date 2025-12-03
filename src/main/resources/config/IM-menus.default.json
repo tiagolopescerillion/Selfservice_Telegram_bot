@@ -111,6 +111,45 @@
           "callbackData": "MY_ISSUES",
           "translationKey": "ButtonMyIssues",
           "submenuId": null
+        },
+        {
+          "order": 6,
+          "label": "Settings",
+          "function": null,
+          "callbackData": null,
+          "translationKey": null,
+          "submenuId": "settings"
+        }
+      ]
+    },
+    {
+      "id": "settings",
+      "name": "Settings",
+      "parentId": "home",
+      "items": [
+        {
+          "order": 1,
+          "label": "Consent management",
+          "function": "OPT_IN",
+          "callbackData": "OPT_IN",
+          "translationKey": "ButtonOptIn",
+          "submenuId": null
+        },
+        {
+          "order": 2,
+          "label": "Language settings",
+          "function": "CHANGE_LANGUAGE",
+          "callbackData": "CHANGE_LANGUAGE",
+          "translationKey": "ButtonChangeLanguage",
+          "submenuId": null
+        },
+        {
+          "order": 3,
+          "label": "Back to menu",
+          "function": "MENU",
+          "callbackData": "MENU",
+          "translationKey": "ButtonMenu",
+          "submenuId": null
         }
       ]
     }
