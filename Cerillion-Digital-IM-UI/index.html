@@ -55,11 +55,54 @@
                 confirm what URLs and query parameters are set without relying
                 on the running Java services.
               </p>
-              <div class="toolbar toolbar--end">
+              <div class="toolbar">
+                <button id="addServiceFunctionButton" class="secondary" type="button">
+                  Add Service Function
+                </button>
                 <button id="downloadQueryParamsButton" class="button" type="button">
                   Download updated application-local.yml
                 </button>
               </div>
+              <form id="newServiceFunctionForm" class="card hidden" autocomplete="off">
+                <div class="two-col-grid">
+                  <label>
+                    Service function name
+                    <input id="newServiceFunctionName" type="text" required placeholder="e.g. Visible mobile lines" />
+                  </label>
+                  <label>
+                    Endpoint source
+                    <select id="newServiceFunctionEndpoint" required></select>
+                  </label>
+                </div>
+                <div class="two-col-grid">
+                  <label class="checkbox">
+                    <input type="checkbox" id="newServiceFunctionAccountContext" />
+                    <span>Account-level context</span>
+                  </label>
+                  <label class="checkbox">
+                    <input type="checkbox" id="newServiceFunctionServiceContext" />
+                    <span>Service-level context</span>
+                  </label>
+                </div>
+                <div>
+                  <label>
+                    Override query parameters
+                    <input
+                      id="newServiceFunctionQueryParams"
+                      type="text"
+                      placeholder="offset=0&limit=50"
+                    />
+                  </label>
+                  <p class="hint">
+                    Start from the endpoint defaults automatically. Toggle context checkboxes to append
+                    account or service identifiers to your overrides.
+                  </p>
+                </div>
+                <div class="toolbar toolbar--end">
+                  <button id="saveNewServiceFunction" type="submit">Save service function</button>
+                  <button id="cancelNewServiceFunction" type="button" class="secondary">Cancel</button>
+                </div>
+              </form>
               <div class="service-function-list" id="serviceFunctionsTableBody">
                 <div class="empty">Loading endpoints…</div>
               </div>

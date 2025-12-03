@@ -202,6 +202,15 @@ const imServerAdminPanel = document.getElementById("imServerAdminPanel");
 const serviceFunctionsPanel = document.getElementById("serviceFunctionsPanel");
 const serviceFunctionsTableBody = document.getElementById("serviceFunctionsTableBody");
 const serviceFunctionsStatus = document.getElementById("serviceFunctionsStatus");
+const addServiceFunctionButton = document.getElementById("addServiceFunctionButton");
+const newServiceFunctionForm = document.getElementById("newServiceFunctionForm");
+const newServiceFunctionName = document.getElementById("newServiceFunctionName");
+const newServiceFunctionEndpoint = document.getElementById("newServiceFunctionEndpoint");
+const newServiceFunctionAccountContext = document.getElementById("newServiceFunctionAccountContext");
+const newServiceFunctionServiceContext = document.getElementById("newServiceFunctionServiceContext");
+const newServiceFunctionQueryParams = document.getElementById("newServiceFunctionQueryParams");
+const saveNewServiceFunction = document.getElementById("saveNewServiceFunction");
+const cancelNewServiceFunction = document.getElementById("cancelNewServiceFunction");
 const downloadQueryParamsButton = document.getElementById("downloadQueryParamsButton");
 const liveSessionsContainer = document.getElementById("liveSessions");
 const sessionHistoryContainer = document.getElementById("sessionHistory");
@@ -291,6 +300,7 @@ let monitoringConfigLoaded = false;
 let notificationEndpointCache = "";
 let configEndpointCache = "";
 let serviceFunctionEntries = [];
+let availableServiceFunctionEndpoints = [];
 const serviceFunctionOverrides = new Map();
 
 function getServiceFunctionOverride(key) {
@@ -1247,6 +1257,111 @@ function parseQueryParamString(input) {
   return result;
 }
 
+function renderServiceFunctionEndpointOptions() {
+  if (!newServiceFunctionEndpoint) return;
+  newServiceFunctionEndpoint.innerHTML = "";
+  availableServiceFunctionEndpoints.forEach((endpoint) => {
+    const option = document.createElement("option");
+    option.value = endpoint.endpointKey || endpoint.key || endpoint.name;
+    option.textContent = endpoint.name || endpoint.endpointKey || endpoint.key;
+    option.disabled = !endpoint.configured;
+    newServiceFunctionEndpoint.append(option);
+  });
+}
+
+function getServiceFunctionBase(key) {
+  return availableServiceFunctionEndpoints.find(
+    (endpoint) => endpoint.endpointKey === key || endpoint.key === key || endpoint.name === key
+  );
+}
+
+function resetNewServiceFunctionForm() {
+  if (!newServiceFunctionForm) return;
+  newServiceFunctionForm.reset();
+  renderServiceFunctionEndpointOptions();
+  if (newServiceFunctionEndpoint && newServiceFunctionEndpoint.options.length > 0) {
+    newServiceFunctionEndpoint.value = newServiceFunctionEndpoint.options[0].value;
+    prefillQueryParamsFromEndpoint(newServiceFunctionEndpoint.value);
+  }
+}
+
+function toggleNewServiceFunctionForm(show) {
+  if (!newServiceFunctionForm) return;
+  const shouldShow = Boolean(show);
+  newServiceFunctionForm.classList.toggle("hidden", !shouldShow);
+  if (shouldShow) {
+    resetNewServiceFunctionForm();
+    newServiceFunctionName?.focus();
+  }
+}
+
+function prefillQueryParamsFromEndpoint(endpointKey) {
+  if (!newServiceFunctionQueryParams) return;
+  const base = getServiceFunctionBase(endpointKey);
+  if (!base) return;
+  const defaultValue =
+    formatQueryParams(base.configuredQueryParams) || formatQueryParams(base.defaultQueryParams) || "";
+  newServiceFunctionQueryParams.value = defaultValue;
+  newServiceFunctionAccountContext.checked = Boolean(base.accountContextEnabled);
+  newServiceFunctionServiceContext.checked = Boolean(base.serviceContextEnabled);
+}
+
+function createCustomServiceFunction() {
+  if (!newServiceFunctionName || !newServiceFunctionEndpoint) return;
+
+  const name = (newServiceFunctionName.value || "").trim();
+  const endpointKey = newServiceFunctionEndpoint.value;
+  const base = getServiceFunctionBase(endpointKey);
+  if (!name || !base) {
+    alert("Provide a name and endpoint for the new service function.");
+    return;
+  }
+
+  const slug = slugify(name) || `service-function-${serviceFunctionEntries.length + 1}`;
+  const baseQueryParamKey = `service-functions.${slug}.query-params`;
+  let queryParamKey = baseQueryParamKey;
+  let suffix = 1;
+  while (serviceFunctionEntries.some((entry) => entry.queryParamKey === queryParamKey)) {
+    queryParamKey = `${baseQueryParamKey}-${suffix++}`;
+  }
+
+  const contextConfig = {
+    accountContext: Boolean(newServiceFunctionAccountContext?.checked),
+    serviceContext: Boolean(newServiceFunctionServiceContext?.checked)
+  };
+
+  const newEntry = {
+    key: `service-functions.${slug}`,
+    name,
+    url: base.url,
+    configured: base.configured,
+    services: base.services,
+    method: base.method,
+    defaultQueryParams: base.defaultQueryParams,
+    configuredQueryParams: base.configuredQueryParams,
+    queryParamKey,
+    accountContextParam: base.accountContextParam,
+    accountContextEnabled: contextConfig.accountContext,
+    serviceContextParam: base.serviceContextParam,
+    serviceContextEnabled: contextConfig.serviceContext,
+    endpointKey,
+    custom: true
+  };
+
+  const overrideValue = (newServiceFunctionQueryParams?.value || "").trim();
+  setServiceFunctionOverride(queryParamKey, {
+    queryParams:
+      overrideValue || formatQueryParams(base.configuredQueryParams) || formatQueryParams(base.defaultQueryParams) || "",
+    ...contextConfig
+  });
+
+  serviceFunctionEntries = [...serviceFunctionEntries, newEntry];
+  renderServiceFunctionTable(serviceFunctionEntries);
+  toggleNewServiceFunctionForm(false);
+  serviceFunctionsStatus.textContent = `Added custom service function "${name}".`;
+  serviceFunctionsStatus.className = "hint";
+}
+
 async function loadServiceFunctions() {
   if (!serviceFunctionsTableBody || !serviceFunctionsStatus) {
     return;
@@ -1271,6 +1386,10 @@ async function loadServiceFunctions() {
     }
     const payload = await response.json();
     const endpoints = Array.isArray(payload?.endpoints) ? payload.endpoints : [];
+    const availableEndpoints = Array.isArray(payload?.availableEndpoints)
+      ? payload.availableEndpoints
+      : endpoints.filter((entry) => !entry.custom);
+    availableServiceFunctionEndpoints = availableEndpoints;
     serviceFunctionEntries = endpoints;
     serviceFunctionOverrides.clear();
     serviceFunctionEntries.forEach((endpoint) => {
@@ -1281,6 +1400,7 @@ async function loadServiceFunctions() {
         serviceContext: Boolean(endpoint.serviceContextEnabled)
       });
     });
+    renderServiceFunctionEndpointOptions();
     renderServiceFunctionTable(serviceFunctionEntries);
     serviceFunctionsStatus.textContent = endpoints.length
       ? `Found ${endpoints.length} APIMAN endpoints.`
@@ -1350,6 +1470,12 @@ function renderServiceFunctionTable(endpoints) {
     const name = document.createElement("div");
     name.className = "service-function__name";
     name.textContent = endpoint.name || endpoint.key || "–";
+    if (endpoint.custom) {
+      const badge = document.createElement("span");
+      badge.className = "tag";
+      badge.textContent = "Custom";
+      name.append(" ", badge);
+    }
     const services = document.createElement("div");
     services.className = "service-function__path service-function__services";
     services.textContent = endpoint.services?.length
@@ -1459,6 +1585,7 @@ async function downloadQueryParamConfig() {
   }
 
   const updates = {};
+  const customFunctions = [];
   serviceFunctionEntries.forEach((entry) => {
     const overrideState = getServiceFunctionOverride(entry.queryParamKey);
     const rawValue = (overrideState.queryParams || "").trim();
@@ -1479,7 +1606,17 @@ async function downloadQueryParamConfig() {
         delete parsed[entry.serviceContextParam];
       }
     }
-    updates[entry.queryParamKey] = parsed;
+    if (entry.custom) {
+      customFunctions.push({
+        name: entry.name,
+        endpointKey: entry.endpointKey || entry.key,
+        queryParams: parsed,
+        accountContext: Boolean(overrideState.accountContext),
+        serviceContext: Boolean(overrideState.serviceContext)
+      });
+    } else {
+      updates[entry.queryParamKey] = parsed;
+    }
   });
 
   try {
@@ -1488,7 +1625,7 @@ async function downloadQueryParamConfig() {
     const response = await fetch(endpoint, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ updates })
+      body: JSON.stringify({ updates, serviceFunctions: customFunctions })
     });
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}`);
@@ -2057,6 +2194,27 @@ navImServerAdmin.addEventListener("click", () => setActiveApp("admin"));
 navServiceFunctions.addEventListener("click", () => setActiveApp("service-functions"));
 if (downloadQueryParamsButton) {
   downloadQueryParamsButton.addEventListener("click", downloadQueryParamConfig);
+}
+
+if (addServiceFunctionButton) {
+  addServiceFunctionButton.addEventListener("click", () => toggleNewServiceFunctionForm(true));
+}
+
+if (cancelNewServiceFunction) {
+  cancelNewServiceFunction.addEventListener("click", () => toggleNewServiceFunctionForm(false));
+}
+
+if (newServiceFunctionEndpoint) {
+  newServiceFunctionEndpoint.addEventListener("change", (event) => {
+    prefillQueryParamsFromEndpoint(event.target.value);
+  });
+}
+
+if (newServiceFunctionForm) {
+  newServiceFunctionForm.addEventListener("submit", (event) => {
+    event.preventDefault();
+    createCustomServiceFunction();
+  });
 }
 if (monitoringApiBaseInput) {
   monitoringApiBaseInput.addEventListener("change", handleMonitoringApiBaseChanged);

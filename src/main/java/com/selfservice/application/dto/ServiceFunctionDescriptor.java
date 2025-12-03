@@ -16,5 +16,7 @@ public record ServiceFunctionDescriptor(
         String accountContextParam,
         boolean accountContextEnabled,
         String serviceContextParam,
-        boolean serviceContextEnabled) {
+        boolean serviceContextEnabled,
+        String endpointKey,
+        boolean custom) {
 }
