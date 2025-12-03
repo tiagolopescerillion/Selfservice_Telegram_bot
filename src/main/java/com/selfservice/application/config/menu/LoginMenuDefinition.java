@@ -72,18 +72,15 @@ public class LoginMenuDefinition {
                 .filter(menu -> menu.getId() != null && menu.getId().equalsIgnoreCase("login-home"))
                 .findFirst()
                 .orElse(menus.get(0));
-        String settingsId = root.sortedItems().stream()
-                .filter(BusinessMenuItem::isSubMenu)
-                .map(BusinessMenuItem::submenuId)
+        String settingsId = Stream.concat(
+                        root.sortedItems().stream()
+                                .filter(BusinessMenuItem::isSubMenu)
+                                .map(BusinessMenuItem::submenuId),
+                        menus.stream()
+                                .filter(menu -> root.getId().equals(menu.getParentId()))
+                                .map(BusinessMenuDefinition::getId))
                 .findFirst()
                 .orElse(null);
-        if (settingsId == null) {
-            settingsId = menus.stream()
-                    .filter(menu -> root.getId().equals(menu.getParentId()))
-                    .map(BusinessMenuDefinition::getId)
-                    .findFirst()
-                    .orElse(null);
-        }
         if (settingsId == null) {
             return List.of();
         }
