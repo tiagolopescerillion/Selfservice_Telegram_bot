@@ -631,6 +631,8 @@ function renderAll() {
 }
 
 function renderMenuSelectors() {
+  ensureRootMenu();
+
   menuSelect.innerHTML = "";
   parentMenuSelect.innerHTML = "";
 
