@@ -63,6 +63,7 @@ public class BusinessMenuConfigurationProvider {
                 resolvedName = BusinessMenuDefinition.ROOT_MENU_ID.equals(definition.getId()) ? "Home" : definition.getId();
             }
             copy.setName(resolvedName);
+            copy.setParentId(definition.getParentId());
             copy.setItems(definition.sortedItems());
             mapped.put(copy.getId(), copy);
         }
@@ -194,6 +195,7 @@ public class BusinessMenuConfigurationProvider {
                     BusinessMenuDefinition copy = new BusinessMenuDefinition();
                     copy.setId(menu.getId());
                     copy.setName(menu.getName());
+                    copy.setParentId(menu.getParentId());
                     copy.setItems(menu.sortedItems());
                     return copy;
                 })
