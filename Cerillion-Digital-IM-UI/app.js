@@ -1391,7 +1391,7 @@ function setActiveConnectorsTab(target) {
   });
   connectorsTabPanels.forEach((panel) => {
     const isActive = panel?.dataset?.connectorsTabPanel === selected;
-    panel?.classList.toggle("hidden", !isActive);
+    panel?.classList.toggle("connector-tab--active", isActive);
   });
 
   if (CONNECTOR_KEYS.includes(selected)) {
