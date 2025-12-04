@@ -31,7 +31,8 @@ public class AdminConfigController {
             "connectors", List.of("connectors-local.yml", "connectors-example.yml"),
             "telegram", List.of("telegram-local.yml", "telegram-example.yml"),
             "whatsapp", List.of("whatsapp-local.yml", "whatsapp-example.yml"),
-            "messenger", List.of("messenger-local.yml", "messenger-example.yml")
+            "messenger", List.of("messenger-local.yml", "messenger-example.yml"),
+            "weblinks", List.of("weblinks-local.yml", "weblinks-example.yml")
     );
 
     @GetMapping("/application-config")

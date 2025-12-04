@@ -1,0 +1,6 @@
+Example Dashboard:
+  URL: https://example.com/dashboard
+  Authenticated-User: Y
+Support Portal:
+  URL: https://support.example.com/help
+  Authenticated-User: N
