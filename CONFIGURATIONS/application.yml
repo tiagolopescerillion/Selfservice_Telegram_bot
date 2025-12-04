@@ -2,3 +2,15 @@ spring:
   profiles:
     active: local   # default profile to load application-local.yml
 
+---
+spring:
+  config:
+    activate:
+      on-profile: local
+    import:
+      - optional:application-local.yml
+      - optional:connectors-local.yml
+      - optional:telegram-local.yml
+      - optional:whatsapp-local.yml
+      - optional:messenger-local.yml
+

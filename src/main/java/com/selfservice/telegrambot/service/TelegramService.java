@@ -17,6 +17,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.RestTemplate;
 
@@ -91,10 +92,11 @@ public class TelegramService {
             BusinessMenuConfigurationProvider menuConfigurationProvider,
             LoginMenuProperties loginMenuProperties) {
 
-        String nonNullToken = Objects.requireNonNull(
-                token, "telegram.bot.token must be set in configuration");
+        if (!StringUtils.hasText(token)) {
+            throw new IllegalArgumentException("telegram.bot.token must be configured in telegram-local.yml");
+        }
 
-        this.baseUrl = "https://api.telegram.org/bot" + nonNullToken;
+        this.baseUrl = "https://api.telegram.org/bot" + token;
         this.publicBaseUrl = (publicBaseUrl == null) ? "" : publicBaseUrl;
         this.translationService = translationService;
         this.userSessionService = userSessionService;

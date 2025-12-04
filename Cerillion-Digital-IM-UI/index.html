@@ -417,11 +417,6 @@
                     the <code>CONFIGURATIONS/</code> directory.
                   </p>
                 </div>
-                <div class="panel-actions panel-actions--end">
-                  <button id="connectorsDownloadButton" type="button" class="download-float">
-                    Download connectors-local.yml
-                  </button>
-                </div>
               </div>
 
               <div class="tabs" role="tablist" aria-label="Connector configuration">
@@ -431,11 +426,16 @@
                 <button class="tab" data-connectors-tab="messenger" type="button">Messenger</button>
               </div>
 
-              <div class="connector-tab" data-connectors-tab-panel="general">
+              <div class="connector-tab connector-tab--active" data-connectors-tab-panel="general">
                 <div class="monitoring-config config-viewer__header">
                   <div>
                     <div class="hint">Configuration source</div>
                     <div id="connectorsFileName" class="config-viewer__filename">Loading...</div>
+                  </div>
+                  <div class="panel-actions">
+                    <button id="connectorsReloadButton" type="button" class="secondary">
+                      Reload from file
+                    </button>
                   </div>
                   <div id="connectorsStatus" class="hint"></div>
                 </div>
@@ -478,6 +478,9 @@
                     </label>
                   </div>
                 </div>
+                <div class="config-editor">
+                  <div id="connectorsConfigTree" class="config-tree"></div>
+                </div>
                 <div class="connector-preview">
                   <div class="connector-preview__header">
                     <div class="hint">Generated connectors-local.yml</div>
@@ -488,72 +491,128 @@
                     aria-live="polite"
                   ></pre>
                 </div>
+                <div class="download-actions">
+                  <button id="connectorsDownloadButton" type="button" class="button">
+                    Download connectors-local.yml
+                  </button>
+                </div>
               </div>
 
-              <div class="connector-tab hidden" data-connectors-tab-panel="telegram">
+                <div class="connector-tab" data-connectors-tab-panel="telegram">
                 <div class="connector-tab__header">
                   <div>
                     <div class="switch-label">Telegram configuration</div>
                     <div id="telegramConfigStatus" class="hint"></div>
                   </div>
-                  <button id="telegramDownloadButton" type="button" class="download-float">
-                    Download telegram-local.yml
-                  </button>
+                  <div class="panel-actions">
+                    <button id="telegramReloadButton" type="button" class="secondary">
+                      Reload from file
+                    </button>
+                  </div>
                 </div>
                 <div id="telegramDisabledMessage" class="empty-state hidden" aria-live="polite">
                   Telegram is disabled in your configuration.
                 </div>
-                <textarea
-                  id="telegramConfigEditor"
-                  class="config-textarea"
-                  rows="12"
-                  spellcheck="false"
-                  aria-label="Edit telegram-local.yml"
-                ></textarea>
+                <div class="config-editor">
+                  <div
+                    id="telegramConfigTree"
+                    class="config-tree"
+                    aria-label="telegram-local.yml editor"
+                  ></div>
+                </div>
+                <div class="connector-preview">
+                  <div class="connector-preview__header">
+                    <div class="hint">Generated telegram-local.yml</div>
+                  </div>
+                  <pre
+                    id="telegramPreview"
+                    class="preview config-preview"
+                    aria-live="polite"
+                  ></pre>
+                </div>
+                <div class="download-actions">
+                  <button id="telegramDownloadButton" type="button" class="button">
+                    Download telegram-local.yml
+                  </button>
+                </div>
               </div>
 
-              <div class="connector-tab hidden" data-connectors-tab-panel="whatsapp">
+                <div class="connector-tab" data-connectors-tab-panel="whatsapp">
                 <div class="connector-tab__header">
                   <div>
                     <div class="switch-label">WhatsApp configuration</div>
                     <div id="whatsappConfigStatus" class="hint"></div>
                   </div>
-                  <button id="whatsappDownloadButton" type="button" class="download-float">
-                    Download whatsapp-local.yml
-                  </button>
+                  <div class="panel-actions">
+                    <button id="whatsappReloadButton" type="button" class="secondary">
+                      Reload from file
+                    </button>
+                  </div>
                 </div>
                 <div id="whatsappDisabledMessage" class="empty-state hidden" aria-live="polite">
                   WhatsApp is disabled in your configuration.
                 </div>
-                <textarea
-                  id="whatsappConfigEditor"
-                  class="config-textarea"
-                  rows="12"
-                  spellcheck="false"
-                  aria-label="Edit whatsapp-local.yml"
-                ></textarea>
+                <div class="config-editor">
+                  <div
+                    id="whatsappConfigTree"
+                    class="config-tree"
+                    aria-label="whatsapp-local.yml editor"
+                  ></div>
+                </div>
+                <div class="connector-preview">
+                  <div class="connector-preview__header">
+                    <div class="hint">Generated whatsapp-local.yml</div>
+                  </div>
+                  <pre
+                    id="whatsappPreview"
+                    class="preview config-preview"
+                    aria-live="polite"
+                  ></pre>
+                </div>
+                <div class="download-actions">
+                  <button id="whatsappDownloadButton" type="button" class="button">
+                    Download whatsapp-local.yml
+                  </button>
+                </div>
               </div>
 
-              <div class="connector-tab hidden" data-connectors-tab-panel="messenger">
+                <div class="connector-tab" data-connectors-tab-panel="messenger">
                 <div class="connector-tab__header">
                   <div>
                     <div class="switch-label">Messenger configuration</div>
                     <div id="messengerConfigStatus" class="hint"></div>
                   </div>
-                  <button id="messengerDownloadButton" type="button" class="download-float">
-                    Download messenger-local.yml
-                  </button>
+                  <div class="panel-actions">
+                    <button id="messengerReloadButton" type="button" class="secondary">
+                      Reload from file
+                    </button>
+                  </div>
                 </div>
                 <div id="messengerDisabledMessage" class="empty-state hidden" aria-live="polite">
                   Messenger is disabled in your configuration.
                 </div>
-                <textarea
-                  id="messengerConfigEditor"
-                  class="config-textarea"
-                  rows="12"
-                  spellcheck="false"
-                  aria-label="Edit messenger-local.yml"
-                ></textarea>
+                <div class="config-editor">
+                  <div
+                    id="messengerConfigTree"
+                    class="config-tree"
+                    aria-label="messenger-local.yml editor"
+                  ></div>
+                </div>
+                <div class="connector-preview">
+                  <div class="connector-preview__header">
+                    <div class="hint">Generated messenger-local.yml</div>
+                  </div>
+                  <pre
+                    id="messengerPreview"
+                    class="preview config-preview"
+                    aria-live="polite"
+                  ></pre>
+                </div>
+                <div class="download-actions">
+                  <button id="messengerDownloadButton" type="button" class="button">
+                    Download messenger-local.yml
+                  </button>
+                </div>
               </div>
             </section>
           </section>

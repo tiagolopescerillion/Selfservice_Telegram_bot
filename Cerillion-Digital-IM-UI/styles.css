@@ -534,6 +534,13 @@ button:disabled {
     padding: 1rem;
 }
 
+.download-actions {
+    display: flex;
+    justify-content: center;
+    gap: 0.75rem;
+    margin-top: 1rem;
+}
+
 .connector-preview {
     margin-top: 1rem;
     border: 1px solid var(--border);
@@ -549,9 +556,13 @@ button:disabled {
 }
 
 .connector-tab {
-    display: flex;
+    display: none;
     flex-direction: column;
     gap: 1rem;
+}
+
+.connector-tab--active {
+    display: flex;
 }
 
 .connector-tab__header {
