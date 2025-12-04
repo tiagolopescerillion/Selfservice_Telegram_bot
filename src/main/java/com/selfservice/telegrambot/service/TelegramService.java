@@ -78,7 +78,6 @@ public class TelegramService {
 
     private final RestTemplate rest = new RestTemplate();
     private final String baseUrl;
-    private final boolean tokenConfigured;
     private final String publicBaseUrl;
     private final TranslationService translationService;
     private final UserSessionService userSessionService;
@@ -86,29 +85,26 @@ public class TelegramService {
     private final LoginMenuProperties loginMenuProperties;
 
     public TelegramService(
-            @Value("${telegram.bot.token:${TELEGRAM_BOT_TOKEN:}}") String token,
+            @Value("${telegram.bot.token}") String token,
             @Value("${app.public-base-url:}") String publicBaseUrl,
             TranslationService translationService,
             UserSessionService userSessionService,
             BusinessMenuConfigurationProvider menuConfigurationProvider,
             LoginMenuProperties loginMenuProperties) {
 
-        this.tokenConfigured = StringUtils.hasText(token);
-        if (!this.tokenConfigured) {
-            log.warn("telegram.bot.token is not configured; Telegram API calls will be skipped");
+        if (!StringUtils.hasText(token)) {
+            throw new IllegalArgumentException("telegram.bot.token must be configured in telegram-local.yml");
         }
 
-        this.baseUrl = this.tokenConfigured ? "https://api.telegram.org/bot" + token : "https://api.telegram.org/bot";
+        this.baseUrl = "https://api.telegram.org/bot" + token;
         this.publicBaseUrl = (publicBaseUrl == null) ? "" : publicBaseUrl;
         this.translationService = translationService;
         this.userSessionService = userSessionService;
         this.menuConfigurationProvider = menuConfigurationProvider;
         this.loginMenuProperties = loginMenuProperties;
 
-        if (this.tokenConfigured) {
-            String masked = this.baseUrl.replaceFirst("/bot[^/]+", "/bot<token>");
-            log.info("Telegram baseUrl set to {}", masked);
-        }
+        String masked = this.baseUrl.replaceFirst("/bot[^/]+", "/bot<token>");
+        log.info("Telegram baseUrl set to {}", masked);
         if (!this.publicBaseUrl.isBlank()) {
             log.info("Public base URL set to {}", this.publicBaseUrl);
         }
@@ -661,11 +657,6 @@ public class TelegramService {
     }
 
     private void post(String url, Map<String, Object> body, HttpHeaders headers) {
-        if (!tokenConfigured) {
-            log.warn("Skipping Telegram API call because telegram.bot.token is not configured: {}", url);
-            return;
-        }
-
         Objects.requireNonNull(url, "url must not be null");
         if (headers == null)
             headers = new HttpHeaders();
