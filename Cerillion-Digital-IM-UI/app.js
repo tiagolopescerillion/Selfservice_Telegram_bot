@@ -283,6 +283,7 @@ let connectorSettings = {
   whatsapp: true,
   messenger: true
 };
+let connectorsContent = "";
 let connectorContents = {
   telegram: "",
   whatsapp: "",
@@ -1344,7 +1345,8 @@ function renderConnectorsGeneral() {
     }
   });
 
-  connectorsPreview.textContent = buildConnectorsYaml();
+  const content = connectorsContent || buildConnectorsYaml();
+  connectorsPreview.textContent = content;
 }
 
 function renderConnectorTab(key) {
@@ -1391,6 +1393,10 @@ function setActiveConnectorsTab(target) {
     const isActive = panel?.dataset?.connectorsTabPanel === selected;
     panel?.classList.toggle("hidden", !isActive);
   });
+
+  if (CONNECTOR_KEYS.includes(selected)) {
+    renderConnectorTab(selected);
+  }
 }
 
 async function loadConnectorsPanel() {
@@ -1402,6 +1408,7 @@ async function loadConnectorsPanel() {
   await Promise.all(CONNECTOR_KEYS.map((key) => loadConnectorFile(key)));
   renderConnectorsGeneral();
   CONNECTOR_KEYS.forEach(renderConnectorTab);
+  setActiveConnectorsTab("general");
   connectorsLoading = false;
 }
 
@@ -1449,6 +1456,7 @@ async function loadConnectorsConfig() {
       throw new Error(reason);
     }
     connectorSettings = extractConnectorFlags(payload?.entries);
+    connectorsContent = payload?.content || buildConnectorsYaml();
     connectorsFileName.textContent = payload?.fileName || "connectors-local.yml";
     const timestamp = formatTimestamp(payload?.lastModified);
     connectorsStatus.textContent = timestamp
@@ -1459,6 +1467,7 @@ async function loadConnectorsConfig() {
     connectorsStatus.textContent = `Unable to load connectors configuration: ${error?.message || error}`;
     connectorsStatus.className = "hint error-state";
     connectorSettings = { telegram: true, whatsapp: true, messenger: true };
+    connectorsContent = buildConnectorsYaml();
     connectorsFileName.textContent = "connectors-local.yml";
   }
 }
@@ -2526,6 +2535,7 @@ Object.entries(connectorToggles).forEach(([key, input]) => {
   if (!input) return;
   input.addEventListener("change", () => {
     connectorSettings[key] = input.checked;
+    connectorsContent = buildConnectorsYaml();
     renderConnectorsGeneral();
     renderConnectorTab(key);
   });
@@ -2545,7 +2555,8 @@ Object.entries(connectorDownloadButtons).forEach(([key, button]) => {
 
 if (connectorsDownloadButton) {
   connectorsDownloadButton.addEventListener("click", () => {
-    downloadYamlFile(buildConnectorsYaml(), "connectors-local.yml");
+    const content = connectorsContent || buildConnectorsYaml();
+    downloadYamlFile(content, "connectors-local.yml");
   });
 }
 
