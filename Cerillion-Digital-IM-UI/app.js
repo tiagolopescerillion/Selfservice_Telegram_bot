@@ -245,6 +245,7 @@ const configEmptyState = document.getElementById("configEmptyState");
 const connectorsFileName = document.getElementById("connectorsFileName");
 const connectorsStatus = document.getElementById("connectorsStatus");
 const connectorsPreview = document.getElementById("connectorsPreview");
+const connectorsConfigTree = document.getElementById("connectorsConfigTree");
 const connectorsDownloadButton = document.getElementById("connectorsDownloadButton");
 const connectorsTabButtons = document.querySelectorAll("[data-connectors-tab]");
 const connectorsTabPanels = document.querySelectorAll("[data-connectors-tab-panel]");
@@ -253,10 +254,15 @@ const connectorToggles = {
   whatsapp: document.getElementById("whatsappConnectorToggle"),
   messenger: document.getElementById("messengerConnectorToggle")
 };
-const connectorEditors = {
-  telegram: document.getElementById("telegramConfigEditor"),
-  whatsapp: document.getElementById("whatsappConfigEditor"),
-  messenger: document.getElementById("messengerConfigEditor")
+const connectorTrees = {
+  telegram: document.getElementById("telegramConfigTree"),
+  whatsapp: document.getElementById("whatsappConfigTree"),
+  messenger: document.getElementById("messengerConfigTree")
+};
+const connectorPreviews = {
+  telegram: document.getElementById("telegramPreview"),
+  whatsapp: document.getElementById("whatsappPreview"),
+  messenger: document.getElementById("messengerPreview")
 };
 const connectorStatuses = {
   telegram: document.getElementById("telegramConfigStatus"),
@@ -283,11 +289,19 @@ let connectorSettings = {
   whatsapp: true,
   messenger: true
 };
+let connectorsYamlObject = {
+  connectors: { telegram: true, whatsapp: true, messenger: true }
+};
 let connectorsContent = "";
 let connectorContents = {
   telegram: "",
   whatsapp: "",
   messenger: ""
+};
+let connectorYamlObjects = {
+  telegram: {},
+  whatsapp: {},
+  messenger: {}
 };
 let connectorFileNames = {
   telegram: "telegram-local.yml",
@@ -1321,13 +1335,189 @@ function resolveBooleanFlag(value, fallback = true) {
   return fallback;
 }
 
+function normalizeYamlValue(value) {
+  if (value === true || value === false || value === null || typeof value === "number") {
+    return value;
+  }
+  const trimmed = (value ?? "").toString().trim();
+  if (trimmed.toLowerCase() === "true") return true;
+  if (trimmed.toLowerCase() === "false") return false;
+  const numeric = Number(trimmed);
+  if (!Number.isNaN(numeric) && trimmed !== "") {
+    return numeric;
+  }
+  return trimmed;
+}
+
+function setNestedValue(target, path, rawValue) {
+  if (!target || !Array.isArray(path) || path.length === 0) return;
+  const value = normalizeYamlValue(rawValue);
+  let current = target;
+  const [lastKey] = path.slice(-1);
+  path.slice(0, -1).forEach((segment) => {
+    if (current[segment] === undefined || current[segment] === null || typeof current[segment] !== "object") {
+      current[segment] = {};
+    }
+    current = current[segment];
+  });
+  current[lastKey] = value;
+}
+
+function getNestedValue(target, path, fallback) {
+  if (!target || !Array.isArray(path)) return fallback;
+  return path.reduce((acc, key) => (acc && acc[key] !== undefined ? acc[key] : undefined), target) ?? fallback;
+}
+
+function parseSimpleYaml(content) {
+  const root = {};
+  if (!content) return root;
+
+  const stack = [{ indent: -1, obj: root }];
+  content.split(/\r?\n/).forEach((rawLine) => {
+    const line = (rawLine || "").replace(/\t/g, "  ");
+    if (!line.trim() || line.trim().startsWith("#")) return;
+    const match = line.match(/^(\s*)([^:#]+):\s*(.*)$/);
+    if (!match) return;
+    const indent = match[1].length;
+    const key = match[2].trim();
+    const value = match[3];
+
+    while (stack.length && indent <= stack[stack.length - 1].indent) {
+      stack.pop();
+    }
+    const parent = stack[stack.length - 1]?.obj || root;
+
+    if (value === undefined || value === "") {
+      parent[key] = parent[key] && typeof parent[key] === "object" ? parent[key] : {};
+      stack.push({ indent, obj: parent[key] });
+    } else {
+      parent[key] = normalizeYamlValue(value);
+    }
+  });
+
+  return root;
+}
+
+function stringifySimpleYaml(obj, depth = 0) {
+  if (obj === null || obj === undefined) return "";
+  if (typeof obj !== "object") return `${obj}`;
+  const indent = "  ".repeat(depth);
+  return Object.entries(obj)
+    .map(([key, value]) => {
+      if (value && typeof value === "object") {
+        const child = stringifySimpleYaml(value, depth + 1);
+        return `${indent}${key}:\n${child}`;
+      }
+      return `${indent}${key}: ${value ?? ""}`;
+    })
+    .join("\n");
+}
+
+function objectToNodes(obj, path = []) {
+  if (!obj || typeof obj !== "object") return [];
+  return Object.entries(obj).map(([key, value]) => ({
+    key,
+    value,
+    path: [...path, key]
+  }));
+}
+
+function renderYamlTree(container, obj, onValueChange) {
+  if (!container) return;
+  container.innerHTML = "";
+  const nodes = objectToNodes(obj);
+  nodes.forEach((node) => renderYamlNode(node, 0, container, onValueChange));
+}
+
+function renderYamlNode(node, depth, container, onValueChange) {
+  const hasChildren = node?.value && typeof node.value === "object";
+  const row = document.createElement("div");
+  row.className = hasChildren ? "config-group" : "config-entry";
+  row.style.setProperty("--depth", depth);
+
+  const keyEl = document.createElement("div");
+  keyEl.className = "config-entry__key";
+  keyEl.textContent = node?.key || "value";
+  row.append(keyEl);
+
+  if (hasChildren) {
+    const divider = document.createElement("div");
+    divider.className = "config-group__divider";
+    row.append(divider);
+    container.append(row);
+    objectToNodes(node.value, node.path).forEach((child) =>
+      renderYamlNode(child, depth + 1, container, onValueChange)
+    );
+    return;
+  }
+
+  const valueEl = document.createElement("input");
+  const isNumber = typeof node.value === "number";
+  valueEl.type = isNumber ? "number" : "text";
+  valueEl.value = node.value ?? "";
+  valueEl.placeholder = isNumber ? "number" : "value";
+  valueEl.setAttribute("aria-label", `Edit value for ${keyEl.textContent}`);
+  valueEl.addEventListener("input", (event) => {
+    const val = isNumber ? event.target.valueAsNumber : event.target.value;
+    onValueChange?.(node.path, val);
+  });
+
+  row.append(valueEl);
+  container.append(row);
+}
+
 function buildConnectorsYaml() {
-  return [
-    "connectors:",
-    `  whatsapp: ${connectorSettings.whatsapp}`,
-    `  telegram: ${connectorSettings.telegram}`,
-    `  messenger: ${connectorSettings.messenger}`
-  ].join("\n");
+  const source = connectorsYamlObject?.connectors ? connectorsYamlObject : {
+    connectors: { ...connectorSettings }
+  };
+  return stringifySimpleYaml(source);
+}
+
+function applyConnectorSettingsFromYaml() {
+  connectorSettings = {
+    telegram: Boolean(getNestedValue(connectorsYamlObject, ["connectors", "telegram"], true)),
+    whatsapp: Boolean(getNestedValue(connectorsYamlObject, ["connectors", "whatsapp"], true)),
+    messenger: Boolean(getNestedValue(connectorsYamlObject, ["connectors", "messenger"], true))
+  };
+}
+
+function ensureConnectorYamlDefaults() {
+  if (!connectorsYamlObject || typeof connectorsYamlObject !== "object") {
+    connectorsYamlObject = { connectors: { ...connectorSettings } };
+  }
+  if (!connectorsYamlObject.connectors || typeof connectorsYamlObject.connectors !== "object") {
+    connectorsYamlObject.connectors = { ...connectorSettings };
+  }
+  CONNECTOR_KEYS.forEach((key) => {
+    if (connectorsYamlObject.connectors[key] === undefined) {
+      connectorsYamlObject.connectors[key] = connectorSettings[key] ?? true;
+    }
+  });
+  applyConnectorSettingsFromYaml();
+  connectorsContent = buildConnectorsYaml();
+}
+
+function syncConnectorsFromContent() {
+  connectorsYamlObject = parseSimpleYaml(connectorsContent || buildConnectorsYaml());
+  ensureConnectorYamlDefaults();
+}
+
+function ensureConnectorObjectDefaults(key) {
+  const current = connectorYamlObjects[key] && typeof connectorYamlObjects[key] === "object"
+    ? connectorYamlObjects[key]
+    : {};
+  if (!current[key] || typeof current[key] !== "object") {
+    current[key] = current[key] && typeof current[key] === "object" ? current[key] : {};
+  }
+  connectorYamlObjects[key] = current;
+  connectorContents[key] = stringifySimpleYaml(current) || defaultConnectorTemplate(key);
+  return current;
+}
+
+function syncConnectorObjectFromContent(key) {
+  connectorYamlObjects[key] = parseSimpleYaml(connectorContents[key] || defaultConnectorTemplate(key));
+  ensureConnectorObjectDefaults(key);
+  connectorContents[key] = stringifySimpleYaml(connectorYamlObjects[key]);
 }
 
 function renderConnectorsGeneral() {
@@ -1335,23 +1525,43 @@ function renderConnectorsGeneral() {
     return;
   }
 
-  Object.entries(connectorToggles).forEach(([key, input]) => {
-    if (!input) return;
-    const enabled = Boolean(connectorSettings[key]);
-    input.checked = enabled;
-    const valueLabel = input.parentElement?.querySelector(".switch-value");
-    if (valueLabel) {
-      valueLabel.textContent = enabled ? "On" : "Off";
-    }
+  ensureConnectorYamlDefaults();
+
+  const updateToggleUi = () => {
+    Object.entries(connectorToggles).forEach(([toggleKey, input]) => {
+      if (!input) return;
+      const enabled = Boolean(connectorSettings[toggleKey]);
+      input.checked = enabled;
+      const valueLabel = input.parentElement?.querySelector(".switch-value");
+      if (valueLabel) {
+        valueLabel.textContent = enabled ? "On" : "Off";
+      }
+    });
+  };
+
+  updateToggleUi();
+  renderYamlTree(connectorsConfigTree, connectorsYamlObject, (path, value) => {
+    setNestedValue(connectorsYamlObject, path, value);
+    applyConnectorSettingsFromYaml();
+    connectorsContent = buildConnectorsYaml();
+    updateToggleUi();
+    connectorsPreview.textContent = connectorsContent;
   });
 
   const content = connectorsContent || buildConnectorsYaml();
   connectorsPreview.textContent = content;
 }
 
+function renderConnectorPreview(key) {
+  const preview = connectorPreviews[key];
+  if (!preview) return;
+  preview.textContent = connectorContents[key] || stringifySimpleYaml(connectorYamlObjects[key]) || defaultConnectorTemplate(key);
+}
+
 function renderConnectorTab(key) {
   const enabled = Boolean(connectorSettings[key]);
-  const editor = connectorEditors[key];
+  const tree = connectorTrees[key];
+  const preview = connectorPreviews[key];
   const disabledNotice = connectorDisabledMessages[key];
   const downloadButton = connectorDownloadButtons[key];
   const status = connectorStatuses[key];
@@ -1365,11 +1575,23 @@ function renderConnectorTab(key) {
     downloadButton.disabled = !enabled;
   }
 
-  if (editor) {
-    editor.classList.toggle("hidden", !enabled);
+  if (tree) {
+    tree.classList.toggle("hidden", !enabled);
     if (enabled) {
-      editor.value = connectorContents[key] || defaultConnectorTemplate(key);
+      const configObj = ensureConnectorObjectDefaults(key);
+      renderYamlTree(tree, configObj, (path, value) => {
+        setNestedValue(configObj, path, value);
+        connectorContents[key] = stringifySimpleYaml(configObj);
+        renderConnectorPreview(key);
+      });
     }
+  }
+
+  if (preview) {
+    preview.parentElement?.classList.toggle("hidden", !enabled);
+    preview.textContent = enabled
+      ? connectorContents[key] || stringifySimpleYaml(connectorYamlObjects[key]) || defaultConnectorTemplate(key)
+      : "";
   }
 
   if (status) {
@@ -1457,6 +1679,7 @@ async function loadConnectorsConfig() {
     }
     connectorSettings = extractConnectorFlags(payload?.entries);
     connectorsContent = payload?.content || buildConnectorsYaml();
+    syncConnectorsFromContent();
     connectorsFileName.textContent = payload?.fileName || "connectors-local.yml";
     const timestamp = formatTimestamp(payload?.lastModified);
     connectorsStatus.textContent = timestamp
@@ -1468,6 +1691,7 @@ async function loadConnectorsConfig() {
     connectorsStatus.className = "hint error-state";
     connectorSettings = { telegram: true, whatsapp: true, messenger: true };
     connectorsContent = buildConnectorsYaml();
+    syncConnectorsFromContent();
     connectorsFileName.textContent = "connectors-local.yml";
   }
 }
@@ -1483,6 +1707,7 @@ async function loadConnectorFile(key) {
       status.className = "hint error-state";
     }
     connectorContents[key] = defaultContent;
+    syncConnectorObjectFromContent(key);
     renderConnectorTab(key);
     return;
   }
@@ -1500,6 +1725,7 @@ async function loadConnectorFile(key) {
       throw new Error(reason);
     }
     connectorContents[key] = payload?.content || defaultContent;
+    syncConnectorObjectFromContent(key);
     connectorFileNames[key] = payload?.fileName || `${key}-local.yml`;
     const timestamp = formatTimestamp(payload?.lastModified);
     if (status) {
@@ -1514,6 +1740,7 @@ async function loadConnectorFile(key) {
       status.className = "hint error-state";
     }
     connectorContents[key] = defaultContent;
+    syncConnectorObjectFromContent(key);
     connectorFileNames[key] = `${key}-local.yml`;
   }
 }
@@ -2535,16 +2762,11 @@ Object.entries(connectorToggles).forEach(([key, input]) => {
   if (!input) return;
   input.addEventListener("change", () => {
     connectorSettings[key] = input.checked;
+    setNestedValue(connectorsYamlObject, ["connectors", key], input.checked);
     connectorsContent = buildConnectorsYaml();
+    applyConnectorSettingsFromYaml();
     renderConnectorsGeneral();
     renderConnectorTab(key);
-  });
-});
-
-Object.entries(connectorEditors).forEach(([key, editor]) => {
-  if (!editor) return;
-  editor.addEventListener("input", (event) => {
-    connectorContents[key] = event.target.value;
   });
 });
 
