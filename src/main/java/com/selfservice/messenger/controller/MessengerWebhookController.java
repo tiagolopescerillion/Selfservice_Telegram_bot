@@ -1,10 +1,12 @@
 package com.selfservice.messenger.controller;
 
-import com.selfservice.messenger.service.MessengerService;
 import com.selfservice.application.service.OperationsMonitoringService;
+import com.selfservice.application.config.ConnectorsProperties;
+import com.selfservice.messenger.service.MessengerService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -26,14 +28,17 @@ public class MessengerWebhookController {
     private final MessengerService messengerService;
     private final String verifyToken;
     private final OperationsMonitoringService monitoringService;
+    private final ConnectorsProperties connectorsProperties;
 
     public MessengerWebhookController(
             MessengerService messengerService,
             @Value("${messenger.verify-token}") String verifyToken,
-            OperationsMonitoringService monitoringService) {
+            OperationsMonitoringService monitoringService,
+            ConnectorsProperties connectorsProperties) {
         this.messengerService = messengerService;
         this.verifyToken = Objects.requireNonNull(verifyToken, "messenger.verify-token must be set");
         this.monitoringService = monitoringService;
+        this.connectorsProperties = connectorsProperties;
     }
 
     @GetMapping
@@ -41,6 +46,11 @@ public class MessengerWebhookController {
             @RequestParam(name = "hub.mode", required = false) String mode,
             @RequestParam(name = "hub.verify_token", required = false) String token,
             @RequestParam(name = "hub.challenge", required = false) String challenge) {
+
+        if (!connectorsProperties.isMessengerEnabled()) {
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                    .body("Messenger connector is disabled");
+        }
 
         log.info("Messenger webhook verification request mode={} token={}", mode, token);
 
@@ -53,6 +63,9 @@ public class MessengerWebhookController {
 
     @PostMapping
     public ResponseEntity<Void> onEvent(@RequestBody Map<String, Object> payload) {
+        if (!connectorsProperties.isMessengerEnabled()) {
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).build();
+        }
         log.info("Incoming Messenger webhook: {}", payload);
 
         if (!"page".equals(payload.get("object"))) {

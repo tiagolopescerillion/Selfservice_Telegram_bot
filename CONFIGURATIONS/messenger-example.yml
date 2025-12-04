@@ -1,0 +1,4 @@
+messenger:
+  callback-url: ${app.public-base-url}/messenger/webhook  # Public webhook endpoint for Facebook Messenger callbacks
+  verify-token: YOUR_FACEBOOK_VERIFY_TOKEN                # Verification token configured for the Facebook app
+  page-access-token: YOUR_FACEBOOK_PAGE_ACCESS_TOKEN      # Page access token for sending messages

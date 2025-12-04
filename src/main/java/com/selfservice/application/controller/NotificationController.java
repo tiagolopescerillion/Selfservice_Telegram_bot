@@ -1,5 +1,6 @@
 package com.selfservice.application.controller;
 
+import com.selfservice.application.config.ConnectorsProperties;
 import com.selfservice.application.service.OperationsMonitoringService;
 import com.selfservice.telegrambot.service.TelegramService;
 import com.selfservice.telegrambot.service.UserSessionService;
@@ -25,17 +26,20 @@ public class NotificationController {
     private final UserSessionService userSessionService;
     private final WhatsappSessionService whatsappSessionService;
     private final OperationsMonitoringService monitoringService;
+    private final ConnectorsProperties connectorsProperties;
 
     public NotificationController(TelegramService telegramService,
                                   WhatsappService whatsappService,
                                   UserSessionService userSessionService,
                                   WhatsappSessionService whatsappSessionService,
-                                  OperationsMonitoringService monitoringService) {
+                                  OperationsMonitoringService monitoringService,
+                                  ConnectorsProperties connectorsProperties) {
         this.telegramService = telegramService;
         this.whatsappService = whatsappService;
         this.userSessionService = userSessionService;
         this.whatsappSessionService = whatsappSessionService;
         this.monitoringService = monitoringService;
+        this.connectorsProperties = connectorsProperties;
     }
 
     @PostMapping
@@ -53,6 +57,12 @@ public class NotificationController {
         String message = request.message.trim();
         switch (normalizedChannel) {
             case "telegram" -> {
+                if (!connectorsProperties.isTelegramEnabled()) {
+                    return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(Map.of(
+                            "status", "rejected",
+                            "reason", "Telegram connector is disabled"
+                    ));
+                }
                 long chatId;
                 try {
                     chatId = Long.parseLong(request.chatId.trim());
@@ -79,6 +89,12 @@ public class NotificationController {
                 ));
             }
             case "whatsapp", "wa" -> {
+                if (!connectorsProperties.isWhatsappEnabled()) {
+                    return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(Map.of(
+                            "status", "rejected",
+                            "reason", "WhatsApp connector is disabled"
+                    ));
+                }
                 String chatId = request.chatId.trim();
                 if (!whatsappSessionService.isOptedIn(chatId)) {
                     return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of(

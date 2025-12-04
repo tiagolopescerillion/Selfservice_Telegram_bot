@@ -11,10 +11,12 @@ import com.selfservice.application.service.TroubleTicketService;
 import com.selfservice.application.service.OperationsMonitoringService;
 import com.selfservice.application.config.menu.LoginMenuFunction;
 import com.selfservice.application.config.menu.LoginMenuItem;
+import com.selfservice.application.config.ConnectorsProperties;
 import com.selfservice.telegrambot.service.TelegramService;
 import com.selfservice.telegrambot.service.UserSessionService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -33,6 +35,7 @@ public class TelegramWebhookController {
     private final UserSessionService userSessionService;
     private final TroubleTicketService troubleTicketService;
     private final OperationsMonitoringService monitoringService;
+    private final ConnectorsProperties connectorsProperties;
 
     public TelegramWebhookController(TelegramService telegramService,
             KeycloakAuthService keycloakAuthService,
@@ -40,7 +43,8 @@ public class TelegramWebhookController {
             OAuthSessionService oauthSessionService,
             UserSessionService userSessionService,
             TroubleTicketService troubleTicketService,
-            OperationsMonitoringService monitoringService) {
+            OperationsMonitoringService monitoringService,
+            ConnectorsProperties connectorsProperties) {
         this.telegramService = telegramService;
         this.keycloakAuthService = keycloakAuthService;
         this.productService = productService;
@@ -49,11 +53,15 @@ public class TelegramWebhookController {
         this.userSessionService = userSessionService;
         this.troubleTicketService = troubleTicketService;
         this.monitoringService = monitoringService;
+        this.connectorsProperties = connectorsProperties;
 
     }
 
     @PostMapping
     public ResponseEntity<Void> onUpdate(@RequestBody Map<String, Object> update) {
+        if (!connectorsProperties.isTelegramEnabled()) {
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).build();
+        }
         log.info("Incoming Telegram update: {}", update);
 
         try {

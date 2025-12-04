@@ -1,0 +1,4 @@
+connectors:
+  whatsapp: true
+  telegram: true
+  messenger: true
