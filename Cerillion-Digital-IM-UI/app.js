@@ -205,11 +205,13 @@ const navMenuConfig = document.getElementById("navMenuConfig");
 const navOperationsMonitoring = document.getElementById("navOperationsMonitoring");
 const navSendMessages = document.getElementById("navSendMessages");
 const navImServerAdmin = document.getElementById("navImServerAdmin");
+const navConnectors = document.getElementById("navConnectors");
 const navServiceFunctions = document.getElementById("navServiceFunctions");
 const menuConfigurationPanel = document.getElementById("menuConfigurationPanel");
 const operationsMonitoringPanel = document.getElementById("operationsMonitoringPanel");
 const sendMessagesPanel = document.getElementById("sendMessagesPanel");
 const imServerAdminPanel = document.getElementById("imServerAdminPanel");
+const connectorsPanel = document.getElementById("connectorsPanel");
 const serviceFunctionsPanel = document.getElementById("serviceFunctionsPanel");
 const serviceFunctionsTableBody = document.getElementById("serviceFunctionsTableBody");
 const serviceFunctionsStatus = document.getElementById("serviceFunctionsStatus");
@@ -240,10 +242,58 @@ const configStatus = document.getElementById("configStatus");
 const refreshConfigButton = document.getElementById("refreshConfigButton");
 const configTree = document.getElementById("configTree");
 const configEmptyState = document.getElementById("configEmptyState");
+const connectorsFileName = document.getElementById("connectorsFileName");
+const connectorsStatus = document.getElementById("connectorsStatus");
+const connectorsPreview = document.getElementById("connectorsPreview");
+const connectorsDownloadButton = document.getElementById("connectorsDownloadButton");
+const connectorsTabButtons = document.querySelectorAll("[data-connectors-tab]");
+const connectorsTabPanels = document.querySelectorAll("[data-connectors-tab-panel]");
+const connectorToggles = {
+  telegram: document.getElementById("telegramConnectorToggle"),
+  whatsapp: document.getElementById("whatsappConnectorToggle"),
+  messenger: document.getElementById("messengerConnectorToggle")
+};
+const connectorEditors = {
+  telegram: document.getElementById("telegramConfigEditor"),
+  whatsapp: document.getElementById("whatsappConfigEditor"),
+  messenger: document.getElementById("messengerConfigEditor")
+};
+const connectorStatuses = {
+  telegram: document.getElementById("telegramConfigStatus"),
+  whatsapp: document.getElementById("whatsappConfigStatus"),
+  messenger: document.getElementById("messengerConfigStatus")
+};
+const connectorDisabledMessages = {
+  telegram: document.getElementById("telegramDisabledMessage"),
+  whatsapp: document.getElementById("whatsappDisabledMessage"),
+  messenger: document.getElementById("messengerDisabledMessage")
+};
+const connectorDownloadButtons = {
+  telegram: document.getElementById("telegramDownloadButton"),
+  whatsapp: document.getElementById("whatsappDownloadButton"),
+  messenger: document.getElementById("messengerDownloadButton")
+};
 
 const PUBLIC_BASE_URL_PLACEHOLDER = "YOUR_SERVER_PUBLIC_URL";
 
 let resolvedMonitoringApiBase = "";
+const CONNECTOR_KEYS = ["telegram", "whatsapp", "messenger"];
+let connectorSettings = {
+  telegram: true,
+  whatsapp: true,
+  messenger: true
+};
+let connectorContents = {
+  telegram: "",
+  whatsapp: "",
+  messenger: ""
+};
+let connectorFileNames = {
+  telegram: "telegram-local.yml",
+  whatsapp: "whatsapp-local.yml",
+  messenger: "messenger-local.yml"
+};
+let connectorsLoading = false;
 
 function normalizeApiBase(base) {
   return (base || "").trim();
@@ -1225,15 +1275,22 @@ function setActiveApp(target) {
   const showSendMessages = target === "notifications";
   const showImServerAdmin = target === "admin";
   const showServiceFunctions = target === "service-functions";
+  const showConnectors = target === "connectors";
   menuConfigurationPanel.classList.toggle("hidden", !showMenuConfig);
   operationsMonitoringPanel.classList.toggle("hidden", !showOperations);
   sendMessagesPanel.classList.toggle("hidden", !showSendMessages);
   imServerAdminPanel.classList.toggle("hidden", !showImServerAdmin);
+  if (connectorsPanel) {
+    connectorsPanel.classList.toggle("hidden", !showConnectors);
+  }
   serviceFunctionsPanel.classList.toggle("hidden", !showServiceFunctions);
   navMenuConfig.classList.toggle("active", showMenuConfig);
   navOperationsMonitoring.classList.toggle("active", showOperations);
   navSendMessages.classList.toggle("active", showSendMessages);
   navImServerAdmin.classList.toggle("active", showImServerAdmin);
+  if (navConnectors) {
+    navConnectors.classList.toggle("active", showConnectors);
+  }
   navServiceFunctions.classList.toggle("active", showServiceFunctions);
   if (showOperations) {
     refreshMonitoringData();
@@ -1241,9 +1298,255 @@ function setActiveApp(target) {
   if (showImServerAdmin) {
     loadImServerConfig();
   }
+  if (showConnectors) {
+    loadConnectorsPanel();
+  }
   if (showServiceFunctions) {
     loadServiceFunctions();
   }
+}
+
+function formatConnectorLabel(key) {
+  if (!key) return "Connector";
+  return key.charAt(0).toUpperCase() + key.slice(1);
+}
+
+function resolveBooleanFlag(value, fallback = true) {
+  if (value === undefined || value === null) return fallback;
+  if (typeof value === "boolean") return value;
+  const normalized = value.toString().trim().toLowerCase();
+  if (normalized === "true") return true;
+  if (normalized === "false") return false;
+  return fallback;
+}
+
+function buildConnectorsYaml() {
+  return [
+    "connectors:",
+    `  whatsapp: ${connectorSettings.whatsapp}`,
+    `  telegram: ${connectorSettings.telegram}`,
+    `  messenger: ${connectorSettings.messenger}`
+  ].join("\n");
+}
+
+function renderConnectorsGeneral() {
+  if (!connectorsPreview || !connectorsFileName || !connectorsStatus) {
+    return;
+  }
+
+  Object.entries(connectorToggles).forEach(([key, input]) => {
+    if (!input) return;
+    const enabled = Boolean(connectorSettings[key]);
+    input.checked = enabled;
+    const valueLabel = input.parentElement?.querySelector(".switch-value");
+    if (valueLabel) {
+      valueLabel.textContent = enabled ? "On" : "Off";
+    }
+  });
+
+  connectorsPreview.textContent = buildConnectorsYaml();
+}
+
+function renderConnectorTab(key) {
+  const enabled = Boolean(connectorSettings[key]);
+  const editor = connectorEditors[key];
+  const disabledNotice = connectorDisabledMessages[key];
+  const downloadButton = connectorDownloadButtons[key];
+  const status = connectorStatuses[key];
+
+  if (disabledNotice) {
+    disabledNotice.classList.toggle("hidden", enabled);
+    disabledNotice.textContent = `${formatConnectorLabel(key)} is disabled in your configuration.`;
+  }
+
+  if (downloadButton) {
+    downloadButton.disabled = !enabled;
+  }
+
+  if (editor) {
+    editor.classList.toggle("hidden", !enabled);
+    if (enabled) {
+      editor.value = connectorContents[key] || defaultConnectorTemplate(key);
+    }
+  }
+
+  if (status) {
+    if (!enabled) {
+      status.className = "hint";
+      status.textContent = `${formatConnectorLabel(key)} is disabled. Enable it to edit settings.`;
+    } else if (!status.textContent) {
+      status.className = "hint";
+      status.textContent = `${formatConnectorLabel(key)} configuration is ready to edit.`;
+    }
+  }
+}
+
+function setActiveConnectorsTab(target) {
+  const selected = target || "general";
+  connectorsTabButtons.forEach((button) => {
+    const isActive = button?.dataset?.connectorsTab === selected;
+    button?.classList.toggle("active", isActive);
+  });
+  connectorsTabPanels.forEach((panel) => {
+    const isActive = panel?.dataset?.connectorsTabPanel === selected;
+    panel?.classList.toggle("hidden", !isActive);
+  });
+}
+
+async function loadConnectorsPanel() {
+  if (connectorsLoading) {
+    return;
+  }
+  connectorsLoading = true;
+  await loadConnectorsConfig();
+  await Promise.all(CONNECTOR_KEYS.map((key) => loadConnectorFile(key)));
+  renderConnectorsGeneral();
+  CONNECTOR_KEYS.forEach(renderConnectorTab);
+  connectorsLoading = false;
+}
+
+function extractConnectorFlags(entries) {
+  const flags = { ...connectorSettings };
+  if (Array.isArray(entries)) {
+    entries.forEach((entry) => {
+      const key = (entry?.key || "").toString().toLowerCase();
+      const value = entry?.value;
+      if (key === "connectors.telegram") {
+        flags.telegram = resolveBooleanFlag(value, true);
+      }
+      if (key === "connectors.whatsapp") {
+        flags.whatsapp = resolveBooleanFlag(value, true);
+      }
+      if (key === "connectors.messenger") {
+        flags.messenger = resolveBooleanFlag(value, true);
+      }
+    });
+  }
+  return flags;
+}
+
+async function loadConnectorsConfig() {
+  if (!connectorsStatus || !connectorsPreview) {
+    return;
+  }
+
+  const endpoint = buildAdminEndpoint("/admin/config/connectors");
+  if (!endpoint) {
+    connectorsStatus.textContent = "Set the monitoring API base URL so the Java server can be reached.";
+    connectorsStatus.className = "hint error-state";
+    connectorsFileName.textContent = "Unavailable";
+    renderConnectorsGeneral();
+    return;
+  }
+
+  connectorsStatus.textContent = "Loading connectors configuration...";
+  connectorsStatus.className = "hint";
+  try {
+    const response = await fetch(endpoint);
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      const reason = payload?.reason || response.statusText || `HTTP ${response.status}`;
+      throw new Error(reason);
+    }
+    connectorSettings = extractConnectorFlags(payload?.entries);
+    connectorsFileName.textContent = payload?.fileName || "connectors-local.yml";
+    const timestamp = formatTimestamp(payload?.lastModified);
+    connectorsStatus.textContent = timestamp
+      ? `Last updated ${timestamp}`
+      : `Loaded ${connectorsFileName.textContent}`;
+    connectorsStatus.className = "hint";
+  } catch (error) {
+    connectorsStatus.textContent = `Unable to load connectors configuration: ${error?.message || error}`;
+    connectorsStatus.className = "hint error-state";
+    connectorSettings = { telegram: true, whatsapp: true, messenger: true };
+    connectorsFileName.textContent = "connectors-local.yml";
+  }
+}
+
+async function loadConnectorFile(key) {
+  const endpoint = buildAdminEndpoint(`/admin/config/${key}`);
+  const status = connectorStatuses[key];
+  const defaultContent = defaultConnectorTemplate(key);
+
+  if (!endpoint) {
+    if (status) {
+      status.textContent = "Set the monitoring API base URL so the Java server can be reached.";
+      status.className = "hint error-state";
+    }
+    connectorContents[key] = defaultContent;
+    renderConnectorTab(key);
+    return;
+  }
+
+  if (status) {
+    status.textContent = `Loading ${formatConnectorLabel(key)} configuration...`;
+    status.className = "hint";
+  }
+
+  try {
+    const response = await fetch(endpoint);
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      const reason = payload?.reason || response.statusText || `HTTP ${response.status}`;
+      throw new Error(reason);
+    }
+    connectorContents[key] = payload?.content || defaultContent;
+    connectorFileNames[key] = payload?.fileName || `${key}-local.yml`;
+    const timestamp = formatTimestamp(payload?.lastModified);
+    if (status) {
+      status.textContent = timestamp
+        ? `Loaded from ${connectorFileNames[key]} (updated ${timestamp})`
+        : `Loaded from ${connectorFileNames[key]}`;
+      status.className = "hint";
+    }
+  } catch (error) {
+    if (status) {
+      status.textContent = `Unable to load ${formatConnectorLabel(key)} configuration: ${error?.message || error}`;
+      status.className = "hint error-state";
+    }
+    connectorContents[key] = defaultContent;
+    connectorFileNames[key] = `${key}-local.yml`;
+  }
+}
+
+function defaultConnectorTemplate(key) {
+  switch (key) {
+    case "telegram":
+      return "telegram:\n  bot:\n    token: YOUR_TELEGRAM_BOT_TOKEN  # Bot token issued by BotFather\n";
+    case "whatsapp":
+      return [
+        "whatsapp:",
+        "  callback-url: ${app.public-base-url}/webhook/whatsapp  # Public webhook endpoint for WhatsApp callbacks",
+        "  verify-token: YOUR_WHATSAPP_VERIFY_TOKEN               # Verification token configured in Meta App settings",
+        "  phone-number-id: YOUR_PHONE_NUMBER_ID                  # WhatsApp Business phone number ID",
+        "  access-token: YOUR_WHATSAPP_ACCESS_TOKEN               # WhatsApp Graph API access token",
+        "  ux-mode: TEST  # UX mode: BASIC (plain text), PRODUCTION (interactive cards), TEST (show both)"
+      ].join("\n");
+    case "messenger":
+      return [
+        "messenger:",
+        "  callback-url: ${app.public-base-url}/messenger/webhook  # Public webhook endpoint for Facebook Messenger callbacks",
+        "  verify-token: YOUR_FACEBOOK_VERIFY_TOKEN                # Verification token configured for the Facebook app",
+        "  page-access-token: YOUR_FACEBOOK_PAGE_ACCESS_TOKEN      # Page access token for sending messages"
+      ].join("\n");
+    default:
+      return `# Add settings for ${formatConnectorLabel(key)}`;
+  }
+}
+
+function downloadYamlFile(content, filename) {
+  const blob = new Blob([content], { type: "text/yaml" });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = filename;
+  anchor.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function downloadConnectorConfig(key) {
+  const content = connectorContents[key] || defaultConnectorTemplate(key);
+  downloadYamlFile(content, connectorFileNames[key] || `${key}-local.yml`);
 }
 
 function formatQueryParams(params) {
@@ -2207,9 +2510,43 @@ navMenuConfig.addEventListener("click", () => setActiveApp("menu"));
 navOperationsMonitoring.addEventListener("click", () => setActiveApp("operations"));
 navSendMessages.addEventListener("click", () => setActiveApp("notifications"));
 navImServerAdmin.addEventListener("click", () => setActiveApp("admin"));
+if (navConnectors) {
+  navConnectors.addEventListener("click", () => setActiveApp("connectors"));
+}
 navServiceFunctions.addEventListener("click", () => setActiveApp("service-functions"));
 if (downloadQueryParamsButton) {
   downloadQueryParamsButton.addEventListener("click", downloadQueryParamConfig);
+}
+
+connectorsTabButtons.forEach((button) => {
+  button.addEventListener("click", () => setActiveConnectorsTab(button?.dataset?.connectorsTab));
+});
+
+Object.entries(connectorToggles).forEach(([key, input]) => {
+  if (!input) return;
+  input.addEventListener("change", () => {
+    connectorSettings[key] = input.checked;
+    renderConnectorsGeneral();
+    renderConnectorTab(key);
+  });
+});
+
+Object.entries(connectorEditors).forEach(([key, editor]) => {
+  if (!editor) return;
+  editor.addEventListener("input", (event) => {
+    connectorContents[key] = event.target.value;
+  });
+});
+
+Object.entries(connectorDownloadButtons).forEach(([key, button]) => {
+  if (!button) return;
+  button.addEventListener("click", () => downloadConnectorConfig(key));
+});
+
+if (connectorsDownloadButton) {
+  connectorsDownloadButton.addEventListener("click", () => {
+    downloadYamlFile(buildConnectorsYaml(), "connectors-local.yml");
+  });
 }
 
 if (addServiceFunctionButton) {
@@ -2251,6 +2588,7 @@ if (menuTypeSelect) {
   menuTypeSelect.value = activeMenuType;
 }
 
+setActiveConnectorsTab("general");
 toggleAddFormFields();
 bootstrapMenuConfig();
 initMonitoring();

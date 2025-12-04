@@ -10,6 +10,15 @@ spring:
   config:
     activate:
       on-profile: local
+    import:
+      - optional:connectors-example.yml
+      - optional:connectors-local.yml
+      - optional:telegram-example.yml
+      - optional:telegram-local.yml
+      - optional:whatsapp-example.yml
+      - optional:whatsapp-local.yml
+      - optional:messenger-example.yml
+      - optional:messenger-local.yml
   application:
     name: selfservice-telegram-bot  # Application name registered with Spring Boot
 
@@ -38,17 +47,6 @@ login-menu:
   digital-login: true  # Show the digital login option in login menus
   crm-login: true      # Show the CRM login option in login menus
 
-telegram:
-  bot:
-    token: YOUR_TELEGRAM_BOT_TOKEN  # Bot token issued by BotFather
-
-whatsapp:
-  callback-url: ${app.public-base-url}/webhook/whatsapp  # Public webhook endpoint for WhatsApp callbacks
-  verify-token: YOUR_WHATSAPP_VERIFY_TOKEN               # Verification token configured in Meta App settings
-  phone-number-id: YOUR_PHONE_NUMBER_ID                  # WhatsApp Business phone number ID
-  access-token: YOUR_WHATSAPP_ACCESS_TOKEN               # WhatsApp Graph API access token
-  ux-mode: TEST  # UX mode: BASIC (plain text), PRODUCTION (interactive cards), TEST (show both)
-
 service-functions:
   entries:
     - name: Sample trouble ticket search
@@ -58,11 +56,6 @@ service-functions:
       query-params:
         offset: 0
         limit: 25
-
-messenger:
-  callback-url: ${app.public-base-url}/messenger/webhook  # Public webhook endpoint for Facebook Messenger callbacks
-  verify-token: YOUR_FACEBOOK_VERIFY_TOKEN                # Verification token configured for the Facebook app
-  page-access-token: YOUR_FACEBOOK_PAGE_ACCESS_TOKEN      # Page access token for sending messages
 
 keycloak:
   allow-insecure-certs: false   # Set true only for dev/self-signed certificates

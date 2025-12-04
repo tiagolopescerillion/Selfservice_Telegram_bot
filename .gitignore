@@ -8,6 +8,10 @@ CONFIGURATIONS/application-oauth.yml
 CONFIGURATIONS/application-prod.yml
 CONFIGURATIONS/IM-menu.override.yml
 CONFIGURATIONS/IM-menu.no-override.yml
+CONFIGURATIONS/connectors-local.yml
+CONFIGURATIONS/telegram-local.yml
+CONFIGURATIONS/whatsapp-local.yml
+CONFIGURATIONS/messenger-local.yml
 *.log
 *.iml
 

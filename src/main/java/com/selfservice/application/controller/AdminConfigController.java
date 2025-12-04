@@ -6,6 +6,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.yaml.snakeyaml.Yaml;
@@ -15,10 +16,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 
 @RestController
 @RequestMapping("/admin")
@@ -28,12 +26,26 @@ public class AdminConfigController {
     private static final Logger log = LoggerFactory.getLogger(AdminConfigController.class);
 
     private static final Path CONFIG_DIR = Paths.get("CONFIGURATIONS");
-    private static final String LOCAL_CONFIG = "application-local.yml";
-    private static final String EXAMPLE_CONFIG = "application-example.yml";
+    private static final Map<String, List<String>> CONFIG_FILES = Map.of(
+            "application", List.of("application-local.yml", "application-example.yml"),
+            "connectors", List.of("connectors-local.yml", "connectors-example.yml"),
+            "telegram", List.of("telegram-local.yml", "telegram-example.yml"),
+            "whatsapp", List.of("whatsapp-local.yml", "whatsapp-example.yml"),
+            "messenger", List.of("messenger-local.yml", "messenger-example.yml")
+    );
 
     @GetMapping("/application-config")
     public ResponseEntity<ApplicationConfigView> getApplicationConfig() {
-        Optional<Path> selected = resolveConfigPath();
+        return loadConfig("application");
+    }
+
+    @GetMapping("/config/{configId}")
+    public ResponseEntity<ApplicationConfigView> getNamedConfig(@PathVariable String configId) {
+        return loadConfig(configId == null ? "" : configId.trim().toLowerCase());
+    }
+
+    private ResponseEntity<ApplicationConfigView> loadConfig(String configId) {
+        Optional<Path> selected = resolveConfigPath(configId);
         if (selected.isEmpty()) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
         }
@@ -157,18 +169,21 @@ public class AdminConfigController {
         return new ConfigNode(key, path, detectType(value), value == null ? "" : String.valueOf(value), List.of());
     }
 
-    private Optional<Path> resolveConfigPath() {
-        Path local = CONFIG_DIR.resolve(LOCAL_CONFIG);
-        if (Files.exists(local)) {
-            return Optional.of(local);
+    private Optional<Path> resolveConfigPath(String configId) {
+        List<String> candidates = CONFIG_FILES.get(configId);
+        if (candidates == null || candidates.isEmpty()) {
+            log.warn("Unsupported configuration requested: {}", configId);
+            return Optional.empty();
         }
 
-        Path example = CONFIG_DIR.resolve(EXAMPLE_CONFIG);
-        if (Files.exists(example)) {
-            return Optional.of(example);
+        for (String candidate : candidates) {
+            Path resolved = CONFIG_DIR.resolve(candidate);
+            if (Files.exists(resolved)) {
+                return Optional.of(resolved);
+            }
         }
 
-        log.warn("No configuration file found in {} (looked for {} and {})", CONFIG_DIR, LOCAL_CONFIG, EXAMPLE_CONFIG);
+        log.warn("No configuration file found in {} for {} (looked for {})", CONFIG_DIR, configId, String.join(", ", candidates));
         return Optional.empty();
     }
 

@@ -3,8 +3,9 @@ package com.selfservice.application.controller;
 import com.selfservice.application.auth.OAuthSessionService;
 import com.selfservice.application.dto.AccountSummary;
 import com.selfservice.application.dto.FindUserResult;
-import com.selfservice.application.service.FindUserService;
 import com.selfservice.application.config.UxProperties;
+import com.selfservice.application.config.ConnectorsProperties;
+import com.selfservice.application.service.FindUserService;
 import com.selfservice.telegrambot.service.TelegramService;
 import com.selfservice.telegrambot.service.UserSessionService;
 import com.selfservice.whatsapp.service.WhatsappService;
@@ -30,6 +31,7 @@ public class OAuthCallbackController {
     private final WhatsappSessionService whatsappSessions;
     private final OperationsMonitoringService monitoringService;
     private final UxProperties uxProperties;
+    private final ConnectorsProperties connectorsProperties;
 
     public OAuthCallbackController(OAuthSessionService oauth,
                                    TelegramService telegram,
@@ -38,7 +40,8 @@ public class OAuthCallbackController {
                                    WhatsappService whatsappService,
                                    WhatsappSessionService whatsappSessions,
                                    OperationsMonitoringService monitoringService,
-                                   UxProperties uxProperties) {
+                                   UxProperties uxProperties,
+                                   ConnectorsProperties connectorsProperties) {
         this.oauth = oauth;
         this.telegram = telegram;
         this.sessions = sessions;
@@ -47,6 +50,7 @@ public class OAuthCallbackController {
         this.whatsappSessions = whatsappSessions;
         this.monitoringService = monitoringService;
         this.uxProperties = uxProperties;
+        this.connectorsProperties = connectorsProperties;
     }
 
     @GetMapping(value = "/oauth/callback", produces = MediaType.TEXT_HTML_VALUE)
@@ -61,6 +65,16 @@ public class OAuthCallbackController {
         boolean whatsappUser = (channel != null && channel.equalsIgnoreCase("whatsapp"))
                 || (sessionKey != null && sessionKey.startsWith("wa-"));
         String whatsappChatId = whatsappUser ? sessionKey.substring(3) : null;
+
+        if (whatsappUser && !connectorsProperties.isWhatsappEnabled()) {
+            log.warn("Ignoring OAuth callback for disabled WhatsApp connector and session {}", sessionKey);
+            return "<h3>WhatsApp connector is disabled.</h3>";
+        }
+
+        if (!whatsappUser && !connectorsProperties.isTelegramEnabled()) {
+            log.warn("Ignoring OAuth callback for disabled Telegram connector and session {}", sessionKey);
+            return "<h3>Telegram connector is disabled.</h3>";
+        }
         try {
             if (error != null) {
                 String msg = "Login ERROR: " + error + (errorDescription != null ? " - " + errorDescription : "");

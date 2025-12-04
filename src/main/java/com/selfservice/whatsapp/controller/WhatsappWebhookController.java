@@ -12,6 +12,7 @@ import com.selfservice.application.service.TroubleTicketService;
 import com.selfservice.application.config.menu.BusinessMenuItem;
 import com.selfservice.application.config.menu.LoginMenuFunction;
 import com.selfservice.application.config.menu.LoginMenuItem;
+import com.selfservice.application.config.ConnectorsProperties;
 import com.selfservice.application.service.OperationsMonitoringService;
 import com.selfservice.telegrambot.service.TelegramService;
 import com.selfservice.whatsapp.service.WhatsappService;
@@ -19,6 +20,7 @@ import com.selfservice.whatsapp.service.WhatsappSessionService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -45,6 +47,7 @@ public class WhatsappWebhookController {
     private final TroubleTicketService troubleTicketService;
     private final String verifyToken;
     private final OperationsMonitoringService monitoringService;
+    private final ConnectorsProperties connectorsProperties;
 
     public WhatsappWebhookController(
             WhatsappService whatsappService,
@@ -54,7 +57,8 @@ public class WhatsappWebhookController {
             ProductService productService,
             TroubleTicketService troubleTicketService,
             @Value("${whatsapp.verify-token}") String verifyToken,
-            OperationsMonitoringService monitoringService) {
+            OperationsMonitoringService monitoringService,
+            ConnectorsProperties connectorsProperties) {
         this.whatsappService = whatsappService;
         this.oauthSessionService = oauthSessionService;
         this.sessionService = sessionService;
@@ -63,6 +67,7 @@ public class WhatsappWebhookController {
         this.troubleTicketService = troubleTicketService;
         this.verifyToken = Objects.requireNonNull(verifyToken, "whatsapp.verify-token must be set");
         this.monitoringService = monitoringService;
+        this.connectorsProperties = connectorsProperties;
     }
 
     @GetMapping
@@ -70,6 +75,11 @@ public class WhatsappWebhookController {
             @RequestParam(name = "hub.mode", required = false) String mode,
             @RequestParam(name = "hub.verify_token", required = false) String token,
             @RequestParam(name = "hub.challenge", required = false) String challenge) {
+
+        if (!connectorsProperties.isWhatsappEnabled()) {
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                    .body("WhatsApp connector is disabled");
+        }
 
         log.info("WhatsApp webhook verification request mode={} token={}", mode, token);
 
@@ -82,6 +92,9 @@ public class WhatsappWebhookController {
 
     @PostMapping
     public ResponseEntity<Void> onEvent(@RequestBody Map<String, Object> payload) {
+        if (!connectorsProperties.isWhatsappEnabled()) {
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).build();
+        }
         log.info("Incoming WhatsApp webhook: {}", payload);
 
         List<Map<String, Object>> entries = (List<Map<String, Object>>) payload.get("entry");
