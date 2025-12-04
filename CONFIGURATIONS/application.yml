@@ -13,4 +13,5 @@ spring:
       - optional:telegram-local.yml
       - optional:whatsapp-local.yml
       - optional:messenger-local.yml
+      - optional:weblinks-local.yml
 

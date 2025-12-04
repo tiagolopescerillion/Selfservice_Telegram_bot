@@ -19,6 +19,8 @@ spring:
       - optional:whatsapp-local.yml
       - optional:messenger-example.yml
       - optional:messenger-local.yml
+      - optional:weblinks-example.yml
+      - optional:weblinks-local.yml
   application:
     name: selfservice-telegram-bot  # Application name registered with Spring Boot
 

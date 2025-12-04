@@ -1442,8 +1442,8 @@ function resolveBooleanFlag(value, fallback = true) {
   if (value === undefined || value === null) return fallback;
   if (typeof value === "boolean") return value;
   const normalized = value.toString().trim().toLowerCase();
-  if (normalized === "true") return true;
-  if (normalized === "false") return false;
+  if (["true", "y", "yes", "1"].includes(normalized)) return true;
+  if (["false", "n", "no", "0"].includes(normalized)) return false;
   return fallback;
 }
 
