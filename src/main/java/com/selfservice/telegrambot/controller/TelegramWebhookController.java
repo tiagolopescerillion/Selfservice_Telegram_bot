@@ -360,6 +360,7 @@ public class TelegramWebhookController {
                     telegramService.sendMessageWithKey(chatId, "ServiceNoLongerAvailable");
                 } else {
                     ServiceSummary selectedService = services.get(index);
+                    userSessionService.selectService(chatId, selectedService);
                     String name = (selectedService.productName() == null || selectedService.productName().isBlank())
                             ? telegramService.translate(chatId, "UnknownService")
                             : selectedService.productName().strip();
@@ -475,7 +476,21 @@ public class TelegramWebhookController {
                                     userSessionService.getAccounts(chatId).size() > 1);
                         } else {
                             userSessionService.saveServices(chatId, services.services());
-                            telegramService.sendServicePage(chatId, services.services(), 0);
+                            if (services.services().size() == 1) {
+                                ServiceSummary onlyService = services.services().get(0);
+                                userSessionService.selectService(chatId, onlyService);
+                                String name = (onlyService.productName() == null || onlyService.productName().isBlank())
+                                        ? telegramService.translate(chatId, "UnknownService")
+                                        : onlyService.productName().strip();
+                                String number = (onlyService.accessNumber() == null || onlyService.accessNumber().isBlank())
+                                        ? telegramService.translate(chatId, "NoAccessNumber")
+                                        : onlyService.accessNumber().strip();
+                                telegramService.sendMessageWithKey(chatId, "ServiceSelected", name, number);
+                                telegramService.sendLoggedInMenu(chatId, selected,
+                                        userSessionService.getAccounts(chatId).size() > 1);
+                            } else {
+                                telegramService.sendServicePage(chatId, services.services(), 0);
+                            }
                         }
                     } else {
                         telegramService.sendMessage(chatId, loginReminder);
@@ -488,8 +503,10 @@ public class TelegramWebhookController {
                             break;
                         }
                         AccountSummary selected = userSessionService.getSelectedAccount(chatId);
+                        ServiceSummary selectedService = userSessionService.getSelectedService(chatId);
                         TroubleTicketListResult result = troubleTicketService
-                                .getTroubleTicketsByAccountId(existingToken, selected.accountId());
+                                .getTroubleTicketsByAccountId(existingToken, selected.accountId(),
+                                        selectedService == null ? null : selectedService.productId());
                         if (result.hasError()) {
                             userSessionService.clearTroubleTickets(chatId);
                             telegramService.sendMessageWithKey(chatId, "UnableToRetrieveTroubleTickets", result.errorMessage());

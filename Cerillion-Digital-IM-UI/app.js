@@ -103,7 +103,18 @@ const DEFAULT_STRUCTURE = [
       { label: "Hello Cerillion", type: "function", function: "HELLO_CERILLION", useTranslation: true },
       { label: "Trouble Ticket", type: "function", function: "VIEW_TROUBLE_TICKET", useTranslation: true },
       { label: "Select a Service", type: "function", function: "SELECT_SERVICE", useTranslation: true },
-      { label: "My Issues", type: "function", function: "MY_ISSUES", useTranslation: true }
+      { label: "My Issues", type: "function", function: "MY_ISSUES", useTranslation: true },
+      { label: "Settings", type: "submenu", submenuId: "settings" }
+    ]
+  },
+  {
+    id: "settings",
+    name: "Settings",
+    parentId: ROOT_MENU_ID,
+    items: [
+      { label: "Consent management", type: "function", function: "OPT_IN", useTranslation: true },
+      { label: "Language settings", type: "function", function: "CHANGE_LANGUAGE", useTranslation: true },
+      { label: "Back to menu", type: "function", function: "MENU", useTranslation: true }
     ]
   }
 ];
@@ -202,6 +213,15 @@ const imServerAdminPanel = document.getElementById("imServerAdminPanel");
 const serviceFunctionsPanel = document.getElementById("serviceFunctionsPanel");
 const serviceFunctionsTableBody = document.getElementById("serviceFunctionsTableBody");
 const serviceFunctionsStatus = document.getElementById("serviceFunctionsStatus");
+const addServiceFunctionButton = document.getElementById("addServiceFunctionButton");
+const newServiceFunctionForm = document.getElementById("newServiceFunctionForm");
+const newServiceFunctionName = document.getElementById("newServiceFunctionName");
+const newServiceFunctionEndpoint = document.getElementById("newServiceFunctionEndpoint");
+const newServiceFunctionAccountContext = document.getElementById("newServiceFunctionAccountContext");
+const newServiceFunctionServiceContext = document.getElementById("newServiceFunctionServiceContext");
+const newServiceFunctionQueryParams = document.getElementById("newServiceFunctionQueryParams");
+const saveNewServiceFunction = document.getElementById("saveNewServiceFunction");
+const cancelNewServiceFunction = document.getElementById("cancelNewServiceFunction");
 const downloadQueryParamsButton = document.getElementById("downloadQueryParamsButton");
 const liveSessionsContainer = document.getElementById("liveSessions");
 const sessionHistoryContainer = document.getElementById("sessionHistory");
@@ -291,7 +311,23 @@ let monitoringConfigLoaded = false;
 let notificationEndpointCache = "";
 let configEndpointCache = "";
 let serviceFunctionEntries = [];
+let availableServiceFunctionEndpoints = [];
 const serviceFunctionOverrides = new Map();
+
+function getServiceFunctionOverride(key) {
+  const existing = serviceFunctionOverrides.get(key);
+  return {
+    queryParams: "",
+    accountContext: false,
+    serviceContext: false,
+    ...existing
+  };
+}
+
+function setServiceFunctionOverride(key, updates) {
+  const current = getServiceFunctionOverride(key);
+  serviceFunctionOverrides.set(key, { ...current, ...updates });
+}
 
 applyConfiguredApiBase(getConfiguredPublicBaseFromMeta());
 
@@ -399,6 +435,8 @@ function applyMenusToStore(menuType, menus) {
   store.menuOrder = [];
   store.menuIdCounter = Array.isArray(menus) ? menus.length : 0;
   store.itemIdCounter = 0;
+  menusById = store.menusById;
+  menuOrder = store.menuOrder;
   menuIdCounter = store.menuIdCounter;
   itemIdCounter = store.itemIdCounter;
 
@@ -462,6 +500,7 @@ function applyMenusToStore(menuType, menus) {
   });
 
   store.selectedMenuId = store.menusById.has(store.selectedMenuId) ? store.selectedMenuId : store.rootId;
+  selectedMenuId = store.selectedMenuId;
   initFunctionSelect(menuFunctionSelect);
 
   persistActiveStore();
@@ -606,6 +645,8 @@ function renderAll() {
 }
 
 function renderMenuSelectors() {
+  ensureRootMenu();
+
   menuSelect.innerHTML = "";
   parentMenuSelect.innerHTML = "";
 
@@ -1232,6 +1273,111 @@ function parseQueryParamString(input) {
   return result;
 }
 
+function renderServiceFunctionEndpointOptions() {
+  if (!newServiceFunctionEndpoint) return;
+  newServiceFunctionEndpoint.innerHTML = "";
+  availableServiceFunctionEndpoints.forEach((endpoint) => {
+    const option = document.createElement("option");
+    option.value = endpoint.endpointKey || endpoint.key || endpoint.name;
+    option.textContent = endpoint.name || endpoint.endpointKey || endpoint.key;
+    option.disabled = !endpoint.configured;
+    newServiceFunctionEndpoint.append(option);
+  });
+}
+
+function getServiceFunctionBase(key) {
+  return availableServiceFunctionEndpoints.find(
+    (endpoint) => endpoint.endpointKey === key || endpoint.key === key || endpoint.name === key
+  );
+}
+
+function resetNewServiceFunctionForm() {
+  if (!newServiceFunctionForm) return;
+  newServiceFunctionForm.reset();
+  renderServiceFunctionEndpointOptions();
+  if (newServiceFunctionEndpoint && newServiceFunctionEndpoint.options.length > 0) {
+    newServiceFunctionEndpoint.value = newServiceFunctionEndpoint.options[0].value;
+    prefillQueryParamsFromEndpoint(newServiceFunctionEndpoint.value);
+  }
+}
+
+function toggleNewServiceFunctionForm(show) {
+  if (!newServiceFunctionForm) return;
+  const shouldShow = Boolean(show);
+  newServiceFunctionForm.classList.toggle("hidden", !shouldShow);
+  if (shouldShow) {
+    resetNewServiceFunctionForm();
+    newServiceFunctionName?.focus();
+  }
+}
+
+function prefillQueryParamsFromEndpoint(endpointKey) {
+  if (!newServiceFunctionQueryParams) return;
+  const base = getServiceFunctionBase(endpointKey);
+  if (!base) return;
+  const defaultValue =
+    formatQueryParams(base.configuredQueryParams) || formatQueryParams(base.defaultQueryParams) || "";
+  newServiceFunctionQueryParams.value = defaultValue;
+  newServiceFunctionAccountContext.checked = Boolean(base.accountContextEnabled);
+  newServiceFunctionServiceContext.checked = Boolean(base.serviceContextEnabled);
+}
+
+function createCustomServiceFunction() {
+  if (!newServiceFunctionName || !newServiceFunctionEndpoint) return;
+
+  const name = (newServiceFunctionName.value || "").trim();
+  const endpointKey = newServiceFunctionEndpoint.value;
+  const base = getServiceFunctionBase(endpointKey);
+  if (!name || !base) {
+    alert("Provide a name and endpoint for the new service function.");
+    return;
+  }
+
+  const slug = slugify(name) || `service-function-${serviceFunctionEntries.length + 1}`;
+  const baseQueryParamKey = `service-functions.${slug}.query-params`;
+  let queryParamKey = baseQueryParamKey;
+  let suffix = 1;
+  while (serviceFunctionEntries.some((entry) => entry.queryParamKey === queryParamKey)) {
+    queryParamKey = `${baseQueryParamKey}-${suffix++}`;
+  }
+
+  const contextConfig = {
+    accountContext: Boolean(newServiceFunctionAccountContext?.checked),
+    serviceContext: Boolean(newServiceFunctionServiceContext?.checked)
+  };
+
+  const newEntry = {
+    key: `service-functions.${slug}`,
+    name,
+    url: base.url,
+    configured: base.configured,
+    services: base.services,
+    method: base.method,
+    defaultQueryParams: base.defaultQueryParams,
+    configuredQueryParams: base.configuredQueryParams,
+    queryParamKey,
+    accountContextParam: base.accountContextParam,
+    accountContextEnabled: contextConfig.accountContext,
+    serviceContextParam: base.serviceContextParam,
+    serviceContextEnabled: contextConfig.serviceContext,
+    endpointKey,
+    custom: true
+  };
+
+  const overrideValue = (newServiceFunctionQueryParams?.value || "").trim();
+  setServiceFunctionOverride(queryParamKey, {
+    queryParams:
+      overrideValue || formatQueryParams(base.configuredQueryParams) || formatQueryParams(base.defaultQueryParams) || "",
+    ...contextConfig
+  });
+
+  serviceFunctionEntries = [...serviceFunctionEntries, newEntry];
+  renderServiceFunctionTable(serviceFunctionEntries);
+  toggleNewServiceFunctionForm(false);
+  serviceFunctionsStatus.textContent = `Added custom service function "${name}".`;
+  serviceFunctionsStatus.className = "hint";
+}
+
 async function loadServiceFunctions() {
   if (!serviceFunctionsTableBody || !serviceFunctionsStatus) {
     return;
@@ -1256,14 +1402,21 @@ async function loadServiceFunctions() {
     }
     const payload = await response.json();
     const endpoints = Array.isArray(payload?.endpoints) ? payload.endpoints : [];
+    const availableEndpoints = Array.isArray(payload?.availableEndpoints)
+      ? payload.availableEndpoints
+      : endpoints.filter((entry) => !entry.custom);
+    availableServiceFunctionEndpoints = availableEndpoints;
     serviceFunctionEntries = endpoints;
     serviceFunctionOverrides.clear();
     serviceFunctionEntries.forEach((endpoint) => {
-      serviceFunctionOverrides.set(
-        endpoint.queryParamKey,
-        formatQueryParams(endpoint.configuredQueryParams) || formatQueryParams(endpoint.defaultQueryParams)
-      );
+      setServiceFunctionOverride(endpoint.queryParamKey, {
+        queryParams:
+          formatQueryParams(endpoint.configuredQueryParams) || formatQueryParams(endpoint.defaultQueryParams) || "",
+        accountContext: Boolean(endpoint.accountContextEnabled),
+        serviceContext: Boolean(endpoint.serviceContextEnabled)
+      });
     });
+    renderServiceFunctionEndpointOptions();
     renderServiceFunctionTable(serviceFunctionEntries);
     serviceFunctionsStatus.textContent = endpoints.length
       ? `Found ${endpoints.length} APIMAN endpoints.`
@@ -1333,6 +1486,12 @@ function renderServiceFunctionTable(endpoints) {
     const name = document.createElement("div");
     name.className = "service-function__name";
     name.textContent = endpoint.name || endpoint.key || "–";
+    if (endpoint.custom) {
+      const badge = document.createElement("span");
+      badge.className = "tag";
+      badge.textContent = "Custom";
+      name.append(" ", badge);
+    }
     const services = document.createElement("div");
     services.className = "service-function__path service-function__services";
     services.textContent = endpoint.services?.length
@@ -1352,6 +1511,7 @@ function renderServiceFunctionTable(endpoints) {
     summary.append(title, path);
 
     const defaultParams = formatQueryParams(endpoint.defaultQueryParams) || "None";
+    const overrideState = getServiceFunctionOverride(endpoint.queryParamKey);
 
     const defaultRow = document.createElement("div");
     defaultRow.className = "service-function__line service-function__default";
@@ -1371,14 +1531,57 @@ function renderServiceFunctionTable(endpoints) {
     const overrideInput = document.createElement("input");
     overrideInput.type = "text";
     overrideInput.className = "query-param-input";
-    overrideInput.value = serviceFunctionOverrides.get(endpoint.queryParamKey) || "";
+    overrideInput.value = overrideState.queryParams || "";
     overrideInput.placeholder = defaultParams || "key=value";
     overrideInput.addEventListener("input", (event) => {
-      serviceFunctionOverrides.set(endpoint.queryParamKey, event.target.value);
+      setServiceFunctionOverride(endpoint.queryParamKey, { queryParams: event.target.value });
     });
     overrideRow.append(overrideLabel, overrideInput);
 
-    card.append(summary, defaultRow, overrideRow);
+    const contextRows = [];
+    if (endpoint.accountContextParam) {
+      const accountRow = document.createElement("div");
+      accountRow.className = "service-function__line service-function__context";
+      const accountLabel = document.createElement("div");
+      accountLabel.className = "service-function__label";
+      accountLabel.textContent = "Account context";
+      const accountValue = document.createElement("label");
+      accountValue.className = "service-function__value checkbox";
+      const accountCheckbox = document.createElement("input");
+      accountCheckbox.type = "checkbox";
+      accountCheckbox.checked = Boolean(overrideState.accountContext);
+      accountCheckbox.addEventListener("change", (event) => {
+        setServiceFunctionOverride(endpoint.queryParamKey, { accountContext: event.target.checked });
+      });
+      const accountText = document.createElement("span");
+      accountText.textContent = `Add ${endpoint.accountContextParam} using Account Context`;
+      accountValue.append(accountCheckbox, accountText);
+      accountRow.append(accountLabel, accountValue);
+      contextRows.push(accountRow);
+    }
+
+    if (endpoint.serviceContextParam) {
+      const serviceRow = document.createElement("div");
+      serviceRow.className = "service-function__line service-function__context";
+      const serviceLabel = document.createElement("div");
+      serviceLabel.className = "service-function__label";
+      serviceLabel.textContent = "Service context";
+      const serviceValue = document.createElement("label");
+      serviceValue.className = "service-function__value checkbox";
+      const serviceCheckbox = document.createElement("input");
+      serviceCheckbox.type = "checkbox";
+      serviceCheckbox.checked = Boolean(overrideState.serviceContext);
+      serviceCheckbox.addEventListener("change", (event) => {
+        setServiceFunctionOverride(endpoint.queryParamKey, { serviceContext: event.target.checked });
+      });
+      const serviceText = document.createElement("span");
+      serviceText.textContent = `Add ${endpoint.serviceContextParam} using Service Context`;
+      serviceValue.append(serviceCheckbox, serviceText);
+      serviceRow.append(serviceLabel, serviceValue);
+      contextRows.push(serviceRow);
+    }
+
+    card.append(summary, defaultRow, overrideRow, ...contextRows);
 
     serviceFunctionsTableBody.append(card);
   });
@@ -1398,10 +1601,38 @@ async function downloadQueryParamConfig() {
   }
 
   const updates = {};
+  const customFunctions = [];
   serviceFunctionEntries.forEach((entry) => {
-    const rawValue = (serviceFunctionOverrides.get(entry.queryParamKey) || "").trim();
-    const fallbackValue = formatQueryParams(entry.configuredQueryParams) || "";
-    updates[entry.queryParamKey] = parseQueryParamString(rawValue || fallbackValue);
+    const overrideState = getServiceFunctionOverride(entry.queryParamKey);
+    const rawValue = (overrideState.queryParams || "").trim();
+    const fallbackValue =
+      formatQueryParams(entry.configuredQueryParams) || formatQueryParams(entry.defaultQueryParams) || "";
+    const parsed = parseQueryParamString(rawValue || fallbackValue);
+    if (entry.accountContextParam) {
+      if (overrideState.accountContext) {
+        parsed[entry.accountContextParam] = "";
+      } else {
+        delete parsed[entry.accountContextParam];
+      }
+    }
+    if (entry.serviceContextParam) {
+      if (overrideState.serviceContext) {
+        parsed[entry.serviceContextParam] = "";
+      } else {
+        delete parsed[entry.serviceContextParam];
+      }
+    }
+    if (entry.custom) {
+      customFunctions.push({
+        name: entry.name,
+        endpointKey: entry.endpointKey || entry.key,
+        queryParams: parsed,
+        accountContext: Boolean(overrideState.accountContext),
+        serviceContext: Boolean(overrideState.serviceContext)
+      });
+    } else {
+      updates[entry.queryParamKey] = parsed;
+    }
   });
 
   try {
@@ -1410,7 +1641,7 @@ async function downloadQueryParamConfig() {
     const response = await fetch(endpoint, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ updates })
+      body: JSON.stringify({ updates, serviceFunctions: customFunctions })
     });
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}`);
@@ -1979,6 +2210,27 @@ navImServerAdmin.addEventListener("click", () => setActiveApp("admin"));
 navServiceFunctions.addEventListener("click", () => setActiveApp("service-functions"));
 if (downloadQueryParamsButton) {
   downloadQueryParamsButton.addEventListener("click", downloadQueryParamConfig);
+}
+
+if (addServiceFunctionButton) {
+  addServiceFunctionButton.addEventListener("click", () => toggleNewServiceFunctionForm(true));
+}
+
+if (cancelNewServiceFunction) {
+  cancelNewServiceFunction.addEventListener("click", () => toggleNewServiceFunctionForm(false));
+}
+
+if (newServiceFunctionEndpoint) {
+  newServiceFunctionEndpoint.addEventListener("change", (event) => {
+    prefillQueryParamsFromEndpoint(event.target.value);
+  });
+}
+
+if (newServiceFunctionForm) {
+  newServiceFunctionForm.addEventListener("submit", (event) => {
+    event.preventDefault();
+    createCustomServiceFunction();
+  });
 }
 if (monitoringApiBaseInput) {
   monitoringApiBaseInput.addEventListener("change", handleMonitoringApiBaseChanged);

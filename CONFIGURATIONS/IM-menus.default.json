@@ -6,6 +6,7 @@
       {
         "id": "login-home",
         "name": "Home",
+        "parentId": null,
         "items": [
           {
             "order": 1,
@@ -64,52 +65,6 @@
           }
         ]
       }
-    ],
-    "menu": [
-      {
-        "order": 1,
-        "label": "Self-service login",
-        "function": "DIGITAL_LOGIN",
-        "callbackData": "SELF_SERVICE_LOGIN",
-        "translationKey": "ButtonSelfServiceLogin"
-      },
-      {
-        "order": 2,
-        "label": "Direct login",
-        "function": "CRM_LOGIN",
-        "callbackData": "DIRECT_LOGIN",
-        "translationKey": "ButtonDirectLogin"
-      },
-      {
-        "order": 3,
-        "label": "Settings",
-        "function": "SETTINGS",
-        "callbackData": "SETTINGS_MENU",
-        "translationKey": "ButtonSettings"
-      }
-    ],
-    "settingsMenu": [
-      {
-        "order": 1,
-        "label": "Consent management",
-        "function": "OPT_IN",
-        "callbackData": "OPT_IN",
-        "translationKey": "ButtonOptIn"
-      },
-      {
-        "order": 2,
-        "label": "Language settings",
-        "function": "CHANGE_LANGUAGE",
-        "callbackData": "CHANGE_LANGUAGE",
-        "translationKey": "ButtonChangeLanguage"
-      },
-      {
-        "order": 3,
-        "label": "Back to menu",
-        "function": "MENU",
-        "callbackData": "MENU",
-        "translationKey": "ButtonMenu"
-      }
     ]
   },
   "menus": [
@@ -155,6 +110,45 @@
           "function": "MY_ISSUES",
           "callbackData": "MY_ISSUES",
           "translationKey": "ButtonMyIssues",
+          "submenuId": null
+        },
+        {
+          "order": 6,
+          "label": "Settings",
+          "function": null,
+          "callbackData": null,
+          "translationKey": null,
+          "submenuId": "settings"
+        }
+      ]
+    },
+    {
+      "id": "settings",
+      "name": "Settings",
+      "parentId": "home",
+      "items": [
+        {
+          "order": 1,
+          "label": "Consent management",
+          "function": "OPT_IN",
+          "callbackData": "OPT_IN",
+          "translationKey": "ButtonOptIn",
+          "submenuId": null
+        },
+        {
+          "order": 2,
+          "label": "Language settings",
+          "function": "CHANGE_LANGUAGE",
+          "callbackData": "CHANGE_LANGUAGE",
+          "translationKey": "ButtonChangeLanguage",
+          "submenuId": null
+        },
+        {
+          "order": 3,
+          "label": "Back to menu",
+          "function": "MENU",
+          "callbackData": "MENU",
+          "translationKey": "ButtonMenu",
           "submenuId": null
         }
       ]

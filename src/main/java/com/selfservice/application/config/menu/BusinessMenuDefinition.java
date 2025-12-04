@@ -11,6 +11,7 @@ public class BusinessMenuDefinition {
 
     private String id;
     private String name;
+    private String parentId;
     private List<BusinessMenuItem> items;
 
     public String getId() {
@@ -27,6 +28,14 @@ public class BusinessMenuDefinition {
 
     public void setName(String name) {
         this.name = name;
+    }
+
+    public String getParentId() {
+        return parentId;
+    }
+
+    public void setParentId(String parentId) {
+        this.parentId = parentId;
     }
 
     public List<BusinessMenuItem> getItems() {

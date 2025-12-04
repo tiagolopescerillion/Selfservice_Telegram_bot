@@ -697,6 +697,7 @@ public class WhatsappWebhookController {
             whatsappService.sendText(from, whatsappService.translate(userId, "ServiceNoLongerAvailable"));
         } else {
             ServiceSummary selectedService = services.get(index);
+            sessionService.selectService(userId, selectedService);
             String name = (selectedService.productName() == null || selectedService.productName().isBlank())
                     ? whatsappService.translate(userId, "UnknownService")
                     : selectedService.productName().strip();
@@ -726,7 +727,20 @@ public class WhatsappWebhookController {
             whatsappService.sendLoggedInMenu(userId, selected, sessionService.getAccounts(userId).size() > 1);
         } else {
             sessionService.saveServices(userId, services.services());
-            whatsappService.sendServicePage(userId, services.services(), 0);
+            if (services.services().size() == 1) {
+                ServiceSummary onlyService = services.services().get(0);
+                sessionService.selectService(userId, onlyService);
+                String name = (onlyService.productName() == null || onlyService.productName().isBlank())
+                        ? whatsappService.translate(userId, "UnknownService")
+                        : onlyService.productName().strip();
+                String number = (onlyService.accessNumber() == null || onlyService.accessNumber().isBlank())
+                        ? whatsappService.translate(userId, "NoAccessNumber")
+                        : onlyService.accessNumber().strip();
+                whatsappService.sendText(userId, whatsappService.format(userId, "ServiceSelected", name, number));
+                whatsappService.sendLoggedInMenu(userId, selected, sessionService.getAccounts(userId).size() > 1);
+            } else {
+                whatsappService.sendServicePage(userId, services.services(), 0);
+            }
         }
     }
 
@@ -735,7 +749,9 @@ public class WhatsappWebhookController {
             return;
         }
         AccountSummary selected = sessionService.getSelectedAccount(userId);
-        TroubleTicketListResult result = troubleTicketService.getTroubleTicketsByAccountId(token, selected.accountId());
+        ServiceSummary selectedService = sessionService.getSelectedService(userId);
+        TroubleTicketListResult result = troubleTicketService.getTroubleTicketsByAccountId(token, selected.accountId(),
+                selectedService == null ? null : selectedService.productId());
         if (result.hasError()) {
             sessionService.clearTroubleTickets(userId);
             whatsappService.sendText(userId,

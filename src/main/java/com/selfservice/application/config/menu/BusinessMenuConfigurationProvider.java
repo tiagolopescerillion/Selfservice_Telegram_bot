@@ -22,7 +22,6 @@ public class BusinessMenuConfigurationProvider {
     private static final Path CONFIG_DIR = Paths.get("CONFIGURATIONS");
     private static final Path DEFAULT_FILE = CONFIG_DIR.resolve("IM-menus.default.json");
     private static final Path OVERRIDE_FILE = CONFIG_DIR.resolve("IM-menus.override.json");
-    private static final String PACKAGED_DEFAULT = "classpath:config/IM-menus.default.json";
 
     private final Map<String, BusinessMenuDefinition> menusById;
     private final LoginMenuDefinition loginMenuDefinition;
@@ -37,11 +36,9 @@ public class BusinessMenuConfigurationProvider {
                 toFileResource(OVERRIDE_FILE), objectMapper, resourceLoader);
         BusinessMenuConfiguration defaultConfig = tryLoadConfiguration(
                 toFileResource(DEFAULT_FILE), objectMapper, resourceLoader);
-        BusinessMenuConfiguration packagedConfig = tryLoadConfiguration(
-                PACKAGED_DEFAULT, objectMapper, resourceLoader);
 
-        BusinessMenuConfiguration selectedConfiguration = firstWithMenus(overrideConfig, defaultConfig, packagedConfig);
-        BusinessMenuConfiguration preferredDefault = firstWithMenus(defaultConfig, packagedConfig, overrideConfig);
+        BusinessMenuConfiguration selectedConfiguration = firstWithMenus(overrideConfig, defaultConfig);
+        BusinessMenuConfiguration preferredDefault = firstWithMenus(defaultConfig, overrideConfig);
 
         if (selectedConfiguration == null || selectedConfiguration.normalizedMenus().isEmpty()) {
             throw new IllegalStateException("Business menu configuration could not be loaded from CONFIGURATIONS");
@@ -63,6 +60,7 @@ public class BusinessMenuConfigurationProvider {
                 resolvedName = BusinessMenuDefinition.ROOT_MENU_ID.equals(definition.getId()) ? "Home" : definition.getId();
             }
             copy.setName(resolvedName);
+            copy.setParentId(definition.getParentId());
             copy.setItems(definition.sortedItems());
             mapped.put(copy.getId(), copy);
         }
@@ -194,6 +192,7 @@ public class BusinessMenuConfigurationProvider {
                     BusinessMenuDefinition copy = new BusinessMenuDefinition();
                     copy.setId(menu.getId());
                     copy.setName(menu.getName());
+                    copy.setParentId(menu.getParentId());
                     copy.setItems(menu.sortedItems());
                     return copy;
                 })

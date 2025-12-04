@@ -50,6 +50,7 @@ public class UserSessionService {
 
     private final Map<Long, TokenInfo> byChat = new ConcurrentHashMap<>();
     private final Map<Long, List<ServiceSummary>> servicesByChat = new ConcurrentHashMap<>();
+    private final Map<Long, ServiceSummary> selectedServiceByChat = new ConcurrentHashMap<>();
     private final Map<Long, List<TroubleTicketSummary>> ticketsByChat = new ConcurrentHashMap<>();
     private final Map<Long, String> languageByChat = new ConcurrentHashMap<>();
     private final Map<Long, List<String>> menuPathByChat = new ConcurrentHashMap<>();
@@ -60,6 +61,7 @@ public class UserSessionService {
         byChat.put(chatId, new TokenInfo(accessToken, refreshToken, idToken, exp, Collections.emptyList(), null));
         clearServices(chatId);
         clearTroubleTickets(chatId);
+        clearSelectedService(chatId);
     }
 
     public TokenSnapshot getTokenSnapshot(long chatId) {
@@ -99,6 +101,12 @@ public class UserSessionService {
             }
             return new TokenInfo(existing.accessToken, existing.refreshToken, existing.idToken, existing.expiryEpochMs, copy, selected);
         });
+        AccountSummary selectedAccount = getSelectedAccount(chatId);
+        boolean selectedAccountPresent = selectedAccount != null
+                && copy.stream().anyMatch(a -> a.accountId().equals(selectedAccount.accountId()));
+        if (!selectedAccountPresent) {
+            clearSelectedService(chatId);
+        }
     }
 
     public List<AccountSummary> getAccounts(long chatId) {
@@ -145,6 +153,7 @@ public class UserSessionService {
         });
         clearServices(chatId);
         clearTroubleTickets(chatId);
+        clearSelectedService(chatId);
     }
 
     public void clearSelectedAccount(long chatId) {
@@ -160,10 +169,24 @@ public class UserSessionService {
         });
         clearServices(chatId);
         clearTroubleTickets(chatId);
+        clearSelectedService(chatId);
     }
 
     public void saveServices(long chatId, List<ServiceSummary> services) {
-        servicesByChat.put(chatId, services == null ? List.of() : List.copyOf(services));
+        List<ServiceSummary> copy = services == null ? List.of() : List.copyOf(services);
+        servicesByChat.put(chatId, copy);
+        ServiceSummary currentSelection = selectedServiceByChat.get(chatId);
+        if (copy.size() == 1) {
+            selectedServiceByChat.put(chatId, copy.get(0));
+        } else if (currentSelection != null) {
+            boolean stillPresent = copy.stream()
+                    .anyMatch(s -> s.productId().equals(currentSelection.productId()));
+            if (!stillPresent) {
+                selectedServiceByChat.remove(chatId);
+            }
+        } else {
+            selectedServiceByChat.remove(chatId);
+        }
     }
 
     public List<ServiceSummary> getServices(long chatId) {
@@ -172,6 +195,29 @@ public class UserSessionService {
 
     public void clearServices(long chatId) {
         servicesByChat.remove(chatId);
+        clearSelectedService(chatId);
+    }
+
+    public ServiceSummary getSelectedService(long chatId) {
+        return selectedServiceByChat.get(chatId);
+    }
+
+    public void selectService(long chatId, ServiceSummary service) {
+        if (service == null) {
+            return;
+        }
+        List<ServiceSummary> services = servicesByChat.getOrDefault(chatId, List.of());
+        ServiceSummary matched = services.stream()
+                .filter(s -> s.productId().equals(service.productId()))
+                .findFirst()
+                .orElse(null);
+        if (matched != null) {
+            selectedServiceByChat.put(chatId, matched);
+        }
+    }
+
+    public void clearSelectedService(long chatId) {
+        selectedServiceByChat.remove(chatId);
     }
 
     public void saveTroubleTickets(long chatId, List<TroubleTicketSummary> tickets) {
@@ -189,6 +235,7 @@ public class UserSessionService {
     public void clearSession(long chatId) {
         byChat.remove(chatId);
         servicesByChat.remove(chatId);
+        selectedServiceByChat.remove(chatId);
         ticketsByChat.remove(chatId);
         languageByChat.remove(chatId);
         menuPathByChat.remove(chatId);

@@ -48,6 +48,7 @@ public class WhatsappSessionService {
 
     private final Map<String, TokenInfo> byUser = new ConcurrentHashMap<>();
     private final Map<String, List<ServiceSummary>> servicesByUser = new ConcurrentHashMap<>();
+    private final Map<String, ServiceSummary> selectedServiceByUser = new ConcurrentHashMap<>();
     private final Map<String, List<TroubleTicketSummary>> ticketsByUser = new ConcurrentHashMap<>();
     private final Map<String, String> languageByUser = new ConcurrentHashMap<>();
     private final Map<String, List<String>> menuPathByUser = new ConcurrentHashMap<>();
@@ -70,6 +71,7 @@ public class WhatsappSessionService {
         byUser.put(userId, new TokenInfo(accessToken, refreshToken, idToken, exp, Collections.emptyList(), null));
         clearServices(userId);
         clearTroubleTickets(userId);
+        clearSelectedService(userId);
     }
 
     public TokenSnapshot getTokenSnapshot(String userId) {
@@ -111,6 +113,12 @@ public class WhatsappSessionService {
             return new TokenInfo(existing.accessToken, existing.refreshToken, existing.idToken, existing.expiryEpochMs, copy,
                     selected);
         });
+        AccountSummary selectedAccount = getSelectedAccount(userId);
+        boolean selectedAccountPresent = selectedAccount != null
+                && copy.stream().anyMatch(a -> a.accountId().equals(selectedAccount.accountId()));
+        if (!selectedAccountPresent) {
+            clearSelectedService(userId);
+        }
     }
 
     public List<AccountSummary> getAccounts(String userId) {
@@ -158,6 +166,7 @@ public class WhatsappSessionService {
         });
         clearServices(userId);
         clearTroubleTickets(userId);
+        clearSelectedService(userId);
     }
 
     public void clearSelectedAccount(String userId) {
@@ -173,10 +182,24 @@ public class WhatsappSessionService {
         });
         clearServices(userId);
         clearTroubleTickets(userId);
+        clearSelectedService(userId);
     }
 
     public void saveServices(String userId, List<ServiceSummary> services) {
-        servicesByUser.put(userId, services == null ? List.of() : List.copyOf(services));
+        List<ServiceSummary> copy = services == null ? List.of() : List.copyOf(services);
+        servicesByUser.put(userId, copy);
+        ServiceSummary currentSelection = selectedServiceByUser.get(userId);
+        if (copy.size() == 1) {
+            selectedServiceByUser.put(userId, copy.get(0));
+        } else if (currentSelection != null) {
+            boolean stillPresent = copy.stream()
+                    .anyMatch(s -> s.productId().equals(currentSelection.productId()));
+            if (!stillPresent) {
+                selectedServiceByUser.remove(userId);
+            }
+        } else {
+            selectedServiceByUser.remove(userId);
+        }
     }
 
     public List<ServiceSummary> getServices(String userId) {
@@ -185,6 +208,29 @@ public class WhatsappSessionService {
 
     public void clearServices(String userId) {
         servicesByUser.remove(userId);
+        clearSelectedService(userId);
+    }
+
+    public ServiceSummary getSelectedService(String userId) {
+        return selectedServiceByUser.get(userId);
+    }
+
+    public void selectService(String userId, ServiceSummary service) {
+        if (service == null) {
+            return;
+        }
+        List<ServiceSummary> services = servicesByUser.getOrDefault(userId, List.of());
+        ServiceSummary matched = services.stream()
+                .filter(s -> s.productId().equals(service.productId()))
+                .findFirst()
+                .orElse(null);
+        if (matched != null) {
+            selectedServiceByUser.put(userId, matched);
+        }
+    }
+
+    public void clearSelectedService(String userId) {
+        selectedServiceByUser.remove(userId);
     }
 
     public void saveTroubleTickets(String userId, List<TroubleTicketSummary> tickets) {
@@ -202,6 +248,7 @@ public class WhatsappSessionService {
     public void clearSession(String userId) {
         byUser.remove(userId);
         servicesByUser.remove(userId);
+        selectedServiceByUser.remove(userId);
         ticketsByUser.remove(userId);
         languageByUser.remove(userId);
         menuPathByUser.remove(userId);

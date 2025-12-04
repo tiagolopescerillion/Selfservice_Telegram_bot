@@ -4,6 +4,7 @@ import com.selfservice.application.auth.OAuthSessionService;
 import com.selfservice.application.dto.AccountSummary;
 import com.selfservice.application.dto.FindUserResult;
 import com.selfservice.application.service.FindUserService;
+import com.selfservice.application.config.UxProperties;
 import com.selfservice.telegrambot.service.TelegramService;
 import com.selfservice.telegrambot.service.UserSessionService;
 import com.selfservice.whatsapp.service.WhatsappService;
@@ -28,6 +29,7 @@ public class OAuthCallbackController {
     private final WhatsappService whatsappService;
     private final WhatsappSessionService whatsappSessions;
     private final OperationsMonitoringService monitoringService;
+    private final UxProperties uxProperties;
 
     public OAuthCallbackController(OAuthSessionService oauth,
                                    TelegramService telegram,
@@ -35,7 +37,8 @@ public class OAuthCallbackController {
                                    FindUserService findUserService,
                                    WhatsappService whatsappService,
                                    WhatsappSessionService whatsappSessions,
-                                   OperationsMonitoringService monitoringService) {
+                                   OperationsMonitoringService monitoringService,
+                                   UxProperties uxProperties) {
         this.oauth = oauth;
         this.telegram = telegram;
         this.sessions = sessions;
@@ -43,6 +46,7 @@ public class OAuthCallbackController {
         this.whatsappService = whatsappService;
         this.whatsappSessions = whatsappSessions;
         this.monitoringService = monitoringService;
+        this.uxProperties = uxProperties;
     }
 
     @GetMapping(value = "/oauth/callback", produces = MediaType.TEXT_HTML_VALUE)
@@ -138,6 +142,7 @@ public class OAuthCallbackController {
 
             String accountListMessage;
             List<AccountSummary> accounts = findUserResult.accounts();
+            boolean setContextOnLogin = uxProperties.isSetContext();
             if (findUserResult.success()) {
                 if (chatId > 0) {
                     sessions.saveAccounts(chatId, accounts);
@@ -165,7 +170,10 @@ public class OAuthCallbackController {
                         : null;
 
                 if (findUserResult.success()) {
-                    if (accounts.isEmpty()) {
+                    if (!setContextOnLogin) {
+                        sessions.clearSelectedAccount(chatId);
+                        telegram.sendLoggedInMenu(chatId, null, false, greeting);
+                    } else if (accounts.isEmpty()) {
                         sessions.clearSelectedAccount(chatId);
                         String noAccountsMessage = telegram.translate(chatId, "NoBillingAccountsFound");
                         if (greeting != null && !greeting.isBlank()) {
@@ -196,7 +204,10 @@ public class OAuthCallbackController {
                     if (greeting != null) {
                         whatsappService.sendText(whatsappChatId, greeting);
                     }
-                    if (accounts.isEmpty()) {
+                    if (!setContextOnLogin) {
+                        whatsappSessions.clearSelectedAccount(whatsappChatId);
+                        whatsappService.sendLoggedInMenu(whatsappChatId, null, false, null);
+                    } else if (accounts.isEmpty()) {
                         whatsappSessions.clearSelectedAccount(whatsappChatId);
                         whatsappService.sendText(whatsappChatId, whatsappService.translate(whatsappChatId,
                                 "NoBillingAccountsFound"));

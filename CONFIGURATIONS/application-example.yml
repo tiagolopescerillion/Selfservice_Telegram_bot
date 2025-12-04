@@ -25,6 +25,9 @@ app:
   http-logging:
     enabled: true  # Enable HTTP request/response logging (disable in production if not needed)
 
+ux:
+  set-context: true  # When false, skip account/service context selection during login
+
 # Shared base URLs to avoid repetition across services
 endpoints:
   keycloak-base-url: YOUR_KEYCLOAK_URL       # Base URL of your Keycloak realm (e.g., https://keycloak.example.com/realms/realm)
@@ -45,6 +48,16 @@ whatsapp:
   phone-number-id: YOUR_PHONE_NUMBER_ID                  # WhatsApp Business phone number ID
   access-token: YOUR_WHATSAPP_ACCESS_TOKEN               # WhatsApp Graph API access token
   ux-mode: TEST  # UX mode: BASIC (plain text), PRODUCTION (interactive cards), TEST (show both)
+
+service-functions:
+  entries:
+    - name: Sample trouble ticket search
+      endpoint: trouble-ticket
+      account-context: true
+      service-context: true
+      query-params:
+        offset: 0
+        limit: 25
 
 messenger:
   callback-url: ${app.public-base-url}/messenger/webhook  # Public webhook endpoint for Facebook Messenger callbacks
