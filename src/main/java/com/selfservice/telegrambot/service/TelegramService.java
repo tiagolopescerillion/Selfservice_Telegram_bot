@@ -17,13 +17,13 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.RestTemplate;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 
 @Service
 public class TelegramService {
@@ -84,17 +84,19 @@ public class TelegramService {
     private final LoginMenuProperties loginMenuProperties;
 
     public TelegramService(
-            @Value("${telegram.bot.token}") String token,
+            @Value("${telegram.bot.token:${TELEGRAM_BOT_TOKEN:}}") String token,
             @Value("${app.public-base-url:}") String publicBaseUrl,
             TranslationService translationService,
             UserSessionService userSessionService,
             BusinessMenuConfigurationProvider menuConfigurationProvider,
             LoginMenuProperties loginMenuProperties) {
 
-        String nonNullToken = Objects.requireNonNull(
-                token, "telegram.bot.token must be set in configuration");
+        if (!StringUtils.hasText(token)) {
+            throw new IllegalArgumentException(
+                    "telegram.bot.token must be set via configuration or TELEGRAM_BOT_TOKEN environment variable");
+        }
 
-        this.baseUrl = "https://api.telegram.org/bot" + nonNullToken;
+        this.baseUrl = "https://api.telegram.org/bot" + token;
         this.publicBaseUrl = (publicBaseUrl == null) ? "" : publicBaseUrl;
         this.translationService = translationService;
         this.userSessionService = userSessionService;
