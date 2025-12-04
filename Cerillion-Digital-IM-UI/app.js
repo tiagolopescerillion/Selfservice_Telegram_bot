@@ -247,6 +247,7 @@ const connectorsStatus = document.getElementById("connectorsStatus");
 const connectorsPreview = document.getElementById("connectorsPreview");
 const connectorsConfigTree = document.getElementById("connectorsConfigTree");
 const connectorsDownloadButton = document.getElementById("connectorsDownloadButton");
+const connectorsReloadButton = document.getElementById("connectorsReloadButton");
 const connectorsTabButtons = document.querySelectorAll("[data-connectors-tab]");
 const connectorsTabPanels = document.querySelectorAll("[data-connectors-tab-panel]");
 const connectorToggles = {
@@ -268,6 +269,11 @@ const connectorStatuses = {
   telegram: document.getElementById("telegramConfigStatus"),
   whatsapp: document.getElementById("whatsappConfigStatus"),
   messenger: document.getElementById("messengerConfigStatus")
+};
+const connectorReloadButtons = {
+  telegram: document.getElementById("telegramReloadButton"),
+  whatsapp: document.getElementById("whatsappReloadButton"),
+  messenger: document.getElementById("messengerReloadButton")
 };
 const connectorDisabledMessages = {
   telegram: document.getElementById("telegramDisabledMessage"),
@@ -293,7 +299,13 @@ let connectorsYamlObject = {
   connectors: { telegram: true, whatsapp: true, messenger: true }
 };
 let connectorsContent = "";
+let connectorsOriginalContent = "";
 let connectorContents = {
+  telegram: "",
+  whatsapp: "",
+  messenger: ""
+};
+let connectorOriginalContents = {
   telegram: "",
   whatsapp: "",
   messenger: ""
@@ -1634,6 +1646,49 @@ async function loadConnectorsPanel() {
   connectorsLoading = false;
 }
 
+async function reloadConnectorsConfigFromSource() {
+  if (connectorsOriginalContent) {
+    connectorsContent = connectorsOriginalContent;
+    syncConnectorsFromContent();
+    renderConnectorsGeneral();
+    CONNECTOR_KEYS.forEach(renderConnectorTab);
+    if (connectorsStatus) {
+      connectorsStatus.textContent = `Reloaded from ${connectorsFileName?.textContent || "connectors-local.yml"}`;
+      connectorsStatus.className = "hint";
+    }
+    return;
+  }
+
+  if (connectorsStatus) {
+    connectorsStatus.textContent = "Reloading connectors-local.yml...";
+    connectorsStatus.className = "hint";
+  }
+  await loadConnectorsConfig();
+  renderConnectorsGeneral();
+  CONNECTOR_KEYS.forEach(renderConnectorTab);
+}
+
+async function reloadConnectorFromSource(key) {
+  const status = connectorStatuses[key];
+  if (connectorOriginalContents[key]) {
+    connectorContents[key] = connectorOriginalContents[key];
+    syncConnectorObjectFromContent(key);
+    renderConnectorTab(key);
+    if (status) {
+      status.textContent = `Reloaded from ${connectorFileNames[key] || `${key}-local.yml`}`;
+      status.className = "hint";
+    }
+    return;
+  }
+
+  if (status) {
+    status.textContent = `Reloading ${formatConnectorLabel(key)} configuration...`;
+    status.className = "hint";
+  }
+  await loadConnectorFile(key);
+  renderConnectorTab(key);
+}
+
 function extractConnectorFlags(entries) {
   const flags = { ...connectorSettings };
   if (Array.isArray(entries)) {
@@ -1679,6 +1734,7 @@ async function loadConnectorsConfig() {
     }
     connectorSettings = extractConnectorFlags(payload?.entries);
     connectorsContent = payload?.content || buildConnectorsYaml();
+    connectorsOriginalContent = connectorsContent;
     syncConnectorsFromContent();
     connectorsFileName.textContent = payload?.fileName || "connectors-local.yml";
     const timestamp = formatTimestamp(payload?.lastModified);
@@ -1691,6 +1747,7 @@ async function loadConnectorsConfig() {
     connectorsStatus.className = "hint error-state";
     connectorSettings = { telegram: true, whatsapp: true, messenger: true };
     connectorsContent = buildConnectorsYaml();
+    connectorsOriginalContent = connectorsContent;
     syncConnectorsFromContent();
     connectorsFileName.textContent = "connectors-local.yml";
   }
@@ -1725,6 +1782,7 @@ async function loadConnectorFile(key) {
       throw new Error(reason);
     }
     connectorContents[key] = payload?.content || defaultContent;
+    connectorOriginalContents[key] = connectorContents[key];
     syncConnectorObjectFromContent(key);
     connectorFileNames[key] = payload?.fileName || `${key}-local.yml`;
     const timestamp = formatTimestamp(payload?.lastModified);
@@ -1740,6 +1798,7 @@ async function loadConnectorFile(key) {
       status.className = "hint error-state";
     }
     connectorContents[key] = defaultContent;
+    connectorOriginalContents[key] = connectorContents[key];
     syncConnectorObjectFromContent(key);
     connectorFileNames[key] = `${key}-local.yml`;
   }
@@ -2756,6 +2815,15 @@ if (downloadQueryParamsButton) {
 
 connectorsTabButtons.forEach((button) => {
   button.addEventListener("click", () => setActiveConnectorsTab(button?.dataset?.connectorsTab));
+});
+
+if (connectorsReloadButton) {
+  connectorsReloadButton.addEventListener("click", reloadConnectorsConfigFromSource);
+}
+
+Object.entries(connectorReloadButtons).forEach(([key, button]) => {
+  if (!button) return;
+  button.addEventListener("click", () => reloadConnectorFromSource(key));
 });
 
 Object.entries(connectorToggles).forEach(([key, input]) => {

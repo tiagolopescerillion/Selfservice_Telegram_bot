@@ -432,6 +432,11 @@
                     <div class="hint">Configuration source</div>
                     <div id="connectorsFileName" class="config-viewer__filename">Loading...</div>
                   </div>
+                  <div class="panel-actions">
+                    <button id="connectorsReloadButton" type="button" class="secondary">
+                      Reload from file
+                    </button>
+                  </div>
                   <div id="connectorsStatus" class="hint"></div>
                 </div>
                 <p class="hint">
@@ -493,11 +498,16 @@
                 </div>
               </div>
 
-              <div class="connector-tab" data-connectors-tab-panel="telegram">
+                <div class="connector-tab" data-connectors-tab-panel="telegram">
                 <div class="connector-tab__header">
                   <div>
                     <div class="switch-label">Telegram configuration</div>
                     <div id="telegramConfigStatus" class="hint"></div>
+                  </div>
+                  <div class="panel-actions">
+                    <button id="telegramReloadButton" type="button" class="secondary">
+                      Reload from file
+                    </button>
                   </div>
                 </div>
                 <div id="telegramDisabledMessage" class="empty-state hidden" aria-live="polite">
@@ -527,11 +537,16 @@
                 </div>
               </div>
 
-              <div class="connector-tab" data-connectors-tab-panel="whatsapp">
+                <div class="connector-tab" data-connectors-tab-panel="whatsapp">
                 <div class="connector-tab__header">
                   <div>
                     <div class="switch-label">WhatsApp configuration</div>
                     <div id="whatsappConfigStatus" class="hint"></div>
+                  </div>
+                  <div class="panel-actions">
+                    <button id="whatsappReloadButton" type="button" class="secondary">
+                      Reload from file
+                    </button>
                   </div>
                 </div>
                 <div id="whatsappDisabledMessage" class="empty-state hidden" aria-live="polite">
@@ -561,11 +576,16 @@
                 </div>
               </div>
 
-              <div class="connector-tab" data-connectors-tab-panel="messenger">
+                <div class="connector-tab" data-connectors-tab-panel="messenger">
                 <div class="connector-tab__header">
                   <div>
                     <div class="switch-label">Messenger configuration</div>
                     <div id="messengerConfigStatus" class="hint"></div>
+                  </div>
+                  <div class="panel-actions">
+                    <button id="messengerReloadButton" type="button" class="secondary">
+                      Reload from file
+                    </button>
                   </div>
                 </div>
                 <div id="messengerDisabledMessage" class="empty-state hidden" aria-live="polite">
