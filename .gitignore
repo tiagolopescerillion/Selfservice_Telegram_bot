@@ -6,8 +6,8 @@ target/
 CONFIGURATIONS/application-local.yml
 CONFIGURATIONS/application-oauth.yml
 CONFIGURATIONS/application-prod.yml
-CONFIGURATIONS/business-menu.override.yml
-CONFIGURATIONS/business-menu.no-override.json
+CONFIGURATIONS/IM-menu.override.yml
+CONFIGURATIONS/IM-menu.no-override.yml
 *.log
 *.iml
 
