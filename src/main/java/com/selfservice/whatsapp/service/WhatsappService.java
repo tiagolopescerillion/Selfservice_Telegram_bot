@@ -384,6 +384,20 @@ public class WhatsappService {
         }
     }
 
+    public void sendWeblink(String to, BusinessMenuItem item) {
+        if (item == null || item.url() == null || item.url().isBlank()) {
+            sendText(to, "Link unavailable.");
+            return;
+        }
+
+        StringBuilder message = new StringBuilder();
+        if (item.label() != null && !item.label().isBlank()) {
+            message.append(item.label()).append(": ");
+        }
+        message.append(item.url());
+        sendText(to, message.toString());
+    }
+
     public void sendAccountPage(String to, List<AccountSummary> accounts, int startIndex) {
         sendAccountPage(to, accounts, startIndex, null);
     }
@@ -585,6 +599,9 @@ public class WhatsappService {
         }
         if (item.label() != null && !item.label().isBlank()) {
             return item.label();
+        }
+        if (item.isWeblink() && item.weblink() != null && !item.weblink().isBlank()) {
+            return item.weblink();
         }
         return item.function();
     }

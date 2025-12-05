@@ -22,6 +22,7 @@ import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.RestTemplate;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -276,9 +277,21 @@ public class TelegramService {
                 log.warn("Chat {} attempted to render missing submenu {}", chatId, item.submenuId());
                 continue;
             }
-            keyboard.add(List.of(Map.of(
-                    "text", resolveMenuLabel(chatId, item),
-                    "callback_data", resolveCallback(item))));
+
+            Map<String, Object> button = new HashMap<>();
+            button.put("text", resolveMenuLabel(chatId, item));
+
+            if (item.isWeblink()) {
+                if (item.url() == null || item.url().isBlank()) {
+                    log.warn("Chat {} skipped weblink {} because no URL was provided", chatId, item.weblink());
+                    continue;
+                }
+                button.put("url", item.url());
+            } else {
+                button.put("callback_data", resolveCallback(item));
+            }
+
+            keyboard.add(List.of(button));
         }
 
         int depth = userSessionService.getBusinessMenuDepth(chatId, menuConfigurationProvider.getRootMenuId());
@@ -388,10 +401,16 @@ public class TelegramService {
         if (item.label() != null && !item.label().isBlank()) {
             return item.label();
         }
+        if (item.isWeblink() && item.weblink() != null && !item.weblink().isBlank()) {
+            return item.weblink();
+        }
         return item.function();
     }
 
     private String resolveCallback(BusinessMenuItem item) {
+        if (item.isWeblink()) {
+            return null;
+        }
         if (item.callbackData() != null && !item.callbackData().isBlank()) {
             return item.callbackData();
         }

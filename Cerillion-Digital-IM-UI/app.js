@@ -1154,6 +1154,7 @@ function serializeStore(store) {
       items: menu.items.map((item, index) => {
         if (item.type === "submenu") {
           return {
+            type: "submenu",
             order: index + 1,
             label: item.label,
             function: null,
@@ -1165,6 +1166,7 @@ function serializeStore(store) {
         if (item.type === "weblink") {
           const linkMeta = findWeblinkMeta(item.weblink);
           return {
+            type: "weblink",
             order: index + 1,
             label: item.label,
             function: null,
@@ -1178,6 +1180,7 @@ function serializeStore(store) {
         }
         const meta = functionDictionary[item.function] || {};
         return {
+          type: "function",
           order: index + 1,
           label: item.label,
           function: item.function,
@@ -1934,11 +1937,17 @@ function parseWeblinksYaml(content) {
   if (!parsed || typeof parsed !== "object") {
     return [];
   }
-  return Object.entries(parsed).map(([name, value]) => ({
-    name,
-    url: typeof value === "object" && value !== null ? value.URL || "" : "",
-    authenticated: resolveBooleanFlag(value?.["Authenticated-User"], false)
-  }));
+  return Object.entries(parsed).map(([name, value]) => {
+    const meta = typeof value === "object" && value !== null ? value : {};
+    const url = meta.URL || meta.url || "";
+    const authKey = Object.keys(meta || {}).find((key) => key.toLowerCase() === "authenticated-user");
+    const authValue = authKey ? meta[authKey] : meta.authenticated;
+    return {
+      name,
+      url,
+      authenticated: resolveBooleanFlag(authValue, false)
+    };
+  });
 }
 
 function buildWeblinksYaml() {
