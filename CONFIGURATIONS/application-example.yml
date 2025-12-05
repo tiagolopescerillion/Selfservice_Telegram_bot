@@ -78,6 +78,9 @@ keycloak:
 # APIMAN endpoints consolidated here
 apiman:
   base-url: ${endpoints.apiman-base-url}
+  impersonation-initiate:
+    url: ${apiman.base-url}/impersonationInitiate/1.0
+    method: GET
   find-user:
     url: ${apiman.base-url}/findUser/1.0
     method: GET
