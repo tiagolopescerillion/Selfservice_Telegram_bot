@@ -16,6 +16,7 @@ public class ApimanEndpointsProperties {
     private Endpoint findUser = new Endpoint();
     private Endpoint product = new Endpoint();
     private Endpoint troubleTicket = new Endpoint();
+    private Endpoint impersonationInitiate = new Endpoint();
 
     private static final Map<String, String> DEFAULT_FIND_USER_QUERY_PARAMS = Map.of(
             "offset", "0",
@@ -111,6 +112,24 @@ public class ApimanEndpointsProperties {
 
     public void setTroubleTicket(Endpoint troubleTicket) {
         this.troubleTicket = troubleTicket;
+    }
+
+    public String getImpersonationInitiateUrl() {
+        if (impersonationInitiate != null && impersonationInitiate.getUrl() != null) {
+            return impersonationInitiate.getUrl();
+        }
+        if (baseUrl == null || baseUrl.isBlank()) {
+            return null;
+        }
+        return baseUrl + "/impersonationInitiate/1.0";
+    }
+
+    public HttpMethod getImpersonationInitiateMethod() {
+        return resolveMethod(impersonationInitiate);
+    }
+
+    public void setImpersonationInitiate(Endpoint impersonationInitiate) {
+        this.impersonationInitiate = impersonationInitiate;
     }
 
     public boolean hasFindUser() {

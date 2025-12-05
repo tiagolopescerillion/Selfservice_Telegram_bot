@@ -16,7 +16,7 @@ class UserSessionServiceTest {
         UserSessionService service = new UserSessionService();
         long chatId = 42L;
 
-        service.save(chatId, "token", "refresh", "id-token", 3_600);
+        service.save(chatId, "token", "refresh", "id-token", 3_600L, "exch-123");
         service.saveAccounts(chatId, List.of(new AccountSummary("acct-1", "Account")));
         service.selectAccount(chatId, new AccountSummary("acct-1", "Account"));
         service.saveServices(chatId, List.of(new ServiceSummary("svc-1", "Service", "123")));
@@ -31,6 +31,7 @@ class UserSessionServiceTest {
         assertThat(service.getLanguage(chatId)).isEqualTo("es");
         assertThat(service.getRefreshToken(chatId)).isEqualTo("refresh");
         assertThat(service.getIdToken(chatId)).isEqualTo("id-token");
+        assertThat(service.getExchangeId(chatId)).isEqualTo("exch-123");
 
         service.clearSession(chatId);
 

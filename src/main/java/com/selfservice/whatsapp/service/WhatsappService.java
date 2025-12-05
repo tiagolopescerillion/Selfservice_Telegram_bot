@@ -18,9 +18,13 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.web.util.UriComponentsBuilder;
+import org.springframework.web.util.UriUtils;
 
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -384,6 +388,24 @@ public class WhatsappService {
         }
     }
 
+    public void sendWeblink(String to, BusinessMenuItem item) {
+        if (item == null || item.url() == null || item.url().isBlank()) {
+            sendText(to, "Link unavailable.");
+            return;
+        }
+
+        StringBuilder message = new StringBuilder();
+        if (item.label() != null && !item.label().isBlank()) {
+            message.append(item.label()).append(": ");
+        }
+        String resolved = resolveWeblinkUrl(to, item);
+        if (!StringUtils.hasText(resolved)) {
+            resolved = item.url();
+        }
+        message.append(resolved);
+        sendText(to, message.toString());
+    }
+
     public void sendAccountPage(String to, List<AccountSummary> accounts, int startIndex) {
         sendAccountPage(to, accounts, startIndex, null);
     }
@@ -586,6 +608,9 @@ public class WhatsappService {
         if (item.label() != null && !item.label().isBlank()) {
             return item.label();
         }
+        if (item.isWeblink() && item.weblink() != null && !item.weblink().isBlank()) {
+            return item.weblink();
+        }
         return item.function();
     }
 
@@ -639,6 +664,71 @@ public class WhatsappService {
 
     private boolean shouldSendFallbackText() {
         return whatsappProperties.getUxMode() == WhatsappProperties.WhatsappUxMode.TEST;
+    }
+
+    private String resolveWeblinkUrl(String userId, BusinessMenuItem item) {
+        if (item == null || !StringUtils.hasText(item.url())) {
+            return null;
+        }
+
+        String contextualUrl = applyContextualPath(userId, item);
+        if (!item.isAuthenticatedLink()) {
+            return contextualUrl;
+        }
+        String exchangeId = sessionService.getExchangeId(userId);
+        if (!StringUtils.hasText(exchangeId)) {
+            return contextualUrl;
+        }
+        try {
+            return UriComponentsBuilder.fromUriString(contextualUrl)
+                    .queryParam("exchangeId", exchangeId)
+                    .build(true)
+                    .toUriString();
+        } catch (Exception ex) {
+            log.warn("Failed to append exchangeId to WhatsApp weblink {}: {}", contextualUrl, ex.getMessage());
+            String encoded = UriUtils.encode(exchangeId, StandardCharsets.UTF_8);
+            return contextualUrl + (contextualUrl.contains("?") ? "&" : "?") + "exchangeId=" + encoded;
+        }
+    }
+
+    private String applyContextualPath(String userId, BusinessMenuItem item) {
+        if (item.requiresAccountContext()) {
+            AccountSummary account = sessionService.getSelectedAccount(userId);
+            if (account == null || !StringUtils.hasText(account.accountId())) {
+                log.warn("No selected account found for contextual WhatsApp weblink {}", item.url());
+                return item.url();
+            }
+            try {
+                return UriComponentsBuilder.fromUriString(item.url())
+                        .pathSegment(account.accountId())
+                        .build(true)
+                        .toUriString();
+            } catch (Exception ex) {
+                log.warn("Failed to append account {} to WhatsApp weblink {}: {}", account.accountId(), item.url(), ex.getMessage());
+                String encoded = UriUtils.encodePathSegment(account.accountId(), StandardCharsets.UTF_8);
+                return item.url().endsWith("/") ? item.url() + encoded : item.url() + "/" + encoded;
+            }
+        }
+
+        if (item.requiresServiceContext()) {
+            ServiceSummary service = sessionService.getSelectedService(userId);
+            if (service == null || !StringUtils.hasText(service.productId())) {
+                log.warn("No selected service found for contextual WhatsApp weblink {}", item.url());
+                return item.url();
+            }
+            try {
+                return UriComponentsBuilder.fromUriString(item.url())
+                        .pathSegment(service.productId())
+                        .build(true)
+                        .toUriString();
+            } catch (Exception ex) {
+                log.warn("Failed to append service {} to WhatsApp weblink {}: {}", service.productId(), item.url(), ex.getMessage());
+                String encoded = UriUtils.encodePathSegment(service.productId(), StandardCharsets.UTF_8);
+                return item.url().endsWith("/") ? item.url() + encoded : item.url() + "/" + encoded;
+            }
+        }
+
+        return item.url();
     }
 
     private Map<String, Object> buildListRow(String id, String title) {
