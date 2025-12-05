@@ -68,6 +68,12 @@ public class ServiceFunctionController {
                 apimanEndpoints.getTroubleTicketMethod(), "apiman.trouble-ticket.query-params",
                 "billingAccount.id", "relatedEntity.product.id", "trouble-ticket", false);
 
+        addEndpoint(endpoints, "apiman.bill.url", "Bill history (APIMAN)",
+                apimanEndpoints.getBillUrl(), List.of("InvoiceService"),
+                apimanEndpoints.getDefaultBillQueryParams(), apimanEndpoints.getBillQueryParams(),
+                apimanEndpoints.getBillMethod(), "apiman.bill.query-params",
+                "billingAccount.id", null, "bill", false);
+
         Map<String, ServiceFunctionDescriptor> baseByKey = endpoints.stream()
                 .collect(Collectors.toMap(ServiceFunctionDescriptor::endpointKey, Function.identity()));
 

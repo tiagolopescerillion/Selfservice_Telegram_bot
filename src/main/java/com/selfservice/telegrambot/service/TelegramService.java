@@ -2,6 +2,7 @@ package com.selfservice.telegrambot.service;
 
 import com.selfservice.application.config.LoginMenuProperties;
 import com.selfservice.application.dto.AccountSummary;
+import com.selfservice.application.dto.InvoiceSummary;
 import com.selfservice.application.dto.ServiceSummary;
 import com.selfservice.application.dto.TroubleTicketSummary;
 import com.selfservice.application.config.menu.BusinessMenuConfigurationProvider;
@@ -41,6 +42,7 @@ public class TelegramService {
     public static final String KEY_BUTTON_TROUBLE_TICKET = "ButtonTroubleTicket";
     public static final String KEY_BUTTON_SELECT_SERVICE = "ButtonSelectService";
     public static final String KEY_BUTTON_MY_ISSUES = "ButtonMyIssues";
+    public static final String KEY_BUTTON_INVOICE_HISTORY = "ButtonInvoiceHistory";
     public static final String KEY_BUTTON_CHANGE_ACCOUNT = "ButtonChangeAccount";
     public static final String KEY_BUTTON_CHANGE_LANGUAGE = "ButtonChangeLanguage";
     public static final String KEY_BUTTON_MENU = "ButtonMenu";
@@ -59,8 +61,10 @@ public class TelegramService {
     public static final String CALLBACK_HELLO_WORLD = "HELLO_WORLD";
     public static final String CALLBACK_HELLO_CERILLION = "HELLO_CERILLION";
     public static final String CALLBACK_TROUBLE_TICKET = "VIEW_TROUBLE_TICKET";
+    public static final String CALLBACK_INVOICE_HISTORY = "INVOICE_HISTORY";
     public static final String CALLBACK_ACCOUNT_PREFIX = "ACCOUNT:";
     public static final String CALLBACK_SERVICE_PREFIX = "SERVICE:";
+    public static final String CALLBACK_INVOICE_PREFIX = "INVOICE:";
     public static final String CALLBACK_MY_ISSUES = "MY_ISSUES";
     public static final String CALLBACK_TROUBLE_TICKET_PREFIX = "TICKET:";
     public static final String CALLBACK_SELECT_SERVICE = "SELECT_SERVICE";
@@ -73,6 +77,10 @@ public class TelegramService {
     public static final String CALLBACK_SHOW_MORE_ACCOUNTS_PREFIX = "SHOW_MORE_ACCOUNTS:";
     public static final String CALLBACK_SHOW_MORE_SERVICES_PREFIX = "SHOW_MORE_SERVICES:";
     public static final String CALLBACK_SHOW_MORE_TICKETS_PREFIX = "SHOW_MORE_TICKETS:";
+    public static final String CALLBACK_SHOW_MORE_INVOICES_PREFIX = "SHOW_MORE_INVOICES:";
+    public static final String CALLBACK_INVOICE_VIEW_PDF_PREFIX = "INVOICE_VIEW_PDF:";
+    public static final String CALLBACK_INVOICE_PAY_PREFIX = "INVOICE_PAY:";
+    public static final String CALLBACK_INVOICE_COMPARE_PREFIX = "INVOICE_COMPARE:";
     public static final String CALLBACK_BUSINESS_MENU_HOME = "BUSINESS_MENU_HOME";
     public static final String CALLBACK_BUSINESS_MENU_UP = "BUSINESS_MENU_UP";
     public static final String CALLBACK_BUSINESS_MENU_PREFIX = "BUSINESS_MENU:";
@@ -661,6 +669,89 @@ public class TelegramService {
         post(url, body, headers);
     }
 
+    public void sendInvoicePage(long chatId, List<InvoiceSummary> invoices, int startIndex) {
+        Objects.requireNonNull(invoices, "invoices must not be null");
+
+        if (invoices.isEmpty()) {
+            sendMessageWithKey(chatId, "NoInvoicesAvailable");
+            return;
+        }
+
+        int safeStart = Math.max(0, startIndex);
+        if (safeStart >= invoices.size()) {
+            safeStart = Math.max(0, invoices.size() - 5);
+        }
+
+        int end = Math.min(invoices.size(), safeStart + 5);
+
+        List<List<Map<String, Object>>> rows = new ArrayList<>();
+        List<Map<String, Object>> currentRow = new ArrayList<>();
+        for (int i = safeStart; i < end; i++) {
+            InvoiceSummary invoice = invoices.get(i);
+            String label = format(chatId, "InvoiceButtonLabel", safeValue(chatId, invoice.id()),
+                    safeValue(chatId, invoice.billDate()), safeValue(chatId, invoice.totalAmount()),
+                    safeValue(chatId, invoice.unpaidAmount()));
+            currentRow.add(Map.of(
+                    "text", label,
+                    "callback_data", CALLBACK_INVOICE_PREFIX + i));
+            if (currentRow.size() == 2) {
+                rows.add(List.copyOf(currentRow));
+                currentRow = new ArrayList<>();
+            }
+        }
+        if (!currentRow.isEmpty()) {
+            rows.add(List.copyOf(currentRow));
+        }
+
+        if (end < invoices.size()) {
+            rows.add(List.of(Map.of(
+                    "text", translate(chatId, KEY_SHOW_MORE),
+                    "callback_data", CALLBACK_SHOW_MORE_INVOICES_PREFIX + end)));
+        }
+
+        String url = baseUrl + "/sendMessage";
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+
+        Map<String, Object> replyMarkup = Map.of("inline_keyboard", rows);
+        Map<String, Object> body = Map.of(
+                "chat_id", chatId,
+                "text", buildPagedPrompt(chatId, "SelectInvoicePrompt", safeStart, end, invoices.size()),
+                "reply_markup", replyMarkup);
+
+        post(url, body, headers);
+    }
+
+    public void sendInvoiceActions(long chatId, InvoiceSummary invoice) {
+        if (invoice == null || invoice.id() == null || invoice.id().isBlank()) {
+            sendMessageWithKey(chatId, "InvoiceNoLongerAvailable");
+            return;
+        }
+
+        String url = baseUrl + "/sendMessage";
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+
+        List<List<Map<String, Object>>> keyboard = new ArrayList<>();
+        keyboard.add(List.of(Map.of(
+                "text", translate(chatId, "ButtonInvoiceViewPdf"),
+                "callback_data", CALLBACK_INVOICE_VIEW_PDF_PREFIX + invoice.id())));
+        keyboard.add(List.of(Map.of(
+                "text", translate(chatId, "ButtonInvoicePay"),
+                "callback_data", CALLBACK_INVOICE_PAY_PREFIX + invoice.id())));
+        keyboard.add(List.of(Map.of(
+                "text", translate(chatId, "ButtonInvoiceCompare"),
+                "callback_data", CALLBACK_INVOICE_COMPARE_PREFIX + invoice.id())));
+
+        Map<String, Object> replyMarkup = Map.of("inline_keyboard", keyboard);
+        Map<String, Object> body = Map.of(
+                "chat_id", chatId,
+                "text", format(chatId, "InvoiceActionsPrompt", invoice.id()),
+                "reply_markup", replyMarkup);
+
+        post(url, body, headers);
+    }
+
     public void sendTroubleTicketCards(long chatId, List<TroubleTicketSummary> tickets) {
         if (tickets == null || tickets.isEmpty()) {
             sendMessageWithKey(chatId, "NoTroubleTickets");
@@ -743,6 +834,13 @@ public class TelegramService {
             prompt += " " + format(chatId, "ListPageCounter", start + 1, end, total);
         }
         return prompt;
+    }
+
+    private String safeValue(long chatId, String value) {
+        if (value == null || value.isBlank()) {
+            return translate(chatId, "UnknownValue");
+        }
+        return value.strip();
     }
 
     private void post(String url, Map<String, Object> body, HttpHeaders headers) {

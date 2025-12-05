@@ -3,10 +3,13 @@ package com.selfservice.telegrambot.controller;
 import com.selfservice.application.auth.KeycloakAuthService;
 import com.selfservice.application.auth.OAuthSessionService;
 import com.selfservice.application.dto.AccountSummary;
+import com.selfservice.application.dto.InvoiceListResult;
+import com.selfservice.application.dto.InvoiceSummary;
 import com.selfservice.application.dto.ServiceListResult;
 import com.selfservice.application.dto.ServiceSummary;
 import com.selfservice.application.dto.TroubleTicketListResult;
 import com.selfservice.application.service.ProductService;
+import com.selfservice.application.service.InvoiceService;
 import com.selfservice.application.service.TroubleTicketService;
 import com.selfservice.application.service.OperationsMonitoringService;
 import com.selfservice.application.config.menu.LoginMenuFunction;
@@ -33,6 +36,7 @@ public class TelegramWebhookController {
     private final ProductService productService;
     private final OAuthSessionService oauthSessionService;
     private final UserSessionService userSessionService;
+    private final InvoiceService invoiceService;
     private final TroubleTicketService troubleTicketService;
     private final OperationsMonitoringService monitoringService;
     private final ConnectorsProperties connectorsProperties;
@@ -42,6 +46,7 @@ public class TelegramWebhookController {
             ProductService productService,
             OAuthSessionService oauthSessionService,
             UserSessionService userSessionService,
+            InvoiceService invoiceService,
             TroubleTicketService troubleTicketService,
             OperationsMonitoringService monitoringService,
             ConnectorsProperties connectorsProperties) {
@@ -51,6 +56,7 @@ public class TelegramWebhookController {
         this.oauthSessionService = oauthSessionService;
 
         this.userSessionService = userSessionService;
+        this.invoiceService = invoiceService;
         this.troubleTicketService = troubleTicketService;
         this.monitoringService = monitoringService;
         this.connectorsProperties = connectorsProperties;
@@ -118,6 +124,8 @@ public class TelegramWebhookController {
                 text = TelegramService.CALLBACK_SELECT_SERVICE;
             } else if (text.equals(telegramService.translate(chatId, TelegramService.KEY_BUTTON_MY_ISSUES))) {
                 text = TelegramService.CALLBACK_MY_ISSUES;
+            } else if (text.equals(telegramService.translate(chatId, TelegramService.KEY_BUTTON_INVOICE_HISTORY))) {
+                text = TelegramService.CALLBACK_INVOICE_HISTORY;
             } else if (text.equals(telegramService.translate(chatId, TelegramService.KEY_BUTTON_SELF_SERVICE_LOGIN))) {
                 text = TelegramService.CALLBACK_SELF_SERVICE_LOGIN;
             } else if (text.equals(telegramService.translate(chatId, TelegramService.KEY_BUTTON_DIRECT_LOGIN))) {
@@ -262,6 +270,18 @@ public class TelegramWebhookController {
                 return ResponseEntity.ok().build();
             }
 
+            if (text.startsWith(TelegramService.CALLBACK_SHOW_MORE_INVOICES_PREFIX)) {
+                int offset = parseIndex(text, TelegramService.CALLBACK_SHOW_MORE_INVOICES_PREFIX);
+                var invoices = userSessionService.getInvoices(chatId);
+                if (invoices.isEmpty()) {
+                    userSessionService.clearInvoices(chatId);
+                    telegramService.sendMessageWithKey(chatId, "InvoiceNoLongerAvailable");
+                } else {
+                    telegramService.sendInvoicePage(chatId, invoices, offset);
+                }
+                return ResponseEntity.ok().build();
+            }
+
             if (TelegramService.CALLBACK_LANGUAGE_MENU.equals(text)) {
                 telegramService.sendLanguageMenu(chatId);
                 return ResponseEntity.ok().build();
@@ -346,6 +366,24 @@ public class TelegramWebhookController {
                 return ResponseEntity.ok().build();
             }
 
+            if (text.startsWith(TelegramService.CALLBACK_INVOICE_VIEW_PDF_PREFIX)) {
+                String invoiceId = text.substring(TelegramService.CALLBACK_INVOICE_VIEW_PDF_PREFIX.length()).trim();
+                handleInvoiceAction(chatId, invoiceId, "InvoiceViewPdf");
+                return ResponseEntity.ok().build();
+            }
+
+            if (text.startsWith(TelegramService.CALLBACK_INVOICE_PAY_PREFIX)) {
+                String invoiceId = text.substring(TelegramService.CALLBACK_INVOICE_PAY_PREFIX.length()).trim();
+                handleInvoiceAction(chatId, invoiceId, "InvoicePay");
+                return ResponseEntity.ok().build();
+            }
+
+            if (text.startsWith(TelegramService.CALLBACK_INVOICE_COMPARE_PREFIX)) {
+                String invoiceId = text.substring(TelegramService.CALLBACK_INVOICE_COMPARE_PREFIX.length()).trim();
+                handleInvoiceAction(chatId, invoiceId, "InvoiceCompare");
+                return ResponseEntity.ok().build();
+            }
+
             if (TelegramService.CALLBACK_LOGOUT.equals(text)) {
                 String refreshToken = userSessionService.getRefreshToken(chatId);
                 String idToken = userSessionService.getIdToken(chatId);
@@ -384,6 +422,21 @@ public class TelegramWebhookController {
                             userSessionService.getAccounts(chatId).size() > 1);
                 } else {
                     telegramService.sendLoginMenu(chatId, oauthSessionService.buildAuthUrl(chatId));
+                }
+                return ResponseEntity.ok().build();
+            }
+
+            if (text.startsWith(TelegramService.CALLBACK_INVOICE_PREFIX)) {
+                int index = parseIndex(text, TelegramService.CALLBACK_INVOICE_PREFIX);
+                List<InvoiceSummary> invoices = userSessionService.getInvoices(chatId);
+                if (invoices.isEmpty() || index < 0 || index >= invoices.size()) {
+                    userSessionService.clearInvoices(chatId);
+                    telegramService.sendMessageWithKey(chatId, "InvoiceNoLongerAvailable");
+                } else {
+                    InvoiceSummary selectedInvoice = invoices.get(index);
+                    userSessionService.selectInvoice(chatId, selectedInvoice);
+                    telegramService.sendMessageWithKey(chatId, "InvoiceSelected", selectedInvoice.id());
+                    telegramService.sendInvoiceActions(chatId, selectedInvoice);
                 }
                 return ResponseEntity.ok().build();
             }
@@ -534,6 +587,32 @@ public class TelegramWebhookController {
                         telegramService.sendLoginMenu(chatId, oauthSessionService.buildAuthUrl(chatId));
                     }
                     break;
+                case TelegramService.CALLBACK_INVOICE_HISTORY:
+                    if (hasValidToken) {
+                        if (!ensureAccountSelected(chatId)) {
+                            break;
+                        }
+                        AccountSummary selected = userSessionService.getSelectedAccount(chatId);
+                        InvoiceListResult invoices = invoiceService.getInvoices(existingToken, selected.accountId());
+                        if (invoices.hasError()) {
+                            userSessionService.clearInvoices(chatId);
+                            telegramService.sendMessageWithKey(chatId, "UnableToRetrieveInvoices", invoices.errorMessage());
+                            telegramService.sendLoggedInMenu(chatId, selected,
+                                    userSessionService.getAccounts(chatId).size() > 1);
+                        } else if (invoices.invoices().isEmpty()) {
+                            userSessionService.clearInvoices(chatId);
+                            telegramService.sendMessageWithKey(chatId, "NoInvoicesForAccount", selected.accountId());
+                            telegramService.sendLoggedInMenu(chatId, selected,
+                                    userSessionService.getAccounts(chatId).size() > 1);
+                        } else {
+                            userSessionService.saveInvoices(chatId, invoices.invoices());
+                            telegramService.sendInvoicePage(chatId, invoices.invoices(), 0);
+                        }
+                    } else {
+                        telegramService.sendMessage(chatId, loginReminder);
+                        telegramService.sendLoginMenu(chatId, oauthSessionService.buildAuthUrl(chatId));
+                    }
+                    break;
                 case TelegramService.CALLBACK_SELF_SERVICE_LOGIN:
                 case "3":
                     if (hasValidToken) {
@@ -615,6 +694,28 @@ public class TelegramWebhookController {
             name.append(lastName.strip());
         }
         return name.isEmpty() ? null : name.toString();
+    }
+
+    private void handleInvoiceAction(long chatId, String invoiceId, String translationKey) {
+        InvoiceSummary invoice = findInvoiceById(chatId, invoiceId);
+        if (invoice == null) {
+            userSessionService.clearInvoices(chatId);
+            telegramService.sendMessageWithKey(chatId, "InvoiceNoLongerAvailable");
+            return;
+        }
+        userSessionService.selectInvoice(chatId, invoice);
+        telegramService.sendMessageWithKey(chatId, translationKey, invoice.id());
+        telegramService.sendInvoiceActions(chatId, invoice);
+    }
+
+    private InvoiceSummary findInvoiceById(long chatId, String invoiceId) {
+        if (invoiceId == null || invoiceId.isBlank()) {
+            return null;
+        }
+        return userSessionService.getInvoices(chatId).stream()
+                .filter(inv -> invoiceId.equals(inv.id()))
+                .findFirst()
+                .orElse(userSessionService.getSelectedInvoice(chatId));
     }
 
     private int parseIndex(String text, String prefix) {

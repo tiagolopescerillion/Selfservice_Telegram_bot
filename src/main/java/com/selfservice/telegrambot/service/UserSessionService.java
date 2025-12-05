@@ -1,6 +1,7 @@
 package com.selfservice.telegrambot.service;
 
 import com.selfservice.application.dto.AccountSummary;
+import com.selfservice.application.dto.InvoiceSummary;
 import com.selfservice.application.dto.ServiceSummary;
 import com.selfservice.application.dto.TroubleTicketSummary;
 import org.springframework.stereotype.Service;
@@ -54,6 +55,8 @@ public class UserSessionService {
     private final Map<Long, List<ServiceSummary>> servicesByChat = new ConcurrentHashMap<>();
     private final Map<Long, ServiceSummary> selectedServiceByChat = new ConcurrentHashMap<>();
     private final Map<Long, List<TroubleTicketSummary>> ticketsByChat = new ConcurrentHashMap<>();
+    private final Map<Long, List<InvoiceSummary>> invoicesByChat = new ConcurrentHashMap<>();
+    private final Map<Long, InvoiceSummary> selectedInvoiceByChat = new ConcurrentHashMap<>();
     private final Map<Long, String> languageByChat = new ConcurrentHashMap<>();
     private final Map<Long, List<String>> menuPathByChat = new ConcurrentHashMap<>();
     private final Map<Long, Boolean> optInByChat = new ConcurrentHashMap<>();
@@ -65,6 +68,7 @@ public class UserSessionService {
                 exchangeId));
         clearServices(chatId);
         clearTroubleTickets(chatId);
+        clearInvoices(chatId);
         clearSelectedService(chatId);
     }
 
@@ -170,6 +174,7 @@ public class UserSessionService {
         });
         clearServices(chatId);
         clearTroubleTickets(chatId);
+        clearInvoices(chatId);
         clearSelectedService(chatId);
     }
 
@@ -186,6 +191,7 @@ public class UserSessionService {
         });
         clearServices(chatId);
         clearTroubleTickets(chatId);
+        clearInvoices(chatId);
         clearSelectedService(chatId);
     }
 
@@ -249,11 +255,56 @@ public class UserSessionService {
         ticketsByChat.remove(chatId);
     }
 
+    public void saveInvoices(long chatId, List<InvoiceSummary> invoices) {
+        invoicesByChat.put(chatId, invoices == null ? List.of() : List.copyOf(invoices));
+        InvoiceSummary currentSelection = selectedInvoiceByChat.get(chatId);
+        if (invoices != null && invoices.size() == 1) {
+            selectedInvoiceByChat.put(chatId, invoices.get(0));
+        } else if (currentSelection != null) {
+            boolean stillPresent = invoices != null && invoices.stream()
+                    .anyMatch(inv -> inv.id().equals(currentSelection.id()));
+            if (!stillPresent) {
+                selectedInvoiceByChat.remove(chatId);
+            }
+        } else {
+            selectedInvoiceByChat.remove(chatId);
+        }
+    }
+
+    public List<InvoiceSummary> getInvoices(long chatId) {
+        return invoicesByChat.getOrDefault(chatId, List.of());
+    }
+
+    public void selectInvoice(long chatId, InvoiceSummary invoice) {
+        if (invoice == null) {
+            return;
+        }
+        List<InvoiceSummary> invoices = invoicesByChat.getOrDefault(chatId, List.of());
+        InvoiceSummary matched = invoices.stream()
+                .filter(inv -> inv.id().equals(invoice.id()))
+                .findFirst()
+                .orElse(null);
+        if (matched != null) {
+            selectedInvoiceByChat.put(chatId, matched);
+        }
+    }
+
+    public InvoiceSummary getSelectedInvoice(long chatId) {
+        return selectedInvoiceByChat.get(chatId);
+    }
+
+    public void clearInvoices(long chatId) {
+        invoicesByChat.remove(chatId);
+        selectedInvoiceByChat.remove(chatId);
+    }
+
     public void clearSession(long chatId) {
         byChat.remove(chatId);
         servicesByChat.remove(chatId);
         selectedServiceByChat.remove(chatId);
         ticketsByChat.remove(chatId);
+        invoicesByChat.remove(chatId);
+        selectedInvoiceByChat.remove(chatId);
         languageByChat.remove(chatId);
         menuPathByChat.remove(chatId);
         optInByChat.remove(chatId);

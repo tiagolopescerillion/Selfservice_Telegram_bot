@@ -106,6 +106,14 @@
         },
         {
           "order": 6,
+          "label": "Invoice history",
+          "function": "INVOICE_HISTORY",
+          "callbackData": "INVOICE_HISTORY",
+          "translationKey": "ButtonInvoiceHistory",
+          "submenuId": null
+        },
+        {
+          "order": 7,
           "label": "Settings",
           "function": null,
           "callbackData": null,
