@@ -24,6 +24,9 @@
           <button id="navConnectors" class="sidebar__link" type="button">
             Connectors
           </button>
+          <button id="navWeblinks" class="sidebar__link" type="button">
+            Web Links Configuration
+          </button>
           <button id="navServiceFunctions" class="sidebar__link" type="button">
             Service Functions
           </button>
@@ -191,6 +194,7 @@
                   <select id="itemTypeSelect" required>
                     <option value="function">Function</option>
                     <option value="submenu">Sub-menu</option>
+                    <option value="weblink">Web link</option>
                   </select>
                 </label>
                 <div id="functionFields" class="conditional-field">
@@ -222,6 +226,16 @@
                   <p class="hint">
                     Sub-menus can be nested infinitely. When you delete a
                     sub-menu, all of its child items and menus are removed.
+                  </p>
+                </div>
+                <div id="weblinkFields" class="conditional-field hidden">
+                  <label>
+                    Web link
+                    <select id="menuWeblinkSelect"></select>
+                  </label>
+                  <p class="hint">
+                    Opens the configured URL on the user's device. Authenticated links append the
+                    current <code>exchangeId</code> when available.
                   </p>
                 </div>
                 <button type="submit">Add item</button>
@@ -613,6 +627,78 @@
                     Download messenger-local.yml
                   </button>
                 </div>
+              </div>
+            </section>
+          </section>
+
+          <section id="weblinksPanel" class="hidden">
+            <section class="panel panel--wide">
+              <div class="panel-heading">
+                <div>
+                  <h2>Web Links Configuration</h2>
+                  <p>
+                    Manage reusable links for menu items. Authenticated links automatically append the
+                    user's <code>exchangeId</code> when available.
+                  </p>
+                </div>
+              </div>
+
+              <div class="monitoring-config config-viewer__header">
+                <div>
+                  <div class="hint">Configuration source</div>
+                  <div id="weblinksFileName" class="config-viewer__filename">Loading...</div>
+                </div>
+                <div class="panel-actions">
+                  <button id="weblinksReloadButton" type="button" class="secondary">
+                    Reload from file
+                  </button>
+                </div>
+                <div id="weblinksStatus" class="hint"></div>
+              </div>
+
+              <p class="hint">
+                If <code>weblinks-local.yml</code> is not present, the example configuration is loaded
+                instead. Edit entries below or download the generated file for deployment.
+              </p>
+
+              <div id="weblinksList" class="config-tree"></div>
+
+              <div class="panel-actions">
+                <button id="addWeblinkButton" type="button" class="button">Add new weblink</button>
+              </div>
+
+              <form id="weblinksAddForm" class="card hidden" autocomplete="off">
+                <div class="two-col-grid">
+                  <label>
+                    URL name
+                    <input id="weblinkNameInput" type="text" placeholder="Support Portal" required />
+                  </label>
+                  <label>
+                    URL
+                    <input id="weblinkUrlInput" type="url" placeholder="https://example.com" required />
+                  </label>
+                </div>
+                <label class="checkbox">
+                  <input id="weblinkAuthInput" type="checkbox" />
+                  <span>Authenticated user link</span>
+                </label>
+                <div class="toolbar toolbar--end">
+                  <button id="confirmWeblinkButton" type="submit">OK</button>
+                  <button id="cancelWeblinkButton" type="button" class="secondary">Cancel</button>
+                </div>
+              </form>
+
+              <div class="connector-preview">
+                <div class="connector-preview__header">
+                  <div class="hint">Generated weblinks-local.yml</div>
+                </div>
+                <pre id="weblinksPreview" class="preview config-preview" aria-live="polite"></pre>
+              </div>
+
+              <div class="download-actions">
+                <button id="weblinksDownloadButton" type="button" class="button">
+                  Download weblinks-local.yml
+                </button>
               </div>
             </section>
           </section>

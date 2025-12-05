@@ -18,9 +18,13 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.web.util.UriComponentsBuilder;
+import org.springframework.web.util.UriUtils;
 
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -384,6 +388,24 @@ public class WhatsappService {
         }
     }
 
+    public void sendWeblink(String to, BusinessMenuItem item) {
+        if (item == null || item.url() == null || item.url().isBlank()) {
+            sendText(to, "Link unavailable.");
+            return;
+        }
+
+        StringBuilder message = new StringBuilder();
+        if (item.label() != null && !item.label().isBlank()) {
+            message.append(item.label()).append(": ");
+        }
+        String resolved = resolveWeblinkUrl(to, item);
+        if (!StringUtils.hasText(resolved)) {
+            resolved = item.url();
+        }
+        message.append(resolved);
+        sendText(to, message.toString());
+    }
+
     public void sendAccountPage(String to, List<AccountSummary> accounts, int startIndex) {
         sendAccountPage(to, accounts, startIndex, null);
     }
@@ -586,6 +608,9 @@ public class WhatsappService {
         if (item.label() != null && !item.label().isBlank()) {
             return item.label();
         }
+        if (item.isWeblink() && item.weblink() != null && !item.weblink().isBlank()) {
+            return item.weblink();
+        }
         return item.function();
     }
 
@@ -639,6 +664,29 @@ public class WhatsappService {
 
     private boolean shouldSendFallbackText() {
         return whatsappProperties.getUxMode() == WhatsappProperties.WhatsappUxMode.TEST;
+    }
+
+    private String resolveWeblinkUrl(String userId, BusinessMenuItem item) {
+        if (item == null || !StringUtils.hasText(item.url())) {
+            return null;
+        }
+        if (!item.isAuthenticatedLink()) {
+            return item.url();
+        }
+        String exchangeId = sessionService.getExchangeId(userId);
+        if (!StringUtils.hasText(exchangeId)) {
+            return item.url();
+        }
+        try {
+            return UriComponentsBuilder.fromUriString(item.url())
+                    .queryParam("exchangeId", exchangeId)
+                    .build(true)
+                    .toUriString();
+        } catch (Exception ex) {
+            log.warn("Failed to append exchangeId to WhatsApp weblink {}: {}", item.url(), ex.getMessage());
+            String encoded = UriUtils.encode(exchangeId, StandardCharsets.UTF_8);
+            return item.url() + (item.url().contains("?") ? "&" : "?") + "exchangeId=" + encoded;
+        }
     }
 
     private Map<String, Object> buildListRow(String id, String title) {

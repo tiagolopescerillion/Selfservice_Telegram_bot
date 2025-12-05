@@ -21,15 +21,17 @@ public class WhatsappSessionService {
         public final long expiryEpochMs;
         public final List<AccountSummary> accounts;
         public final AccountSummary selectedAccount;
+        public final String exchangeId;
 
         public TokenInfo(String accessToken, String refreshToken, String idToken, long expiryEpochMs,
-                List<AccountSummary> accounts, AccountSummary selectedAccount) {
+                List<AccountSummary> accounts, AccountSummary selectedAccount, String exchangeId) {
             this.accessToken = accessToken;
             this.refreshToken = refreshToken;
             this.idToken = idToken;
             this.expiryEpochMs = expiryEpochMs;
             this.accounts = accounts;
             this.selectedAccount = selectedAccount;
+            this.exchangeId = exchangeId;
         }
     }
 
@@ -66,9 +68,11 @@ public class WhatsappSessionService {
         SETTINGS
     }
 
-    public void save(String userId, String accessToken, String refreshToken, String idToken, long expiresInSeconds) {
+    public void save(String userId, String accessToken, String refreshToken, String idToken, long expiresInSeconds,
+            String exchangeId) {
         long exp = System.currentTimeMillis() + expiresInSeconds * 1000L;
-        byUser.put(userId, new TokenInfo(accessToken, refreshToken, idToken, exp, Collections.emptyList(), null));
+        byUser.put(userId, new TokenInfo(accessToken, refreshToken, idToken, exp, Collections.emptyList(), null,
+                exchangeId));
         clearServices(userId);
         clearTroubleTickets(userId);
         clearSelectedService(userId);
@@ -95,6 +99,18 @@ public class WhatsappSessionService {
         return info.accessToken;
     }
 
+    public String getExchangeId(String userId) {
+        TokenInfo info = byUser.get(userId);
+        if (info == null) {
+            return null;
+        }
+        if (info.expiryEpochMs <= System.currentTimeMillis() + 30_000) {
+            byUser.remove(userId);
+            return null;
+        }
+        return info.exchangeId;
+    }
+
     public void saveAccounts(String userId, List<AccountSummary> accounts) {
         final List<AccountSummary> copy = accounts == null ? Collections.emptyList() : List.copyOf(accounts);
         byUser.computeIfPresent(userId, (id, existing) -> {
@@ -111,7 +127,7 @@ public class WhatsappSessionService {
                         .orElse(null);
             }
             return new TokenInfo(existing.accessToken, existing.refreshToken, existing.idToken, existing.expiryEpochMs, copy,
-                    selected);
+                    selected, existing.exchangeId);
         });
         AccountSummary selectedAccount = getSelectedAccount(userId);
         boolean selectedAccountPresent = selectedAccount != null
@@ -162,7 +178,7 @@ public class WhatsappSessionService {
             }
             return new TokenInfo(existing.accessToken, existing.refreshToken, existing.idToken, existing.expiryEpochMs,
                     existing.accounts,
-                    matched);
+                    matched, existing.exchangeId);
         });
         clearServices(userId);
         clearTroubleTickets(userId);
@@ -178,7 +194,7 @@ public class WhatsappSessionService {
                 return existing;
             }
             return new TokenInfo(existing.accessToken, existing.refreshToken, existing.idToken, existing.expiryEpochMs,
-                    existing.accounts, null);
+                    existing.accounts, null, existing.exchangeId);
         });
         clearServices(userId);
         clearTroubleTickets(userId);

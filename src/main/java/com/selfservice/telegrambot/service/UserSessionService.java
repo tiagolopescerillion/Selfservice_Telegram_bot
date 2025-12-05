@@ -21,15 +21,17 @@ public class UserSessionService {
         public final long expiryEpochMs;
         public final List<AccountSummary> accounts;
         public final AccountSummary selectedAccount;
+        public final String exchangeId;
 
         public TokenInfo(String accessToken, String refreshToken, String idToken, long expiryEpochMs,
-                List<AccountSummary> accounts, AccountSummary selectedAccount) {
+                List<AccountSummary> accounts, AccountSummary selectedAccount, String exchangeId) {
             this.accessToken = accessToken;
             this.refreshToken = refreshToken;
             this.idToken = idToken;
             this.expiryEpochMs = expiryEpochMs;
             this.accounts = accounts;
             this.selectedAccount = selectedAccount;
+            this.exchangeId = exchangeId;
         }
     }
 
@@ -56,9 +58,11 @@ public class UserSessionService {
     private final Map<Long, List<String>> menuPathByChat = new ConcurrentHashMap<>();
     private final Map<Long, Boolean> optInByChat = new ConcurrentHashMap<>();
 
-    public void save(long chatId, String accessToken, String refreshToken, String idToken, long expiresInSeconds) {
+    public void save(long chatId, String accessToken, String refreshToken, String idToken, long expiresInSeconds,
+            String exchangeId) {
         long exp = System.currentTimeMillis() + expiresInSeconds * 1000L;
-        byChat.put(chatId, new TokenInfo(accessToken, refreshToken, idToken, exp, Collections.emptyList(), null));
+        byChat.put(chatId, new TokenInfo(accessToken, refreshToken, idToken, exp, Collections.emptyList(), null,
+                exchangeId));
         clearServices(chatId);
         clearTroubleTickets(chatId);
         clearSelectedService(chatId);
@@ -84,6 +88,18 @@ public class UserSessionService {
         return ti.accessToken;
     }
 
+    public String getExchangeId(long chatId) {
+        TokenInfo ti = byChat.get(chatId);
+        if (ti == null) {
+            return null;
+        }
+        if (ti.expiryEpochMs <= System.currentTimeMillis() + 30_000) {
+            byChat.remove(chatId);
+            return null;
+        }
+        return ti.exchangeId;
+    }
+
     public void saveAccounts(long chatId, List<AccountSummary> accounts) {
         final List<AccountSummary> copy = accounts == null ? Collections.emptyList() : List.copyOf(accounts);
         byChat.computeIfPresent(chatId, (id, existing) -> {
@@ -99,7 +115,8 @@ public class UserSessionService {
                         .findFirst()
                         .orElse(null);
             }
-            return new TokenInfo(existing.accessToken, existing.refreshToken, existing.idToken, existing.expiryEpochMs, copy, selected);
+            return new TokenInfo(existing.accessToken, existing.refreshToken, existing.idToken, existing.expiryEpochMs, copy,
+                    selected, existing.exchangeId);
         });
         AccountSummary selectedAccount = getSelectedAccount(chatId);
         boolean selectedAccountPresent = selectedAccount != null
@@ -149,7 +166,7 @@ public class UserSessionService {
                 return existing;
             }
             return new TokenInfo(existing.accessToken, existing.refreshToken, existing.idToken, existing.expiryEpochMs, existing.accounts,
-                    matched);
+                    matched, existing.exchangeId);
         });
         clearServices(chatId);
         clearTroubleTickets(chatId);
@@ -165,7 +182,7 @@ public class UserSessionService {
                 return existing;
             }
             return new TokenInfo(existing.accessToken, existing.refreshToken, existing.idToken, existing.expiryEpochMs, existing.accounts,
-                    null);
+                    null, existing.exchangeId);
         });
         clearServices(chatId);
         clearTroubleTickets(chatId);

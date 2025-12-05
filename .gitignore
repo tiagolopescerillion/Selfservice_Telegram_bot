@@ -12,6 +12,7 @@ CONFIGURATIONS/connectors-local.yml
 CONFIGURATIONS/telegram-local.yml
 CONFIGURATIONS/whatsapp-local.yml
 CONFIGURATIONS/messenger-local.yml
+CONFIGURATIONS/weblinks-local.yml
 *.log
 *.iml
 

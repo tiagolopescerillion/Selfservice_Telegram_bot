@@ -196,6 +196,8 @@ const useTranslationInput = document.getElementById("useTranslationInput");
 const functionFields = document.getElementById("functionFields");
 const submenuFields = document.getElementById("submenuFields");
 const submenuSelect = document.getElementById("submenuSelect");
+const weblinkFields = document.getElementById("weblinkFields");
+const menuWeblinkSelect = document.getElementById("menuWeblinkSelect");
 const inlineCreateSubmenu = document.getElementById("inlineCreateSubmenu");
 const resetButton = document.getElementById("resetButton");
 const downloadButton = document.getElementById("downloadButton");
@@ -206,12 +208,14 @@ const navOperationsMonitoring = document.getElementById("navOperationsMonitoring
 const navSendMessages = document.getElementById("navSendMessages");
 const navImServerAdmin = document.getElementById("navImServerAdmin");
 const navConnectors = document.getElementById("navConnectors");
+const navWeblinks = document.getElementById("navWeblinks");
 const navServiceFunctions = document.getElementById("navServiceFunctions");
 const menuConfigurationPanel = document.getElementById("menuConfigurationPanel");
 const operationsMonitoringPanel = document.getElementById("operationsMonitoringPanel");
 const sendMessagesPanel = document.getElementById("sendMessagesPanel");
 const imServerAdminPanel = document.getElementById("imServerAdminPanel");
 const connectorsPanel = document.getElementById("connectorsPanel");
+const weblinksPanel = document.getElementById("weblinksPanel");
 const serviceFunctionsPanel = document.getElementById("serviceFunctionsPanel");
 const serviceFunctionsTableBody = document.getElementById("serviceFunctionsTableBody");
 const serviceFunctionsStatus = document.getElementById("serviceFunctionsStatus");
@@ -285,6 +289,19 @@ const connectorDownloadButtons = {
   whatsapp: document.getElementById("whatsappDownloadButton"),
   messenger: document.getElementById("messengerDownloadButton")
 };
+const weblinksFileName = document.getElementById("weblinksFileName");
+const weblinksStatus = document.getElementById("weblinksStatus");
+const weblinksList = document.getElementById("weblinksList");
+const weblinksPreview = document.getElementById("weblinksPreview");
+const addWeblinkButton = document.getElementById("addWeblinkButton");
+const weblinksDownloadButton = document.getElementById("weblinksDownloadButton");
+const weblinksReloadButton = document.getElementById("weblinksReloadButton");
+const weblinksAddForm = document.getElementById("weblinksAddForm");
+const weblinkNameInput = document.getElementById("weblinkNameInput");
+const weblinkUrlInput = document.getElementById("weblinkUrlInput");
+const weblinkAuthInput = document.getElementById("weblinkAuthInput");
+const confirmWeblinkButton = document.getElementById("confirmWeblinkButton");
+const cancelWeblinkButton = document.getElementById("cancelWeblinkButton");
 
 const PUBLIC_BASE_URL_PLACEHOLDER = "YOUR_SERVER_PUBLIC_URL";
 
@@ -321,6 +338,11 @@ let connectorFileNames = {
   messenger: "messenger-local.yml"
 };
 let connectorsLoading = false;
+
+let weblinks = [];
+let weblinksContent = "";
+let weblinksOriginalContent = "";
+let weblinksFile = "weblinks-local.yml";
 
 function normalizeApiBase(base) {
   return (base || "").trim();
@@ -558,6 +580,18 @@ function applyMenusToStore(menuType, menus) {
         });
         return;
       }
+      if (item?.type === "weblink" || item?.weblink) {
+        target.items.push({
+          id: item.id || nextItemId(),
+          label: item.label ?? item.weblink ?? "Web link",
+          type: "weblink",
+          weblink: item.weblink || item.id,
+          function: null,
+          submenuId: null,
+          useTranslation: false
+        });
+        return;
+      }
       const functionId = item.function || item.id;
       if (functionId && !functionDictionary[functionId]) {
         registerFunctionOption({ id: functionId, label: item.label || functionId, translationKey: item.translationKey, callbackData: item.callbackData || functionId });
@@ -784,7 +818,7 @@ function renderMenuItems() {
     typeWrapper.textContent = "Type";
     typeWrapper.className = "menu-item-type";
     const typeSelect = document.createElement("select");
-    typeSelect.innerHTML = "<option value=\"function\">Function</option><option value=\"submenu\">Sub-menu</option>";
+    typeSelect.innerHTML = "<option value=\"function\">Function</option><option value=\"submenu\">Sub-menu</option><option value=\"weblink\">Web link</option>";
     typeSelect.value = item.type;
     typeSelect.addEventListener("change", (event) => handleItemTypeChange(menu.id, index, event.target.value, event));
     typeWrapper.append(typeSelect);
@@ -858,6 +892,25 @@ function renderItemDetails(container, menuId, item, index) {
     translationHint.textContent = "Keeps the original multilingual text for this function.";
 
     container.append(functionWrapper, translationToggle, translationHint);
+    return;
+  }
+
+  if (item.type === "weblink") {
+    const linkWrapper = document.createElement("label");
+    linkWrapper.textContent = "Web link";
+    const linkDropdown = document.createElement("select");
+    renderWeblinkOptions(linkDropdown, item.weblink);
+    linkDropdown.addEventListener("change", (event) => {
+      menusById.get(menuId).items[index].weblink = event.target.value;
+      updatePreview();
+    });
+    linkWrapper.append(linkDropdown);
+
+    const linkHint = document.createElement("p");
+    linkHint.className = "hint";
+    linkHint.textContent = "Opens the configured link on the user's device.";
+
+    container.append(linkWrapper, linkHint);
     return;
   }
 
@@ -946,11 +999,19 @@ function handleItemTypeChange(menuId, itemIndex, newType, event) {
     item.submenuId = target.id;
     item.function = null;
     item.useTranslation = false;
+    item.weblink = null;
+  } else if (newType === "weblink") {
+    item.type = "weblink";
+    item.weblink = (weblinks[0] && weblinks[0].name) || "";
+    item.function = null;
+    item.submenuId = null;
+    item.useTranslation = false;
   } else {
     item.type = "function";
     item.function = item.function && functionDictionary[item.function] ? item.function : FUNCTION_OPTIONS[0].id;
     item.submenuId = null;
     item.useTranslation = item.useTranslation ?? true;
+    item.weblink = null;
   }
 
   renderMenuItems();
@@ -1048,10 +1109,17 @@ function toggleAddFormFields() {
   if (type === "function") {
     functionFields.classList.remove("hidden");
     submenuFields.classList.add("hidden");
-  } else {
+    weblinkFields.classList.add("hidden");
+  } else if (type === "submenu") {
     functionFields.classList.add("hidden");
     submenuFields.classList.remove("hidden");
     updateAddFormSubmenuOptions();
+    weblinkFields.classList.add("hidden");
+  } else {
+    functionFields.classList.add("hidden");
+    submenuFields.classList.add("hidden");
+    weblinkFields.classList.remove("hidden");
+    renderWeblinkOptions(menuWeblinkSelect);
   }
 }
 
@@ -1083,22 +1151,39 @@ function serializeStore(store) {
         id: menu.id,
         name: menu.name,
         parentId: menu.parentId ?? null,
-        items: menu.items.map((item, index) => {
-          if (item.type === "submenu") {
-            return {
-              order: index + 1,
-              label: item.label,
-              function: null,
-              callbackData: null,
-              translationKey: null,
-              submenuId: item.submenuId
-            };
-          }
-          const meta = functionDictionary[item.function] || {};
+      items: menu.items.map((item, index) => {
+        if (item.type === "submenu") {
           return {
+            type: "submenu",
             order: index + 1,
             label: item.label,
-            function: item.function,
+            function: null,
+            callbackData: null,
+            translationKey: null,
+            submenuId: item.submenuId
+          };
+        }
+        if (item.type === "weblink") {
+          const linkMeta = findWeblinkMeta(item.weblink);
+          return {
+            type: "weblink",
+            order: index + 1,
+            label: item.label,
+            function: null,
+            callbackData: null,
+            translationKey: null,
+            submenuId: null,
+            weblink: item.weblink || null,
+            url: linkMeta?.url || null,
+            authenticated: Boolean(linkMeta?.authenticated)
+          };
+        }
+        const meta = functionDictionary[item.function] || {};
+        return {
+          type: "function",
+          order: index + 1,
+          label: item.label,
+          function: item.function,
             callbackData: meta.callbackData || item.function,
             translationKey: item.useTranslation && meta.translationKey ? meta.translationKey : null,
             submenuId: null
@@ -1273,7 +1358,7 @@ function addMenuItem(event) {
       useTranslation: useTranslationInput.checked,
       submenuId: null
     });
-  } else {
+  } else if (itemTypeSelect.value === "submenu") {
     if (submenuSelect.disabled || !submenuSelect.value) {
       alert("Create a sub-menu before adding this item.");
       return;
@@ -1286,6 +1371,17 @@ function addMenuItem(event) {
       label,
       type: "submenu",
       submenuId: submenuSelect.value
+    });
+  } else {
+    if (!menuWeblinkSelect.value) {
+      alert("Add a web link configuration first.");
+      return;
+    }
+    parentMenu.items.push({
+      id: nextItemId(),
+      label,
+      type: "weblink",
+      weblink: menuWeblinkSelect.value
     });
   }
   selectedMenuId = parentId;
@@ -1303,12 +1399,16 @@ function setActiveApp(target) {
   const showImServerAdmin = target === "admin";
   const showServiceFunctions = target === "service-functions";
   const showConnectors = target === "connectors";
+  const showWeblinks = target === "weblinks";
   menuConfigurationPanel.classList.toggle("hidden", !showMenuConfig);
   operationsMonitoringPanel.classList.toggle("hidden", !showOperations);
   sendMessagesPanel.classList.toggle("hidden", !showSendMessages);
   imServerAdminPanel.classList.toggle("hidden", !showImServerAdmin);
   if (connectorsPanel) {
     connectorsPanel.classList.toggle("hidden", !showConnectors);
+  }
+  if (weblinksPanel) {
+    weblinksPanel.classList.toggle("hidden", !showWeblinks);
   }
   serviceFunctionsPanel.classList.toggle("hidden", !showServiceFunctions);
   navMenuConfig.classList.toggle("active", showMenuConfig);
@@ -1317,6 +1417,9 @@ function setActiveApp(target) {
   navImServerAdmin.classList.toggle("active", showImServerAdmin);
   if (navConnectors) {
     navConnectors.classList.toggle("active", showConnectors);
+  }
+  if (navWeblinks) {
+    navWeblinks.classList.toggle("active", showWeblinks);
   }
   navServiceFunctions.classList.toggle("active", showServiceFunctions);
   if (showOperations) {
@@ -1342,8 +1445,8 @@ function resolveBooleanFlag(value, fallback = true) {
   if (value === undefined || value === null) return fallback;
   if (typeof value === "boolean") return value;
   const normalized = value.toString().trim().toLowerCase();
-  if (normalized === "true") return true;
-  if (normalized === "false") return false;
+  if (["true", "y", "yes", "1"].includes(normalized)) return true;
+  if (["false", "n", "no", "0"].includes(normalized)) return false;
   return fallback;
 }
 
@@ -1827,6 +1930,214 @@ function defaultConnectorTemplate(key) {
     default:
       return `# Add settings for ${formatConnectorLabel(key)}`;
   }
+}
+
+function parseWeblinksYaml(content) {
+  const parsed = parseSimpleYaml(content || "");
+  if (!parsed || typeof parsed !== "object") {
+    return [];
+  }
+  return Object.entries(parsed).map(([name, value]) => {
+    const meta = typeof value === "object" && value !== null ? value : {};
+    const url = meta.URL || meta.url || "";
+    const authKey = Object.keys(meta || {}).find((key) => key.toLowerCase() === "authenticated-user");
+    const authValue = authKey ? meta[authKey] : meta.authenticated;
+    return {
+      name,
+      url,
+      authenticated: resolveBooleanFlag(authValue, false)
+    };
+  });
+}
+
+function buildWeblinksYaml() {
+  const root = {};
+  (weblinks || []).forEach((link) => {
+    if (!link?.name) return;
+    root[link.name] = {
+      URL: link.url || "",
+      "Authenticated-User": link.authenticated ? "Y" : "N"
+    };
+  });
+  return stringifySimpleYaml(root);
+}
+
+function renderWeblinkOptions(targetSelect, selectedValue) {
+  if (!targetSelect) return;
+  targetSelect.innerHTML = "";
+  if (!weblinks.length) {
+    const placeholder = new Option("No weblinks configured", "", true, true);
+    placeholder.disabled = true;
+    targetSelect.append(placeholder);
+    targetSelect.disabled = true;
+    return;
+  }
+  weblinks.forEach((link) => {
+    targetSelect.append(new Option(link.name, link.name, false, link.name === selectedValue));
+  });
+  targetSelect.disabled = false;
+}
+
+function findWeblinkMeta(name) {
+  return (weblinks || []).find((entry) => entry.name === name) || null;
+}
+
+function renderWeblinksList() {
+  if (!weblinksList) return;
+  weblinksList.innerHTML = "";
+  if (!Array.isArray(weblinks) || !weblinks.length) {
+    const empty = document.createElement("p");
+    empty.className = "hint";
+    empty.textContent = "No weblinks configured yet. Add one below.";
+    weblinksList.append(empty);
+    return;
+  }
+
+  weblinks.forEach((link, index) => {
+    const row = document.createElement("div");
+    row.className = "config-entry";
+
+    const nameField = document.createElement("input");
+    nameField.type = "text";
+    nameField.value = link.name;
+    nameField.placeholder = "URL name";
+    nameField.addEventListener("input", (event) => {
+      weblinks[index].name = event.target.value;
+      weblinksContent = buildWeblinksYaml();
+      renderWeblinksPreview();
+    });
+
+    const urlField = document.createElement("input");
+    urlField.type = "url";
+    urlField.value = link.url || "";
+    urlField.placeholder = "https://example.com";
+    urlField.addEventListener("input", (event) => {
+      weblinks[index].url = event.target.value;
+      weblinksContent = buildWeblinksYaml();
+      renderWeblinksPreview();
+    });
+
+    const authLabel = document.createElement("label");
+    authLabel.className = "checkbox";
+    const authInput = document.createElement("input");
+    authInput.type = "checkbox";
+    authInput.checked = Boolean(link.authenticated);
+    authInput.addEventListener("change", (event) => {
+      weblinks[index].authenticated = event.target.checked;
+      weblinksContent = buildWeblinksYaml();
+      renderWeblinksPreview();
+    });
+    const authText = document.createElement("span");
+    authText.textContent = "Authenticated user";
+    authLabel.append(authInput, authText);
+
+    const actions = document.createElement("div");
+    actions.className = "menu-item-actions";
+    const deleteButton = document.createElement("button");
+    deleteButton.type = "button";
+    deleteButton.textContent = "✕";
+    deleteButton.title = "Remove";
+    deleteButton.addEventListener("click", () => {
+      weblinks.splice(index, 1);
+      weblinksContent = buildWeblinksYaml();
+      renderWeblinksList();
+      renderWeblinksPreview();
+    });
+    actions.append(deleteButton);
+
+    row.append(nameField, urlField, authLabel, actions);
+    weblinksList.append(row);
+  });
+}
+
+function renderWeblinksPreview() {
+  if (weblinksPreview) {
+    weblinksPreview.textContent = weblinksContent || buildWeblinksYaml();
+  }
+}
+
+function syncWeblinksFromContent() {
+  weblinks = parseWeblinksYaml(weblinksContent || "");
+  if (!weblinks.length) {
+    weblinks = [
+      { name: "Example Dashboard", url: "https://example.com/dashboard", authenticated: true },
+      { name: "Support Portal", url: "https://support.example.com/help", authenticated: false }
+    ];
+    weblinksContent = buildWeblinksYaml();
+  }
+  renderWeblinksList();
+  renderWeblinksPreview();
+  renderWeblinkOptions(menuWeblinkSelect);
+  renderMenuItems();
+}
+
+async function loadWeblinksConfig() {
+  if (!weblinksStatus) return;
+  const endpoint = buildAdminEndpoint("/admin/config/weblinks");
+  if (!endpoint) {
+    weblinksStatus.textContent = "Set the monitoring API base URL so the Java server can be reached.";
+    weblinksStatus.className = "hint error-state";
+    weblinksFileName.textContent = "Unavailable";
+    syncWeblinksFromContent();
+    return;
+  }
+  weblinksStatus.textContent = "Loading weblinks configuration...";
+  weblinksStatus.className = "hint";
+  try {
+    const response = await fetch(endpoint);
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      const reason = payload?.reason || response.statusText || `HTTP ${response.status}`;
+      throw new Error(reason);
+    }
+    weblinksFile = payload?.fileName || "weblinks-local.yml";
+    weblinksFileName.textContent = weblinksFile;
+    weblinksContent = payload?.content || "";
+    weblinksOriginalContent = weblinksContent;
+    const timestamp = formatTimestamp(payload?.lastModified);
+    weblinksStatus.textContent = timestamp
+      ? `Last updated ${timestamp}`
+      : `Loaded ${weblinksFile}`;
+    weblinksStatus.className = "hint";
+  } catch (error) {
+    weblinksStatus.textContent = `Unable to load weblinks configuration: ${error?.message || error}`;
+    weblinksStatus.className = "hint error-state";
+    weblinksFileName.textContent = "weblinks-local.yml";
+    weblinksContent = "";
+  }
+  syncWeblinksFromContent();
+}
+
+function reloadWeblinksFromSource() {
+  loadWeblinksConfig();
+}
+
+function downloadWeblinksConfig() {
+  const content = weblinksContent || buildWeblinksYaml();
+  downloadYamlFile(content, weblinksFile || "weblinks-local.yml");
+}
+
+function toggleWeblinkForm(show) {
+  if (!weblinksAddForm) return;
+  weblinksAddForm.classList.toggle("hidden", !show);
+  if (!show) {
+    weblinksAddForm.reset();
+  }
+}
+
+function handleAddWeblink(event) {
+  event.preventDefault();
+  const name = weblinkNameInput?.value?.trim();
+  const url = weblinkUrlInput?.value?.trim();
+  const authenticated = Boolean(weblinkAuthInput?.checked);
+  if (!name || !url) {
+    alert("URL name and URL are required.");
+    return;
+  }
+  weblinks.push({ name, url, authenticated });
+  weblinksContent = buildWeblinksYaml();
+  syncWeblinksFromContent();
+  toggleWeblinkForm(false);
 }
 
 function downloadYamlFile(content, filename) {
@@ -2808,6 +3119,12 @@ navImServerAdmin.addEventListener("click", () => setActiveApp("admin"));
 if (navConnectors) {
   navConnectors.addEventListener("click", () => setActiveApp("connectors"));
 }
+if (navWeblinks) {
+  navWeblinks.addEventListener("click", () => {
+    setActiveApp("weblinks");
+    loadWeblinksConfig();
+  });
+}
 navServiceFunctions.addEventListener("click", () => setActiveApp("service-functions"));
 if (downloadQueryParamsButton) {
   downloadQueryParamsButton.addEventListener("click", downloadQueryParamConfig);
@@ -2848,6 +3165,26 @@ if (connectorsDownloadButton) {
     const content = connectorsContent || buildConnectorsYaml();
     downloadYamlFile(content, "connectors-local.yml");
   });
+}
+
+if (weblinksReloadButton) {
+  weblinksReloadButton.addEventListener("click", reloadWeblinksFromSource);
+}
+
+if (weblinksDownloadButton) {
+  weblinksDownloadButton.addEventListener("click", downloadWeblinksConfig);
+}
+
+if (addWeblinkButton) {
+  addWeblinkButton.addEventListener("click", () => toggleWeblinkForm(true));
+}
+
+if (cancelWeblinkButton) {
+  cancelWeblinkButton.addEventListener("click", () => toggleWeblinkForm(false));
+}
+
+if (weblinksAddForm) {
+  weblinksAddForm.addEventListener("submit", handleAddWeblink);
 }
 
 if (addServiceFunctionButton) {
@@ -2894,4 +3231,5 @@ toggleAddFormFields();
 bootstrapMenuConfig();
 initMonitoring();
 restoreNotificationApiBase();
+loadWeblinksConfig();
 setActiveApp("admin");

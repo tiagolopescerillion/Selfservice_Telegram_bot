@@ -6,6 +6,7 @@ import com.selfservice.application.dto.FindUserResult;
 import com.selfservice.application.config.UxProperties;
 import com.selfservice.application.config.ConnectorsProperties;
 import com.selfservice.application.service.FindUserService;
+import com.selfservice.application.service.ImpersonationService;
 import com.selfservice.telegrambot.service.TelegramService;
 import com.selfservice.telegrambot.service.UserSessionService;
 import com.selfservice.whatsapp.service.WhatsappService;
@@ -27,6 +28,7 @@ public class OAuthCallbackController {
     private final TelegramService telegram;
     private final UserSessionService sessions;
     private final FindUserService findUserService;
+    private final ImpersonationService impersonationService;
     private final WhatsappService whatsappService;
     private final WhatsappSessionService whatsappSessions;
     private final OperationsMonitoringService monitoringService;
@@ -37,6 +39,7 @@ public class OAuthCallbackController {
                                    TelegramService telegram,
                                    UserSessionService sessions,
                                    FindUserService findUserService,
+                                   ImpersonationService impersonationService,
                                    WhatsappService whatsappService,
                                    WhatsappSessionService whatsappSessions,
                                    OperationsMonitoringService monitoringService,
@@ -46,6 +49,7 @@ public class OAuthCallbackController {
         this.telegram = telegram;
         this.sessions = sessions;
         this.findUserService = findUserService;
+        this.impersonationService = impersonationService;
         this.whatsappService = whatsappService;
         this.whatsappSessions = whatsappSessions;
         this.monitoringService = monitoringService;
@@ -116,6 +120,9 @@ public class OAuthCallbackController {
             Object exp = tokens.get("expires_in");
             Object rt = tokens.get("refresh_token");
             Object id = tokens.get("id_token");
+            String exchangeId = (at instanceof String)
+                    ? impersonationService.initiate((String) at)
+                    : null;
             boolean telegramOptIn = chatId > 0 && sessions.isOptedIn(chatId);
             boolean whatsappOptIn = whatsappUser && whatsappChatId != null && whatsappSessions.isOptedIn(whatsappChatId);
             if (chatId > 0 && at instanceof String) {
@@ -124,7 +131,8 @@ public class OAuthCallbackController {
                         (String) at,
                         rt instanceof String ? (String) rt : null,
                         id instanceof String ? (String) id : null,
-                        expSecs);
+                        expSecs,
+                        exchangeId);
                 monitoringService.markLoggedIn("Telegram", Long.toString(chatId), null, telegramOptIn);
             }
             if (whatsappUser && whatsappChatId != null && at instanceof String) {
@@ -133,7 +141,8 @@ public class OAuthCallbackController {
                         (String) at,
                         rt instanceof String ? (String) rt : null,
                         id instanceof String ? (String) id : null,
-                        expSecs);
+                        expSecs,
+                        exchangeId);
                 monitoringService.markLoggedIn("WhatsApp", whatsappChatId, null, whatsappOptIn);
             }
 

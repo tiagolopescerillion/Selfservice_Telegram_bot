@@ -541,6 +541,13 @@ public class WhatsappWebhookController {
                 return;
             }
 
+            if (item.isWeblink()) {
+                whatsappService.sendWeblink(from, item);
+                AccountSummary selected = sessionService.getSelectedAccount(userId);
+                whatsappService.sendLoggedInMenu(from, selected, sessionService.getAccounts(userId).size() > 1);
+                return;
+            }
+
             switch (item.function()) {
                 case TelegramService.CALLBACK_HELLO_WORLD -> {
                     if (ensureAccountSelected(sessionKey, userId)) {
