@@ -1,6 +1,8 @@
 Example Dashboard:
   URL: https://example.com/dashboard
   Authenticated-User: Y
+  Context: account
 Support Portal:
   URL: https://support.example.com/help
   Authenticated-User: N
+  Context: noContext

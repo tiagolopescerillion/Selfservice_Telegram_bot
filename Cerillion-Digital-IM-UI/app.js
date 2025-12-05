@@ -300,6 +300,7 @@ const weblinksAddForm = document.getElementById("weblinksAddForm");
 const weblinkNameInput = document.getElementById("weblinkNameInput");
 const weblinkUrlInput = document.getElementById("weblinkUrlInput");
 const weblinkAuthInput = document.getElementById("weblinkAuthInput");
+const weblinkContextInput = document.getElementById("weblinkContextInput");
 const confirmWeblinkButton = document.getElementById("confirmWeblinkButton");
 const cancelWeblinkButton = document.getElementById("cancelWeblinkButton");
 
@@ -1175,7 +1176,8 @@ function serializeStore(store) {
             submenuId: null,
             weblink: item.weblink || null,
             url: linkMeta?.url || null,
-            authenticated: Boolean(linkMeta?.authenticated)
+            authenticated: Boolean(linkMeta?.authenticated),
+            context: linkMeta?.context || "noContext"
           };
         }
         const meta = functionDictionary[item.function] || {};
@@ -1942,10 +1944,19 @@ function parseWeblinksYaml(content) {
     const url = meta.URL || meta.url || "";
     const authKey = Object.keys(meta || {}).find((key) => key.toLowerCase() === "authenticated-user");
     const authValue = authKey ? meta[authKey] : meta.authenticated;
+    const contextKey = Object.keys(meta || {}).find((key) => key.toLowerCase() === "context");
+    const contextValue = (contextKey ? meta[contextKey] : meta.context) || "noContext";
+    const normalizedContext = (() => {
+      const candidate = String(contextValue).toLowerCase();
+      if (candidate === "account") return "account";
+      if (candidate === "service") return "service";
+      return "noContext";
+    })();
     return {
       name,
       url,
-      authenticated: resolveBooleanFlag(authValue, false)
+      authenticated: resolveBooleanFlag(authValue, false),
+      context: normalizedContext
     };
   });
 }
@@ -1956,7 +1967,8 @@ function buildWeblinksYaml() {
     if (!link?.name) return;
     root[link.name] = {
       URL: link.url || "",
-      "Authenticated-User": link.authenticated ? "Y" : "N"
+      "Authenticated-User": link.authenticated ? "Y" : "N",
+      Context: link.context || "noContext"
     };
   });
   return stringifySimpleYaml(root);
@@ -1979,7 +1991,11 @@ function renderWeblinkOptions(targetSelect, selectedValue) {
 }
 
 function findWeblinkMeta(name) {
-  return (weblinks || []).find((entry) => entry.name === name) || null;
+  const entry = (weblinks || []).find((entry) => entry.name === name) || null;
+  if (entry && !entry.context) {
+    entry.context = "noContext";
+  }
+  return entry;
 }
 
 function renderWeblinksList() {
@@ -2031,6 +2047,24 @@ function renderWeblinksList() {
     authText.textContent = "Authenticated user";
     authLabel.append(authInput, authText);
 
+    const contextWrapper = document.createElement("label");
+    contextWrapper.textContent = "Context";
+    const contextSelect = document.createElement("select");
+    const currentContext = link.context || "noContext";
+    [
+      { value: "noContext", label: "None" },
+      { value: "account", label: "Account" },
+      { value: "service", label: "Service" }
+    ].forEach((option) => {
+      contextSelect.append(new Option(option.label, option.value, false, option.value === currentContext));
+    });
+    contextSelect.addEventListener("change", (event) => {
+      weblinks[index].context = event.target.value;
+      weblinksContent = buildWeblinksYaml();
+      renderWeblinksPreview();
+    });
+    contextWrapper.append(contextSelect);
+
     const actions = document.createElement("div");
     actions.className = "menu-item-actions";
     const deleteButton = document.createElement("button");
@@ -2045,7 +2079,7 @@ function renderWeblinksList() {
     });
     actions.append(deleteButton);
 
-    row.append(nameField, urlField, authLabel, actions);
+    row.append(nameField, urlField, authLabel, contextWrapper, actions);
     weblinksList.append(row);
   });
 }
@@ -2060,8 +2094,8 @@ function syncWeblinksFromContent() {
   weblinks = parseWeblinksYaml(weblinksContent || "");
   if (!weblinks.length) {
     weblinks = [
-      { name: "Example Dashboard", url: "https://example.com/dashboard", authenticated: true },
-      { name: "Support Portal", url: "https://support.example.com/help", authenticated: false }
+      { name: "Example Dashboard", url: "https://example.com/dashboard", authenticated: true, context: "account" },
+      { name: "Support Portal", url: "https://support.example.com/help", authenticated: false, context: "noContext" }
     ];
     weblinksContent = buildWeblinksYaml();
   }
@@ -2130,11 +2164,12 @@ function handleAddWeblink(event) {
   const name = weblinkNameInput?.value?.trim();
   const url = weblinkUrlInput?.value?.trim();
   const authenticated = Boolean(weblinkAuthInput?.checked);
+  const context = weblinkContextInput?.value || "noContext";
   if (!name || !url) {
     alert("URL name and URL are required.");
     return;
   }
-  weblinks.push({ name, url, authenticated });
+  weblinks.push({ name, url, authenticated, context });
   weblinksContent = buildWeblinksYaml();
   syncWeblinksFromContent();
   toggleWeblinkForm(false);

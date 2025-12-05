@@ -12,7 +12,8 @@ public record BusinessMenuItem(
         String submenuId,
         String weblink,
         String url,
-        Boolean authenticated) {
+        Boolean authenticated,
+        String context) {
 
     public boolean isSubMenu() {
         return submenuId != null && !submenuId.isBlank();
@@ -28,5 +29,20 @@ public record BusinessMenuItem(
 
     public boolean isAuthenticatedLink() {
         return Boolean.TRUE.equals(authenticated);
+    }
+
+    public String linkContext() {
+        if (context == null || context.isBlank()) {
+            return "noContext";
+        }
+        return context;
+    }
+
+    public boolean requiresAccountContext() {
+        return "account".equalsIgnoreCase(linkContext());
+    }
+
+    public boolean requiresServiceContext() {
+        return "service".equalsIgnoreCase(linkContext());
     }
 }
