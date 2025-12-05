@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generatedAt": "2024-01-01T00:00:00.000Z",
+  "generatedAt": "2025-12-05T13:25:59.541Z",
   "loginMenu": {
     "menus": [
       {
@@ -9,6 +9,7 @@
         "parentId": null,
         "items": [
           {
+            "type": "function",
             "order": 1,
             "label": "Self-service login",
             "function": "DIGITAL_LOGIN",
@@ -17,12 +18,31 @@
             "submenuId": null
           },
           {
+            "type": "function",
             "order": 2,
             "label": "Direct login",
             "function": "CRM_LOGIN",
             "callbackData": "DIRECT_LOGIN",
             "translationKey": "ButtonDirectLogin",
             "submenuId": null
+          },
+          {
+            "type": "function",
+            "order": 3,
+            "label": "Settings",
+            "function": "SETTINGS",
+            "callbackData": "SETTINGS_MENU",
+            "translationKey": "ButtonSettings",
+            "submenuId": null
+          },
+          {
+            "type": "submenu",
+            "order": 4,
+            "label": "Settings",
+            "function": null,
+            "callbackData": null,
+            "translationKey": null,
+            "submenuId": "login-settings"
           }
         ]
       },
@@ -32,6 +52,7 @@
         "parentId": "login-home",
         "items": [
           {
+            "type": "function",
             "order": 1,
             "label": "Consent management",
             "function": "OPT_IN",
@@ -40,6 +61,7 @@
             "submenuId": null
           },
           {
+            "type": "function",
             "order": 2,
             "label": "Language settings",
             "function": "CHANGE_LANGUAGE",
@@ -48,6 +70,7 @@
             "submenuId": null
           },
           {
+            "type": "function",
             "order": 3,
             "label": "Back to menu",
             "function": "MENU",
@@ -57,14 +80,62 @@
           }
         ]
       }
+    ],
+    "menu": [
+      {
+        "order": 1,
+        "label": "Self-service login",
+        "function": "DIGITAL_LOGIN",
+        "callbackData": "SELF_SERVICE_LOGIN",
+        "translationKey": null
+      },
+      {
+        "order": 2,
+        "label": "Direct login",
+        "function": "CRM_LOGIN",
+        "callbackData": "DIRECT_LOGIN",
+        "translationKey": null
+      },
+      {
+        "order": 3,
+        "label": "Settings",
+        "function": "SETTINGS",
+        "callbackData": "SETTINGS_MENU",
+        "translationKey": null
+      }
+    ],
+    "settingsMenu": [
+      {
+        "order": 1,
+        "label": "Consent management",
+        "function": "OPT_IN",
+        "callbackData": "OPT_IN",
+        "translationKey": null
+      },
+      {
+        "order": 2,
+        "label": "Language settings",
+        "function": "CHANGE_LANGUAGE",
+        "callbackData": "CHANGE_LANGUAGE",
+        "translationKey": null
+      },
+      {
+        "order": 3,
+        "label": "Back to menu",
+        "function": "MENU",
+        "callbackData": "MENU",
+        "translationKey": null
+      }
     ]
   },
   "menus": [
     {
       "id": "home",
       "name": "Home",
+      "parentId": null,
       "items": [
         {
+          "type": "function",
           "order": 1,
           "label": "Hello World",
           "function": "HELLO_WORLD",
@@ -73,6 +144,7 @@
           "submenuId": null
         },
         {
+          "type": "function",
           "order": 2,
           "label": "Hello Cerillion",
           "function": "HELLO_CERILLION",
@@ -81,6 +153,7 @@
           "submenuId": null
         },
         {
+          "type": "function",
           "order": 3,
           "label": "Trouble Ticket",
           "function": "VIEW_TROUBLE_TICKET",
@@ -89,6 +162,7 @@
           "submenuId": null
         },
         {
+          "type": "function",
           "order": 4,
           "label": "Select a Service",
           "function": "SELECT_SERVICE",
@@ -97,6 +171,7 @@
           "submenuId": null
         },
         {
+          "type": "function",
           "order": 5,
           "label": "My Issues",
           "function": "MY_ISSUES",
@@ -105,12 +180,39 @@
           "submenuId": null
         },
         {
+          "type": "submenu",
           "order": 6,
           "label": "Settings",
           "function": null,
           "callbackData": null,
           "translationKey": null,
           "submenuId": "settings"
+        },
+        {
+          "type": "weblink",
+          "order": 7,
+          "label": "Eshop",
+          "function": null,
+          "callbackData": null,
+          "translationKey": null,
+          "submenuId": null,
+          "weblink": "E-Shop",
+          "url": "https://lonlinux13.cerillion.com:45040/selfcare-ng/selfcare/ecomm/home",
+          "authenticated": false,
+          "context": "noContext"
+        },
+        {
+          "type": "weblink",
+          "order": 8,
+          "label": "My Care",
+          "function": null,
+          "callbackData": null,
+          "translationKey": null,
+          "submenuId": null,
+          "weblink": "My Account",
+          "url": "https://lonlinux13.cerillion.com:45040/selfcare-ng/selfcare/my-account/overview",
+          "authenticated": true,
+          "context": "account"
         }
       ]
     },
@@ -120,6 +222,7 @@
       "parentId": "home",
       "items": [
         {
+          "type": "function",
           "order": 1,
           "label": "Consent management",
           "function": "OPT_IN",
@@ -128,6 +231,7 @@
           "submenuId": null
         },
         {
+          "type": "function",
           "order": 2,
           "label": "Language settings",
           "function": "CHANGE_LANGUAGE",
@@ -136,6 +240,7 @@
           "submenuId": null
         },
         {
+          "type": "function",
           "order": 3,
           "label": "Back to menu",
           "function": "MENU",

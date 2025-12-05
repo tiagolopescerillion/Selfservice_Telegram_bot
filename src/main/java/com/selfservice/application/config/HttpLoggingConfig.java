@@ -6,6 +6,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpRequest;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.client.*;
 import org.springframework.util.StreamUtils;
 import org.springframework.web.client.RestTemplate;
@@ -102,7 +103,7 @@ public class HttpLoggingConfig {
         }
 
         @Override
-        public org.springframework.http.HttpStatusCode getStatusCode() throws IOException {
+        public HttpStatus getStatusCode() throws IOException {
             // In Boot 3+, getStatusCode returns HttpStatusCode
             return delegate.getStatusCode();
         }

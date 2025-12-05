@@ -15,7 +15,7 @@ public class SecurityConfig {
     public SecurityFilterChain oauthChain(HttpSecurity http) throws Exception {
         http
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/webhook/**", "/actuator/**").permitAll()
+                .antMatchers("/webhook/**", "/actuator/**").permitAll()
                 .anyRequest().authenticated())
             .oauth2Login();
         http.csrf(csrf -> csrf.disable());
