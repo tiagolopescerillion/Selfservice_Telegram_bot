@@ -180,8 +180,17 @@
           "submenuId": null
         },
         {
-          "type": "submenu",
+          "type": "function",
           "order": 6,
+          "label": "Invoice history",
+          "function": "INVOICE_HISTORY",
+          "callbackData": "INVOICE_HISTORY",
+          "translationKey": "ButtonInvoiceHistory",
+          "submenuId": null
+        },
+        {
+          "type": "submenu",
+          "order": 7,
           "label": "Settings",
           "function": null,
           "callbackData": null,
@@ -190,7 +199,7 @@
         },
         {
           "type": "weblink",
-          "order": 7,
+          "order": 8,
           "label": "Eshop",
           "function": null,
           "callbackData": null,
@@ -203,7 +212,7 @@
         },
         {
           "type": "weblink",
-          "order": 8,
+          "order": 9,
           "label": "My Care",
           "function": null,
           "callbackData": null,
