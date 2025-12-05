@@ -1152,40 +1152,39 @@ function serializeStore(store) {
         id: menu.id,
         name: menu.name,
         parentId: menu.parentId ?? null,
-      items: menu.items.map((item, index) => {
-        if (item.type === "submenu") {
+        items: menu.items.map((item, index) => {
+          if (item.type === "submenu") {
+            return {
+              order: index + 1,
+              label: item.label,
+              function: null,
+              callbackData: null,
+              translationKey: null,
+              submenuId: item.submenuId
+            };
+          }
+
+          if (item.type === "weblink") {
+            const linkMeta = findWeblinkMeta(item.weblink);
+            return {
+              order: index + 1,
+              label: item.label,
+              function: null,
+              callbackData: null,
+              translationKey: null,
+              submenuId: null,
+              weblink: item.weblink || null,
+              url: linkMeta?.url || null,
+              authenticated: Boolean(linkMeta?.authenticated),
+              context: linkMeta?.context || "noContext"
+            };
+          }
+
+          const meta = functionDictionary[item.function] || {};
           return {
-            type: "submenu",
             order: index + 1,
             label: item.label,
-            function: null,
-            callbackData: null,
-            translationKey: null,
-            submenuId: item.submenuId
-          };
-        }
-        if (item.type === "weblink") {
-          const linkMeta = findWeblinkMeta(item.weblink);
-          return {
-            type: "weblink",
-            order: index + 1,
-            label: item.label,
-            function: null,
-            callbackData: null,
-            translationKey: null,
-            submenuId: null,
-            weblink: item.weblink || null,
-            url: linkMeta?.url || null,
-            authenticated: Boolean(linkMeta?.authenticated),
-            context: linkMeta?.context || "noContext"
-          };
-        }
-        const meta = functionDictionary[item.function] || {};
-        return {
-          type: "function",
-          order: index + 1,
-          label: item.label,
-          function: item.function,
+            function: item.function,
             callbackData: meta.callbackData || item.function,
             translationKey: item.useTranslation && meta.translationKey ? meta.translationKey : null,
             submenuId: null
