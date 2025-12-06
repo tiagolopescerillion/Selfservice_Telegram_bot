@@ -41,7 +41,8 @@ public class ApimanEndpointsProperties {
     private static final Map<String, String> DEFAULT_BILL_QUERY_PARAMS = Map.of(
             "offset", "0",
             "limit", "6",
-            "billingAccount.id", ""
+            "billingAccount.id", "",
+            "sort", "-billDate"
     );
 
     public String getBaseUrl() {

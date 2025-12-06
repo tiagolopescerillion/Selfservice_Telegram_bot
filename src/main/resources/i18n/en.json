@@ -69,6 +69,7 @@
   "ButtonInvoiceViewPdf": "View invoice PDF",
   "ButtonInvoicePay": "Pay invoice",
   "ButtonInvoiceCompare": "Compare bills with AI",
+  "ButtonBackToMenu": "⬅️ Back to menu",
   "NoInvoicesAvailable": "No invoices available right now.",
   "UnableToRetrieveInvoices": "Unable to retrieve invoices: %s",
   "NoInvoicesForAccount": "No invoices were found for account %s.",

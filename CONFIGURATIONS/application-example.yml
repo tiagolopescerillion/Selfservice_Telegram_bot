@@ -110,6 +110,7 @@ apiman:
       offset: 0
       limit: 6
       billingAccount.id: ""
+      sort: -billDate
   billing-account:
     url: ${apiman.base-url}/openapi-fun-account/api/v1/billingAccounts?billingAccount.id=20000053
   trouble-ticket-openapi:

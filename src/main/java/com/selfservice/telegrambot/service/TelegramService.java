@@ -43,6 +43,7 @@ public class TelegramService {
     public static final String KEY_BUTTON_SELECT_SERVICE = "ButtonSelectService";
     public static final String KEY_BUTTON_MY_ISSUES = "ButtonMyIssues";
     public static final String KEY_BUTTON_INVOICE_HISTORY = "ButtonInvoiceHistory";
+    public static final String KEY_BUTTON_BACK_TO_MENU = "ButtonBackToMenu";
     public static final String KEY_BUTTON_CHANGE_ACCOUNT = "ButtonChangeAccount";
     public static final String KEY_BUTTON_CHANGE_LANGUAGE = "ButtonChangeLanguage";
     public static final String KEY_BUTTON_MENU = "ButtonMenu";
@@ -81,6 +82,7 @@ public class TelegramService {
     public static final String CALLBACK_INVOICE_VIEW_PDF_PREFIX = "INVOICE_VIEW_PDF:";
     public static final String CALLBACK_INVOICE_PAY_PREFIX = "INVOICE_PAY:";
     public static final String CALLBACK_INVOICE_COMPARE_PREFIX = "INVOICE_COMPARE:";
+    public static final String CALLBACK_INVOICE_BACK_TO_MENU = "INVOICE_BACK_TO_MENU";
     public static final String CALLBACK_BUSINESS_MENU_HOME = "BUSINESS_MENU_HOME";
     public static final String CALLBACK_BUSINESS_MENU_UP = "BUSINESS_MENU_UP";
     public static final String CALLBACK_BUSINESS_MENU_PREFIX = "BUSINESS_MENU:";
@@ -709,6 +711,10 @@ public class TelegramService {
                     "callback_data", CALLBACK_SHOW_MORE_INVOICES_PREFIX + end)));
         }
 
+        rows.add(List.of(Map.of(
+                "text", translate(chatId, KEY_BUTTON_BACK_TO_MENU),
+                "callback_data", CALLBACK_INVOICE_BACK_TO_MENU)));
+
         String url = baseUrl + "/sendMessage";
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
@@ -742,6 +748,9 @@ public class TelegramService {
         keyboard.add(List.of(Map.of(
                 "text", translate(chatId, "ButtonInvoiceCompare"),
                 "callback_data", CALLBACK_INVOICE_COMPARE_PREFIX + invoice.id())));
+        keyboard.add(List.of(Map.of(
+                "text", translate(chatId, KEY_BUTTON_BACK_TO_MENU),
+                "callback_data", CALLBACK_INVOICE_BACK_TO_MENU)));
 
         Map<String, Object> replyMarkup = Map.of("inline_keyboard", keyboard);
         Map<String, Object> body = Map.of(
