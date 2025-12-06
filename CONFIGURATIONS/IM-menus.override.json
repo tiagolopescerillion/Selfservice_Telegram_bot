@@ -180,7 +180,7 @@
           "submenuId": null
         },
         {
-          "type": "function",
+          "type": "function-menu",
           "order": 6,
           "label": "Invoice history",
           "function": "INVOICE_HISTORY",

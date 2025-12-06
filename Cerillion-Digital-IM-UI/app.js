@@ -3,6 +3,13 @@ const MENU_TYPES = {
   BUSINESS: "business"
 };
 
+const ITEM_TYPES = {
+  FUNCTION: "function",
+  FUNCTION_MENU: "function-menu",
+  SUBMENU: "submenu",
+  WEBLINK: "weblink"
+};
+
 const ROOT_MENU_ID = "home";
 const LOGIN_ROOT_MENU_ID = "login-home";
 
@@ -568,7 +575,33 @@ function applyMenusToStore(menuType, menus) {
     const items = Array.isArray(menu.items) ? menu.items : [];
     console.info(`Processing ${items.length} items for menu ${menu.id}`, items);
     items.forEach((item) => {
-      if (item?.submenuId && store.menusById.has(item.submenuId)) {
+      const hasSubmenu = item?.submenuId && store.menusById.has(item.submenuId);
+      const functionId = item.function || item.id;
+
+      if (hasSubmenu && functionId) {
+        if (!functionDictionary[functionId]) {
+          registerFunctionOption({
+            id: functionId,
+            label: item.label || functionId,
+            translationKey: item.translationKey,
+            callbackData: item.callbackData || functionId
+          });
+        }
+        const submenu = store.menusById.get(item.submenuId);
+        submenu.parentId = target.id;
+        const meta = functionDictionary[functionId] || { id: functionId, label: functionId };
+        target.items.push({
+          id: item.id || nextItemId(),
+          label: item.label ?? meta.label,
+          type: ITEM_TYPES.FUNCTION_MENU,
+          function: functionId,
+          submenuId: submenu.id,
+          useTranslation: item.useTranslation ?? Boolean(item.translationKey)
+        });
+        return;
+      }
+
+      if (hasSubmenu) {
         const submenu = store.menusById.get(item.submenuId);
         submenu.parentId = target.id;
         target.items.push({
@@ -581,7 +614,8 @@ function applyMenusToStore(menuType, menus) {
         });
         return;
       }
-      if (item?.type === "weblink" || item?.weblink) {
+
+      if (item?.type === ITEM_TYPES.WEBLINK || item?.weblink) {
         target.items.push({
           id: item.id || nextItemId(),
           label: item.label ?? item.weblink ?? "Web link",
@@ -593,7 +627,6 @@ function applyMenusToStore(menuType, menus) {
         });
         return;
       }
-      const functionId = item.function || item.id;
       if (functionId && !functionDictionary[functionId]) {
         registerFunctionOption({ id: functionId, label: item.label || functionId, translationKey: item.translationKey, callbackData: item.callbackData || functionId });
       }
@@ -819,7 +852,11 @@ function renderMenuItems() {
     typeWrapper.textContent = "Type";
     typeWrapper.className = "menu-item-type";
     const typeSelect = document.createElement("select");
-    typeSelect.innerHTML = "<option value=\"function\">Function</option><option value=\"submenu\">Sub-menu</option><option value=\"weblink\">Web link</option>";
+    typeSelect.innerHTML =
+      "<option value=\"function\">Function</option>" +
+      "<option value=\"function-menu\">Menu item with function</option>" +
+      "<option value=\"submenu\">Sub-menu</option>" +
+      "<option value=\"weblink\">Web link</option>";
     typeSelect.value = item.type;
     typeSelect.addEventListener("change", (event) => handleItemTypeChange(menu.id, index, event.target.value, event));
     typeWrapper.append(typeSelect);
@@ -860,7 +897,7 @@ function renderMenuItems() {
 
 function renderItemDetails(container, menuId, item, index) {
   container.innerHTML = "";
-  if (item.type === "function") {
+  if (item.type === ITEM_TYPES.FUNCTION || item.type === ITEM_TYPES.FUNCTION_MENU) {
     const functionWrapper = document.createElement("label");
     functionWrapper.textContent = "Function";
     const functionDropdown = document.createElement("select");
@@ -893,6 +930,22 @@ function renderItemDetails(container, menuId, item, index) {
     translationHint.textContent = "Keeps the original multilingual text for this function.";
 
     container.append(functionWrapper, translationToggle, translationHint);
+
+    if (item.type === ITEM_TYPES.FUNCTION_MENU) {
+      const submenuWrapper = document.createElement("label");
+      submenuWrapper.textContent = "Target sub-menu";
+      const submenuDropdown = buildSubmenuDropdown(menuId, item.submenuId);
+      submenuDropdown.addEventListener("change", (event) => assignSubmenu(menuId, index, event.target.value, () => {
+        submenuDropdown.value = item.submenuId || "";
+      }));
+      submenuWrapper.append(submenuDropdown);
+
+      const submenuHint = document.createElement("p");
+      submenuHint.className = "hint";
+      submenuHint.textContent = "Runs the function and then opens the selected sub-menu for its results.";
+
+      container.append(submenuWrapper, submenuHint);
+    }
     return;
   }
 
@@ -980,11 +1033,11 @@ function handleItemTypeChange(menuId, itemIndex, newType, event) {
   const item = menu.items[itemIndex];
   if (!item) return;
 
-  if (item.type === "submenu" && item.submenuId) {
+  if ((item.type === ITEM_TYPES.SUBMENU || item.type === ITEM_TYPES.FUNCTION_MENU) && item.submenuId) {
     detachSubmenu(item.submenuId, menuId);
   }
 
-  if (newType === "submenu") {
+  if (newType === ITEM_TYPES.SUBMENU) {
     const options = availableSubmenus(menuId);
     if (!options.length) {
       alert("Create a sub-menu before linking it.");
@@ -1001,7 +1054,24 @@ function handleItemTypeChange(menuId, itemIndex, newType, event) {
     item.function = null;
     item.useTranslation = false;
     item.weblink = null;
-  } else if (newType === "weblink") {
+  } else if (newType === ITEM_TYPES.FUNCTION_MENU) {
+    const options = availableSubmenus(menuId);
+    if (!options.length) {
+      alert("Create a sub-menu before linking it.");
+      event.target.value = ITEM_TYPES.FUNCTION;
+      return;
+    }
+    const target = options[0];
+    if (!linkSubmenu(menuId, target.id)) {
+      event.target.value = ITEM_TYPES.FUNCTION;
+      return;
+    }
+    item.type = ITEM_TYPES.FUNCTION_MENU;
+    item.submenuId = target.id;
+    item.function = item.function && functionDictionary[item.function] ? item.function : FUNCTION_OPTIONS[0].id;
+    item.useTranslation = item.useTranslation ?? true;
+    item.weblink = null;
+  } else if (newType === ITEM_TYPES.WEBLINK) {
     item.type = "weblink";
     item.weblink = (weblinks[0] && weblinks[0].name) || "";
     item.function = null;
@@ -1035,7 +1105,7 @@ function deleteItem(menuId, index) {
   const menu = menusById.get(menuId);
   if (!menu) return;
   const [removed] = menu.items.splice(index, 1);
-  if (removed?.type === "submenu" && removed.submenuId) {
+  if ((removed?.type === ITEM_TYPES.SUBMENU || removed?.type === ITEM_TYPES.FUNCTION_MENU) && removed.submenuId) {
     detachSubmenu(removed.submenuId, menuId);
   }
   renderMenuItems();
@@ -1107,12 +1177,17 @@ function updateAddFormSubmenuOptions() {
 
 function toggleAddFormFields() {
   const type = itemTypeSelect.value;
-  if (type === "function") {
+  if (type === ITEM_TYPES.FUNCTION) {
     functionFields.classList.remove("hidden");
     submenuFields.classList.add("hidden");
     weblinkFields.classList.add("hidden");
-  } else if (type === "submenu") {
+  } else if (type === ITEM_TYPES.SUBMENU) {
     functionFields.classList.add("hidden");
+    submenuFields.classList.remove("hidden");
+    updateAddFormSubmenuOptions();
+    weblinkFields.classList.add("hidden");
+  } else if (type === ITEM_TYPES.FUNCTION_MENU) {
+    functionFields.classList.remove("hidden");
     submenuFields.classList.remove("hidden");
     updateAddFormSubmenuOptions();
     weblinkFields.classList.add("hidden");
@@ -1153,9 +1228,23 @@ function serializeStore(store) {
         name: menu.name,
         parentId: menu.parentId ?? null,
         items: menu.items.map((item, index) => {
-          if (item.type === "submenu") {
+          if (item.type === ITEM_TYPES.FUNCTION_MENU) {
+            const meta = functionDictionary[item.function] || {};
             return {
               order: index + 1,
+              type: ITEM_TYPES.FUNCTION_MENU,
+              label: item.label,
+              function: item.function,
+              callbackData: meta.callbackData || item.function,
+              translationKey: item.useTranslation && meta.translationKey ? meta.translationKey : null,
+              submenuId: item.submenuId
+            };
+          }
+
+          if (item.type === ITEM_TYPES.SUBMENU) {
+            return {
+              order: index + 1,
+              type: ITEM_TYPES.SUBMENU,
               label: item.label,
               function: null,
               callbackData: null,
@@ -1164,10 +1253,11 @@ function serializeStore(store) {
             };
           }
 
-          if (item.type === "weblink") {
+          if (item.type === ITEM_TYPES.WEBLINK) {
             const linkMeta = findWeblinkMeta(item.weblink);
             return {
               order: index + 1,
+              type: ITEM_TYPES.WEBLINK,
               label: item.label,
               function: null,
               callbackData: null,
@@ -1183,6 +1273,7 @@ function serializeStore(store) {
           const meta = functionDictionary[item.function] || {};
           return {
             order: index + 1,
+            type: ITEM_TYPES.FUNCTION,
             label: item.label,
             function: item.function,
             callbackData: meta.callbackData || item.function,
@@ -1345,7 +1436,7 @@ function addMenuItem(event) {
     alert("Menu item name is required.");
     return;
   }
-  if (itemTypeSelect.value === "function") {
+  if (itemTypeSelect.value === ITEM_TYPES.FUNCTION) {
     const functionId = menuFunctionSelect.value;
     if (!functionDictionary[functionId]) {
       alert("Please choose a valid function.");
@@ -1359,7 +1450,7 @@ function addMenuItem(event) {
       useTranslation: useTranslationInput.checked,
       submenuId: null
     });
-  } else if (itemTypeSelect.value === "submenu") {
+  } else if (itemTypeSelect.value === ITEM_TYPES.SUBMENU) {
     if (submenuSelect.disabled || !submenuSelect.value) {
       alert("Create a sub-menu before adding this item.");
       return;
@@ -1372,6 +1463,27 @@ function addMenuItem(event) {
       label,
       type: "submenu",
       submenuId: submenuSelect.value
+    });
+  } else if (itemTypeSelect.value === ITEM_TYPES.FUNCTION_MENU) {
+    const functionId = menuFunctionSelect.value;
+    if (!functionDictionary[functionId]) {
+      alert("Please choose a valid function.");
+      return;
+    }
+    if (submenuSelect.disabled || !submenuSelect.value) {
+      alert("Create a sub-menu before adding this item.");
+      return;
+    }
+    if (!linkSubmenu(parentId, submenuSelect.value)) {
+      return;
+    }
+    parentMenu.items.push({
+      id: nextItemId(),
+      label,
+      type: ITEM_TYPES.FUNCTION_MENU,
+      function: functionId,
+      submenuId: submenuSelect.value,
+      useTranslation: useTranslationInput.checked
     });
   } else {
     if (!menuWeblinkSelect.value) {

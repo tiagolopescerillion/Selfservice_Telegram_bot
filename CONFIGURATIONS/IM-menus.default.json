@@ -107,6 +107,7 @@
         {
           "order": 6,
           "label": "Invoice history",
+          "type": "function-menu",
           "function": "INVOICE_HISTORY",
           "callbackData": "INVOICE_HISTORY",
           "translationKey": "ButtonInvoiceHistory",
