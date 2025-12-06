@@ -14,6 +14,8 @@ import com.selfservice.application.service.TroubleTicketService;
 import com.selfservice.application.service.OperationsMonitoringService;
 import com.selfservice.application.config.menu.LoginMenuFunction;
 import com.selfservice.application.config.menu.LoginMenuItem;
+import com.selfservice.application.config.menu.BusinessMenuConfigurationProvider;
+import com.selfservice.application.config.menu.BusinessMenuItem;
 import com.selfservice.application.config.ConnectorsProperties;
 import com.selfservice.telegrambot.service.TelegramService;
 import com.selfservice.telegrambot.service.UserSessionService;
@@ -40,6 +42,7 @@ public class TelegramWebhookController {
     private final TroubleTicketService troubleTicketService;
     private final OperationsMonitoringService monitoringService;
     private final ConnectorsProperties connectorsProperties;
+    private final BusinessMenuConfigurationProvider menuConfigurationProvider;
 
     public TelegramWebhookController(TelegramService telegramService,
             KeycloakAuthService keycloakAuthService,
@@ -49,7 +52,8 @@ public class TelegramWebhookController {
             InvoiceService invoiceService,
             TroubleTicketService troubleTicketService,
             OperationsMonitoringService monitoringService,
-            ConnectorsProperties connectorsProperties) {
+            ConnectorsProperties connectorsProperties,
+            BusinessMenuConfigurationProvider menuConfigurationProvider) {
         this.telegramService = telegramService;
         this.keycloakAuthService = keycloakAuthService;
         this.productService = productService;
@@ -60,6 +64,7 @@ public class TelegramWebhookController {
         this.troubleTicketService = troubleTicketService;
         this.monitoringService = monitoringService;
         this.connectorsProperties = connectorsProperties;
+        this.menuConfigurationProvider = menuConfigurationProvider;
 
     }
 
@@ -591,6 +596,12 @@ public class TelegramWebhookController {
                     if (hasValidToken) {
                         if (!ensureAccountSelected(chatId)) {
                             break;
+                        }
+                        BusinessMenuItem invoiceMenuItem = menuConfigurationProvider.findMenuItemByCallback(text);
+                        if (invoiceMenuItem != null && invoiceMenuItem.isFunctionMenu()) {
+                            userSessionService.setInvoiceActionsMenu(chatId, invoiceMenuItem.submenuId());
+                        } else {
+                            userSessionService.setInvoiceActionsMenu(chatId, null);
                         }
                         AccountSummary selected = userSessionService.getSelectedAccount(chatId);
                         InvoiceListResult invoices = invoiceService.getInvoices(existingToken, selected.accountId());

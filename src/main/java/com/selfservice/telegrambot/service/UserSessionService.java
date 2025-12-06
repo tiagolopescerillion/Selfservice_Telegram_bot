@@ -57,6 +57,7 @@ public class UserSessionService {
     private final Map<Long, List<TroubleTicketSummary>> ticketsByChat = new ConcurrentHashMap<>();
     private final Map<Long, List<InvoiceSummary>> invoicesByChat = new ConcurrentHashMap<>();
     private final Map<Long, InvoiceSummary> selectedInvoiceByChat = new ConcurrentHashMap<>();
+    private final Map<Long, String> invoiceActionsMenuByChat = new ConcurrentHashMap<>();
     private final Map<Long, String> languageByChat = new ConcurrentHashMap<>();
     private final Map<Long, List<String>> menuPathByChat = new ConcurrentHashMap<>();
     private final Map<Long, Boolean> optInByChat = new ConcurrentHashMap<>();
@@ -275,6 +276,18 @@ public class UserSessionService {
         return invoicesByChat.getOrDefault(chatId, List.of());
     }
 
+    public void setInvoiceActionsMenu(long chatId, String menuId) {
+        if (menuId == null || menuId.isBlank()) {
+            invoiceActionsMenuByChat.remove(chatId);
+        } else {
+            invoiceActionsMenuByChat.put(chatId, menuId);
+        }
+    }
+
+    public String getInvoiceActionsMenu(long chatId) {
+        return invoiceActionsMenuByChat.get(chatId);
+    }
+
     public void selectInvoice(long chatId, InvoiceSummary invoice) {
         if (invoice == null) {
             return;
@@ -296,6 +309,7 @@ public class UserSessionService {
     public void clearInvoices(long chatId) {
         invoicesByChat.remove(chatId);
         selectedInvoiceByChat.remove(chatId);
+        invoiceActionsMenuByChat.remove(chatId);
     }
 
     public void clearSession(long chatId) {
@@ -305,6 +319,7 @@ public class UserSessionService {
         ticketsByChat.remove(chatId);
         invoicesByChat.remove(chatId);
         selectedInvoiceByChat.remove(chatId);
+        invoiceActionsMenuByChat.remove(chatId);
         languageByChat.remove(chatId);
         menuPathByChat.remove(chatId);
         optInByChat.remove(chatId);

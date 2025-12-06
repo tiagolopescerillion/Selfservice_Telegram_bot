@@ -19,6 +19,10 @@ public record BusinessMenuItem(
         return submenuId != null && !submenuId.isBlank();
     }
 
+    public boolean isFunctionMenu() {
+        return isSubMenu() && function != null && !function.isBlank();
+    }
+
     public boolean isWeblink() {
         return weblink != null && !weblink.isBlank();
     }

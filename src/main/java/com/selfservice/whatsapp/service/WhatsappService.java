@@ -10,6 +10,7 @@ import com.selfservice.application.config.menu.BusinessMenuItem;
 import com.selfservice.application.config.menu.LoginMenuFunction;
 import com.selfservice.application.config.menu.LoginMenuItem;
 import com.selfservice.application.service.TranslationService;
+import com.selfservice.telegrambot.service.TelegramService;
 import com.selfservice.whatsapp.config.WhatsappProperties;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -572,11 +573,14 @@ public class WhatsappService {
             sendText(to, translate(to, "InvoiceNoLongerAvailable"));
             return;
         }
+        List<BusinessMenuItem> actions = invoiceActions(to);
         StringBuilder body = new StringBuilder();
         body.append(format(to, "InvoiceActionsPrompt", invoice.id())).append("\n");
-        body.append("1) ").append(translate(to, "ButtonInvoiceViewPdf")).append("\n");
-        body.append("2) ").append(translate(to, "ButtonInvoicePay")).append("\n");
-        body.append("3) ").append(translate(to, "ButtonInvoiceCompare")).append("\n");
+        for (int i = 0; i < actions.size(); i++) {
+            body.append(i + 1).append(") ")
+                    .append(resolveMenuLabel(to, actions.get(i)))
+                    .append("\n");
+        }
         body.append(translate(to, "InvoiceActionsInstruction"));
 
         sessionService.setSelectionContext(to, WhatsappSessionService.SelectionContext.INVOICE_ACTION);
@@ -586,16 +590,50 @@ public class WhatsappService {
         }
 
         if (whatsappProperties.isInteractiveUxEnabled()) {
-            List<Map<String, Object>> rows = List.of(
-                    buildListRow("1", translate(to, "ButtonInvoiceViewPdf")),
-                    buildListRow("2", translate(to, "ButtonInvoicePay")),
-                    buildListRow("3", translate(to, "ButtonInvoiceCompare"))
-            );
+            List<Map<String, Object>> rows = new ArrayList<>();
+            for (int i = 0; i < actions.size(); i++) {
+                rows.add(buildListRow(String.valueOf(i + 1), resolveMenuLabel(to, actions.get(i))));
+            }
             sendInteractiveList(to,
                     format(to, "InvoiceActionsPrompt", invoice.id()),
                     translate(to, "InvoiceActionsInstruction"),
                     rows);
         }
+    }
+
+    public List<BusinessMenuItem> invoiceActions(String userId) {
+        List<BusinessMenuItem> actions = menuConfigurationProvider
+                .getMenuItems(sessionService.getInvoiceActionsMenu(userId));
+        if (actions.isEmpty()) {
+            return List.of(
+                    new BusinessMenuItem(1, translate(userId, "ButtonInvoiceViewPdf"),
+                            TelegramService.CALLBACK_INVOICE_VIEW_PDF_PREFIX,
+                            TelegramService.CALLBACK_INVOICE_VIEW_PDF_PREFIX, null, null, null, null, null, null),
+                    new BusinessMenuItem(2, translate(userId, "ButtonInvoicePay"),
+                            TelegramService.CALLBACK_INVOICE_PAY_PREFIX,
+                            TelegramService.CALLBACK_INVOICE_PAY_PREFIX, null, null, null, null, null, null),
+                    new BusinessMenuItem(3, translate(userId, "ButtonInvoiceCompare"),
+                            TelegramService.CALLBACK_INVOICE_COMPARE_PREFIX,
+                            TelegramService.CALLBACK_INVOICE_COMPARE_PREFIX, null, null, null, null, null, null),
+                    new BusinessMenuItem(4, translate(userId, TelegramService.KEY_BUTTON_BACK_TO_MENU),
+                            TelegramService.CALLBACK_INVOICE_BACK_TO_MENU,
+                            TelegramService.CALLBACK_INVOICE_BACK_TO_MENU, null, null, null, null, null, null));
+        }
+        return actions;
+    }
+
+    public String invoiceActionCallback(String userId, BusinessMenuItem action, InvoiceSummary invoice) {
+        if (action == null) {
+            return null;
+        }
+        String callback = action.callbackData();
+        if (callback == null || callback.isBlank()) {
+            callback = action.function();
+        }
+        if (callback != null && callback.endsWith(":")) {
+            callback = callback + invoice.id();
+        }
+        return callback;
     }
 
     public void sendTroubleTicketPage(String to, List<TroubleTicketSummary> tickets, int startIndex) {

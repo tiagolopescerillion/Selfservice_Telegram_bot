@@ -739,18 +739,38 @@ public class TelegramService {
         headers.setContentType(MediaType.APPLICATION_JSON);
 
         List<List<Map<String, Object>>> keyboard = new ArrayList<>();
-        keyboard.add(List.of(Map.of(
-                "text", translate(chatId, "ButtonInvoiceViewPdf"),
-                "callback_data", CALLBACK_INVOICE_VIEW_PDF_PREFIX + invoice.id())));
-        keyboard.add(List.of(Map.of(
-                "text", translate(chatId, "ButtonInvoicePay"),
-                "callback_data", CALLBACK_INVOICE_PAY_PREFIX + invoice.id())));
-        keyboard.add(List.of(Map.of(
-                "text", translate(chatId, "ButtonInvoiceCompare"),
-                "callback_data", CALLBACK_INVOICE_COMPARE_PREFIX + invoice.id())));
-        keyboard.add(List.of(Map.of(
-                "text", translate(chatId, KEY_BUTTON_BACK_TO_MENU),
-                "callback_data", CALLBACK_INVOICE_BACK_TO_MENU)));
+        List<BusinessMenuItem> actions = menuConfigurationProvider.getMenuItems(
+                userSessionService.getInvoiceActionsMenu(chatId));
+        if (actions.isEmpty()) {
+            actions = List.of(
+                    new BusinessMenuItem(1, translate(chatId, "ButtonInvoiceViewPdf"), CALLBACK_INVOICE_VIEW_PDF_PREFIX,
+                            CALLBACK_INVOICE_VIEW_PDF_PREFIX, null, null, null, null, null, null),
+                    new BusinessMenuItem(2, translate(chatId, "ButtonInvoicePay"), CALLBACK_INVOICE_PAY_PREFIX,
+                            CALLBACK_INVOICE_PAY_PREFIX, null, null, null, null, null, null),
+                    new BusinessMenuItem(3, translate(chatId, "ButtonInvoiceCompare"), CALLBACK_INVOICE_COMPARE_PREFIX,
+                            CALLBACK_INVOICE_COMPARE_PREFIX, null, null, null, null, null, null),
+                    new BusinessMenuItem(4, translate(chatId, KEY_BUTTON_BACK_TO_MENU), CALLBACK_INVOICE_BACK_TO_MENU,
+                            CALLBACK_INVOICE_BACK_TO_MENU, null, null, null, null, null, null));
+        }
+
+        for (BusinessMenuItem action : actions) {
+            Map<String, Object> button = new HashMap<>();
+            button.put("text", resolveMenuLabel(chatId, action));
+            if (action.isWeblink()) {
+                String resolvedUrl = resolveWeblinkUrl(chatId, action);
+                if (resolvedUrl == null || resolvedUrl.isBlank()) {
+                    continue;
+                }
+                button.put("url", resolvedUrl);
+            } else {
+                String callback = resolveCallback(action);
+                if (callback != null && callback.endsWith(":")) {
+                    callback = callback + invoice.id();
+                }
+                button.put("callback_data", callback);
+            }
+            keyboard.add(List.of(button));
+        }
 
         Map<String, Object> replyMarkup = Map.of("inline_keyboard", keyboard);
         Map<String, Object> body = Map.of(

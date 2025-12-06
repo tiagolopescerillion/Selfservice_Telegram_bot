@@ -54,6 +54,7 @@ public class WhatsappSessionService {
     private final Map<String, ServiceSummary> selectedServiceByUser = new ConcurrentHashMap<>();
     private final Map<String, List<InvoiceSummary>> invoicesByUser = new ConcurrentHashMap<>();
     private final Map<String, InvoiceSummary> selectedInvoiceByUser = new ConcurrentHashMap<>();
+    private final Map<String, String> invoiceActionsMenuByUser = new ConcurrentHashMap<>();
     private final Map<String, List<TroubleTicketSummary>> ticketsByUser = new ConcurrentHashMap<>();
     private final Map<String, String> languageByUser = new ConcurrentHashMap<>();
     private final Map<String, List<String>> menuPathByUser = new ConcurrentHashMap<>();
@@ -277,9 +278,22 @@ public class WhatsappSessionService {
         return invoicesByUser.getOrDefault(userId, List.of());
     }
 
+    public void setInvoiceActionsMenu(String userId, String menuId) {
+        if (menuId == null || menuId.isBlank()) {
+            invoiceActionsMenuByUser.remove(userId);
+        } else {
+            invoiceActionsMenuByUser.put(userId, menuId);
+        }
+    }
+
+    public String getInvoiceActionsMenu(String userId) {
+        return invoiceActionsMenuByUser.get(userId);
+    }
+
     public void clearInvoices(String userId) {
         invoicesByUser.remove(userId);
         clearSelectedInvoice(userId);
+        invoiceActionsMenuByUser.remove(userId);
     }
 
     public InvoiceSummary getSelectedInvoice(String userId) {
@@ -322,6 +336,7 @@ public class WhatsappSessionService {
         selectedServiceByUser.remove(userId);
         invoicesByUser.remove(userId);
         selectedInvoiceByUser.remove(userId);
+        invoiceActionsMenuByUser.remove(userId);
         ticketsByUser.remove(userId);
         languageByUser.remove(userId);
         menuPathByUser.remove(userId);

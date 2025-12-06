@@ -15,6 +15,7 @@ import com.selfservice.application.service.TroubleTicketService;
 import com.selfservice.application.config.menu.BusinessMenuItem;
 import com.selfservice.application.config.menu.LoginMenuFunction;
 import com.selfservice.application.config.menu.LoginMenuItem;
+import com.selfservice.application.config.menu.BusinessMenuConfigurationProvider;
 import com.selfservice.application.config.ConnectorsProperties;
 import com.selfservice.application.service.OperationsMonitoringService;
 import com.selfservice.telegrambot.service.TelegramService;
@@ -52,6 +53,7 @@ public class WhatsappWebhookController {
     private final String verifyToken;
     private final OperationsMonitoringService monitoringService;
     private final ConnectorsProperties connectorsProperties;
+    private final BusinessMenuConfigurationProvider menuConfigurationProvider;
 
     public WhatsappWebhookController(
             WhatsappService whatsappService,
@@ -63,7 +65,8 @@ public class WhatsappWebhookController {
             TroubleTicketService troubleTicketService,
             @Value("${whatsapp.verify-token}") String verifyToken,
             OperationsMonitoringService monitoringService,
-            ConnectorsProperties connectorsProperties) {
+            ConnectorsProperties connectorsProperties,
+            BusinessMenuConfigurationProvider menuConfigurationProvider) {
         this.whatsappService = whatsappService;
         this.oauthSessionService = oauthSessionService;
         this.sessionService = sessionService;
@@ -74,6 +77,7 @@ public class WhatsappWebhookController {
         this.verifyToken = Objects.requireNonNull(verifyToken, "whatsapp.verify-token must be set");
         this.monitoringService = monitoringService;
         this.connectorsProperties = connectorsProperties;
+        this.menuConfigurationProvider = menuConfigurationProvider;
     }
 
     @GetMapping
@@ -808,6 +812,13 @@ public class WhatsappWebhookController {
         if (!ensureAccountSelected(sessionKey, userId)) {
             return;
         }
+        BusinessMenuItem invoiceMenuItem = menuConfigurationProvider
+                .findMenuItemByCallback(TelegramService.CALLBACK_INVOICE_HISTORY);
+        if (invoiceMenuItem != null && invoiceMenuItem.isFunctionMenu()) {
+            sessionService.setInvoiceActionsMenu(userId, invoiceMenuItem.submenuId());
+        } else {
+            sessionService.setInvoiceActionsMenu(userId, null);
+        }
         AccountSummary selected = sessionService.getSelectedAccount(userId);
         InvoiceListResult invoices = invoiceService.getInvoices(token, selected.accountId());
         if (invoices.hasError()) {
@@ -851,18 +862,24 @@ public class WhatsappWebhookController {
             whatsappService.sendLoggedInMenu(from, selected, sessionService.getAccounts(userId).size() > 1);
             return;
         }
-        switch (numeric) {
-            case 1 -> whatsappService.sendText(from,
-                    whatsappService.format(userId, "InvoiceViewPdf", selectedInvoice.id()));
-            case 2 -> whatsappService.sendText(from,
-                    whatsappService.format(userId, "InvoicePay", selectedInvoice.id()));
-            case 3 -> whatsappService.sendText(from,
-                    whatsappService.format(userId, "InvoiceCompare", selectedInvoice.id()));
-            default -> {
-                whatsappService.sendText(from, whatsappService.translate(userId, "InvoiceActionsInstruction"));
-                return;
-            }
+        List<BusinessMenuItem> actions = whatsappService.invoiceActions(userId);
+        if (numeric < 1 || numeric > actions.size()) {
+            whatsappService.sendText(from, whatsappService.translate(userId, "InvoiceActionsInstruction"));
+            return;
         }
+        BusinessMenuItem action = actions.get(numeric - 1);
+        String callback = whatsappService.invoiceActionCallback(userId, action, selectedInvoice);
+        if (TelegramService.CALLBACK_INVOICE_BACK_TO_MENU.equalsIgnoreCase(callback)) {
+            AccountSummary selected = sessionService.getSelectedAccount(userId);
+            whatsappService.sendLoggedInMenu(from, selected, sessionService.getAccounts(userId).size() > 1);
+            return;
+        }
+        String translationKey = invoiceActionTranslationKey(callback);
+        if (translationKey == null) {
+            whatsappService.sendText(from, whatsappService.translate(userId, "InvoiceActionsInstruction"));
+            return;
+        }
+        whatsappService.sendText(from, whatsappService.format(userId, translationKey, selectedInvoice.id()));
         whatsappService.sendInvoiceActions(from, selectedInvoice);
     }
 
@@ -951,6 +968,22 @@ public class WhatsappWebhookController {
         } catch (Exception ex) {
             return -1;
         }
+    }
+
+    private String invoiceActionTranslationKey(String callback) {
+        if (callback == null || callback.isBlank()) {
+            return null;
+        }
+        if (callback.startsWith(TelegramService.CALLBACK_INVOICE_VIEW_PDF_PREFIX)) {
+            return "InvoiceViewPdf";
+        }
+        if (callback.startsWith(TelegramService.CALLBACK_INVOICE_PAY_PREFIX)) {
+            return "InvoicePay";
+        }
+        if (callback.startsWith(TelegramService.CALLBACK_INVOICE_COMPARE_PREFIX)) {
+            return "InvoiceCompare";
+        }
+        return null;
     }
 
     private LoginMenuItem parseLoginMenuSelection(String text, List<LoginMenuItem> options) {

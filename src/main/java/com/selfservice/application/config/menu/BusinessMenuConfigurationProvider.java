@@ -117,6 +117,21 @@ public class BusinessMenuConfigurationProvider {
                 .orElse(null);
     }
 
+    public BusinessMenuItem findMenuItemByCallback(String callbackData) {
+        if (callbackData == null || callbackData.isBlank()) {
+            return null;
+        }
+        return menusById.values().stream()
+                .flatMap(def -> def.sortedItems().stream())
+                .filter(item -> callbackData.equalsIgnoreCase(item.callbackData()))
+                .findFirst()
+                .orElseGet(() -> menusById.values().stream()
+                        .flatMap(def -> def.sortedItems().stream())
+                        .filter(item -> callbackData.equalsIgnoreCase(item.function()))
+                        .findFirst()
+                        .orElse(null));
+    }
+
     public BusinessMenuConfiguration getEffectiveConfiguration() {
         return copyConfiguration(effectiveConfiguration);
     }
