@@ -2,6 +2,7 @@ package com.selfservice.whatsapp.service;
 
 import com.selfservice.application.config.LoginMenuProperties;
 import com.selfservice.application.dto.AccountSummary;
+import com.selfservice.application.dto.InvoiceSummary;
 import com.selfservice.application.dto.ServiceSummary;
 import com.selfservice.application.dto.TroubleTicketSummary;
 import com.selfservice.application.config.menu.BusinessMenuConfigurationProvider;
@@ -513,6 +514,90 @@ public class WhatsappService {
         }
     }
 
+    public void sendInvoicePage(String to, List<InvoiceSummary> invoices, int startIndex) {
+        if (invoices == null || invoices.isEmpty()) {
+            sendText(to, translate(to, "NoInvoicesAvailable"));
+            return;
+        }
+
+        int safeStart = Math.max(0, startIndex);
+        if (safeStart >= invoices.size()) {
+            safeStart = Math.max(0, invoices.size() - 5);
+        }
+        int end = Math.min(invoices.size(), safeStart + 5);
+
+        StringBuilder body = new StringBuilder();
+        body.append(buildPagedPrompt(to, "SelectInvoicePrompt", safeStart, end, invoices.size())).append("\n");
+        for (int i = safeStart; i < end; i++) {
+            InvoiceSummary invoice = invoices.get(i);
+            String id = safeText(invoice.id(), translate(to, "UnknownValue"));
+            String date = safeText(invoice.billDate(), translate(to, "UnknownValue"));
+            String total = safeText(invoice.totalAmount(), translate(to, "UnknownValue"));
+            String unpaid = safeText(invoice.unpaidAmount(), translate(to, "UnknownValue"));
+            body.append(i + 1).append(") ")
+                    .append(format(to, "InvoiceButtonLabel", id, date, total, unpaid)).append("\n");
+        }
+        if (end < invoices.size()) {
+            body.append(translate(to, "WhatsappMoreInvoicesInstruction").formatted(end + 1));
+        }
+        body.append(translate(to, "WhatsappInvoiceSelectionInstruction"));
+        sessionService.setSelectionContext(to, WhatsappSessionService.SelectionContext.INVOICE, safeStart);
+        if (whatsappProperties.isBasicUxEnabled() || shouldSendFallbackText()) {
+            sendText(to, body.toString());
+        }
+
+        if (whatsappProperties.isInteractiveUxEnabled()) {
+            List<Map<String, Object>> rows = new ArrayList<>();
+            for (int i = safeStart; i < end; i++) {
+                InvoiceSummary invoice = invoices.get(i);
+                String id = safeText(invoice.id(), translate(to, "UnknownValue"));
+                String date = safeText(invoice.billDate(), translate(to, "UnknownValue"));
+                String total = safeText(invoice.totalAmount(), translate(to, "UnknownValue"));
+                String unpaid = safeText(invoice.unpaidAmount(), translate(to, "UnknownValue"));
+                rows.add(buildListRow(String.valueOf(i + 1),
+                        format(to, "InvoiceButtonLabel", id, date, total, unpaid)));
+            }
+            if (end < invoices.size()) {
+                rows.add(buildListRow(String.valueOf(end + 1), "More invoices"));
+            }
+            sendInteractiveList(to,
+                    translate(to, "SelectInvoicePrompt"),
+                    translate(to, "WhatsappInvoiceSelectionInstruction"),
+                    rows);
+        }
+    }
+
+    public void sendInvoiceActions(String to, InvoiceSummary invoice) {
+        if (invoice == null || invoice.id() == null || invoice.id().isBlank()) {
+            sendText(to, translate(to, "InvoiceNoLongerAvailable"));
+            return;
+        }
+        StringBuilder body = new StringBuilder();
+        body.append(format(to, "InvoiceActionsPrompt", invoice.id())).append("\n");
+        body.append("1) ").append(translate(to, "ButtonInvoiceViewPdf")).append("\n");
+        body.append("2) ").append(translate(to, "ButtonInvoicePay")).append("\n");
+        body.append("3) ").append(translate(to, "ButtonInvoiceCompare")).append("\n");
+        body.append(translate(to, "InvoiceActionsInstruction"));
+
+        sessionService.setSelectionContext(to, WhatsappSessionService.SelectionContext.INVOICE_ACTION);
+
+        if (whatsappProperties.isBasicUxEnabled() || shouldSendFallbackText()) {
+            sendText(to, body.toString());
+        }
+
+        if (whatsappProperties.isInteractiveUxEnabled()) {
+            List<Map<String, Object>> rows = List.of(
+                    buildListRow("1", translate(to, "ButtonInvoiceViewPdf")),
+                    buildListRow("2", translate(to, "ButtonInvoicePay")),
+                    buildListRow("3", translate(to, "ButtonInvoiceCompare"))
+            );
+            sendInteractiveList(to,
+                    format(to, "InvoiceActionsPrompt", invoice.id()),
+                    translate(to, "InvoiceActionsInstruction"),
+                    rows);
+        }
+    }
+
     public void sendTroubleTicketPage(String to, List<TroubleTicketSummary> tickets, int startIndex) {
         if (tickets == null || tickets.isEmpty()) {
             sendText(to, translate(to, "NoTroubleTickets"));
@@ -626,6 +711,13 @@ public class WhatsappService {
             target.append("\n\n");
         }
         target.append(trimmed);
+    }
+
+    private String safeText(String value, String fallback) {
+        if (value == null || value.isBlank()) {
+            return fallback == null ? "" : fallback;
+        }
+        return value.strip();
     }
 
     private String buildPagedPrompt(String userId, String promptKey, int start, int end, int total) {

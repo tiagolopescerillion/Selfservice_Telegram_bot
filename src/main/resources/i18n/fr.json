@@ -81,6 +81,7 @@
   "InvoiceViewPdf": "Hello PDF for invoice %s",
   "InvoicePay": "Hello Pay Invoice for invoice %s",
   "InvoiceCompare": "Hello Compare Bills with AI for invoice %s",
+  "InvoiceActionsInstruction": "Répondez avec 1, 2 ou 3 pour choisir une action de facture, ou tapez 'menu' pour revenir.",
   "HelloWorldMessage": "Bonjour tout le monde 👋",
   "HelloCerillionMessage": "Bonjour Cerillion 🚀",
   "TroubleTicketInformation": "🎫 Informations ticket :\n%s",
@@ -107,5 +108,7 @@
   "WhatsappMoreServicesInstruction": "Tapez 'more services %d' pour voir plus de services.\n",
   "WhatsappServiceSelectionInstruction": "Répondez avec 'service <number>' pour sélectionner un service.",
   "WhatsappMoreTicketsInstruction": "Tapez 'more tickets %d' pour voir plus de tickets.\n",
-  "WhatsappTicketSelectionInstruction": "Répondez avec 'ticket <id>' pour consulter un ticket."
+  "WhatsappTicketSelectionInstruction": "Répondez avec 'ticket <id>' pour consulter un ticket.",
+  "WhatsappMoreInvoicesInstruction": "Tapez 'more invoices %d' pour voir plus de factures.\n",
+  "WhatsappInvoiceSelectionInstruction": "Répondez avec 'invoice <number>' pour choisir une facture ou tapez 'menu' pour revenir."
 }
