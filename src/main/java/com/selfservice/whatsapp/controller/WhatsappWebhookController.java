@@ -575,17 +575,17 @@ public class WhatsappWebhookController {
         int numeric = parseIndex(lower);
         if (numeric >= 1 && numeric <= menuItems.size()) {
             BusinessMenuItem item = menuItems.get(numeric - 1);
-            if (item.isSubMenu()) {
-                if (!whatsappService.goToBusinessMenu(userId, item.submenuId())) {
-                    whatsappService.sendText(from, whatsappService.translate(from, "BusinessMenuUnavailable"));
-                }
+            if (item.isWeblink()) {
+                whatsappService.sendWeblink(from, item);
                 AccountSummary selected = sessionService.getSelectedAccount(userId);
                 whatsappService.sendLoggedInMenu(from, selected, sessionService.getAccounts(userId).size() > 1);
                 return;
             }
 
-            if (item.isWeblink()) {
-                whatsappService.sendWeblink(from, item);
+            if (!item.isFunctionMenu() && item.isSubMenu()) {
+                if (!whatsappService.goToBusinessMenu(userId, item.submenuId())) {
+                    whatsappService.sendText(from, whatsappService.translate(from, "BusinessMenuUnavailable"));
+                }
                 AccountSummary selected = sessionService.getSelectedAccount(userId);
                 whatsappService.sendLoggedInMenu(from, selected, sessionService.getAccounts(userId).size() > 1);
                 return;
