@@ -3154,11 +3154,13 @@ async function handleSendNotification(event) {
   event.preventDefault();
   notificationResult.textContent = "";
   notificationResult.className = "notification-result";
+  notificationResult.classList.add("hidden");
 
   const endpoint = buildNotificationEndpoint("/notifications");
   if (!endpoint) {
     notificationResult.textContent = "Set the notifications API base URL so the server can be reached.";
     notificationResult.classList.add("error");
+    notificationResult.classList.remove("hidden");
     return;
   }
 
@@ -3177,6 +3179,7 @@ async function handleSendNotification(event) {
   try {
     notificationResult.textContent = "Sending notification...";
     notificationResult.classList.add("info");
+    notificationResult.classList.remove("hidden");
     const response = await fetch(endpoint, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -3187,6 +3190,7 @@ async function handleSendNotification(event) {
       notificationResult.textContent = body?.reason || `Request failed (HTTP ${response.status})`;
       notificationResult.classList.remove("info");
       notificationResult.classList.add("error");
+      notificationResult.classList.remove("hidden");
       return;
     }
     notificationResult.textContent = body?.status === "sent"
@@ -3194,10 +3198,12 @@ async function handleSendNotification(event) {
       : "Message sent.";
     notificationResult.classList.remove("info");
     notificationResult.classList.add("success");
+    notificationResult.classList.remove("hidden");
   } catch (error) {
     notificationResult.textContent = error?.message || "Unexpected error while sending notification.";
     notificationResult.classList.remove("info");
     notificationResult.classList.add("error");
+    notificationResult.classList.remove("hidden");
   }
 }
 
@@ -3379,3 +3385,16 @@ initMonitoring();
 restoreNotificationApiBase();
 loadWeblinksConfig();
 setActiveApp("admin");
+
+
+function hideNotificationResult() {
+  notificationResult.classList.add("hidden");
+  notificationResult.classList.remove("success", "error", "info");
+}
+
+document.getElementById("notificationChannel").addEventListener("change", hideNotificationResult);
+document.getElementById("notificationChatId").addEventListener("input", hideNotificationResult);
+document.getElementById("notificationMessage").addEventListener("input", hideNotificationResult);
+document.getElementById("notificationChannel").addEventListener("click", hideNotificationResult);
+document.getElementById("notificationChatId").addEventListener("click", hideNotificationResult);
+document.getElementById("notificationMessage").addEventListener("click", hideNotificationResult);

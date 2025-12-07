@@ -12,8 +12,15 @@
   <body>
     <div class="app-shell">
       <aside class="sidebar" aria-label="Application navigation">
-        <div class="sidebar__title">Admin applications</div>
+        <!-- <img
+          src="Cerillion-blue.jpg"
+          alt="Cerillion Logo"
+          class="sidebar-logo"
+        /> -->
+
+        <div class="sidebar-title">Digital IM Bot</div>
         <nav class="sidebar__nav">
+          <div class="side-menu-divider">Admin</div>
           <button
             id="navImServerAdmin"
             class="sidebar__link active"
@@ -24,12 +31,17 @@
           <button id="navConnectors" class="sidebar__link" type="button">
             Connectors
           </button>
+          <div class="side-menu-divider">Business Configuration</div>
+          <button id="navMenuConfig" class="sidebar__link" type="button">
+            IM Menus Configurator
+          </button>
           <button id="navWeblinks" class="sidebar__link" type="button">
             Web Links Configuration
           </button>
           <button id="navServiceFunctions" class="sidebar__link" type="button">
             Service Functions
           </button>
+          <div class="side-menu-divider">Operations</div>
           <button
             id="navOperationsMonitoring"
             class="sidebar__link"
@@ -40,17 +52,10 @@
           <button id="navSendMessages" class="sidebar__link" type="button">
             Send Messages
           </button>
-          <button id="navMenuConfig" class="sidebar__link" type="button">
-            IM Menus Configurator
-          </button>
         </nav>
       </aside>
 
       <div class="content">
-        <header>
-          <h1>Cerillion Digital IM</h1>
-          <p>For Telegram, WhatsApp, and Messenger</p>
-        </header>
         <main>
           <section id="serviceFunctionsPanel" class="hidden">
             <section class="panel panel--wide">
@@ -62,18 +67,35 @@
                 on the running Java services.
               </p>
               <div class="toolbar">
-                <button id="addServiceFunctionButton" class="secondary" type="button">
+                <button
+                  id="addServiceFunctionButton"
+                  class="secondary"
+                  type="button"
+                >
                   Add Service Function
                 </button>
-                <button id="downloadQueryParamsButton" class="button" type="button">
+                <button
+                  id="downloadQueryParamsButton"
+                  class="button"
+                  type="button"
+                >
                   Download updated application-local.yml
                 </button>
               </div>
-              <form id="newServiceFunctionForm" class="card hidden" autocomplete="off">
+              <form
+                id="newServiceFunctionForm"
+                class="card hidden"
+                autocomplete="off"
+              >
                 <div class="two-col-grid">
                   <label>
                     Service function name
-                    <input id="newServiceFunctionName" type="text" required placeholder="e.g. Visible mobile lines" />
+                    <input
+                      id="newServiceFunctionName"
+                      type="text"
+                      required
+                      placeholder="e.g. Visible mobile lines"
+                    />
                   </label>
                   <label>
                     Endpoint source
@@ -82,11 +104,17 @@
                 </div>
                 <div class="two-col-grid">
                   <label class="checkbox">
-                    <input type="checkbox" id="newServiceFunctionAccountContext" />
+                    <input
+                      type="checkbox"
+                      id="newServiceFunctionAccountContext"
+                    />
                     <span>Account-level context</span>
                   </label>
                   <label class="checkbox">
-                    <input type="checkbox" id="newServiceFunctionServiceContext" />
+                    <input
+                      type="checkbox"
+                      id="newServiceFunctionServiceContext"
+                    />
                     <span>Service-level context</span>
                   </label>
                 </div>
@@ -100,19 +128,32 @@
                     />
                   </label>
                   <p class="hint">
-                    Start from the endpoint defaults automatically. Toggle context checkboxes to append
-                    account or service identifiers to your overrides.
+                    Start from the endpoint defaults automatically. Toggle
+                    context checkboxes to append account or service identifiers
+                    to your overrides.
                   </p>
                 </div>
                 <div class="toolbar toolbar--end">
-                  <button id="saveNewServiceFunction" type="submit">Save service function</button>
-                  <button id="cancelNewServiceFunction" type="button" class="secondary">Cancel</button>
+                  <button id="saveNewServiceFunction" type="submit">
+                    Save service function
+                  </button>
+                  <button
+                    id="cancelNewServiceFunction"
+                    type="button"
+                    class="secondary"
+                  >
+                    Cancel
+                  </button>
                 </div>
               </form>
               <div class="service-function-list" id="serviceFunctionsTableBody">
                 <div class="empty">Loading endpoints…</div>
               </div>
-              <p id="serviceFunctionsStatus" class="hint" aria-live="polite"></p>
+              <p
+                id="serviceFunctionsStatus"
+                class="hint"
+                aria-live="polite"
+              ></p>
             </section>
           </section>
 
@@ -133,9 +174,9 @@
                   </select>
                 </label>
                 <p class="hint">
-                  Switch between the login and business menus. Both menus share the same
-                  configuration tools, including functions, nested sub-menus, and the
-                  delete warning for cascading changes.
+                  Switch between the login and business menus. Both menus share
+                  the same configuration tools, including functions, nested
+                  sub-menus, and the delete warning for cascading changes.
                 </p>
               </div>
               <div class="menu-toolbar">
@@ -193,7 +234,9 @@
                   Menu item type
                   <select id="itemTypeSelect" required>
                     <option value="function">Function</option>
-                    <option value="function-menu">Menu item with function</option>
+                    <option value="function-menu">
+                      Menu item with function
+                    </option>
                     <option value="submenu">Sub-menu</option>
                     <option value="weblink">Web link</option>
                   </select>
@@ -235,8 +278,9 @@
                     <select id="menuWeblinkSelect"></select>
                   </label>
                   <p class="hint">
-                    Opens the configured URL on the user's device. Authenticated links append the
-                    current <code>exchangeId</code> when available.
+                    Opens the configured URL on the user's device. Authenticated
+                    links append the current <code>exchangeId</code> when
+                    available.
                   </p>
                 </div>
                 <button type="submit">Add item</button>
@@ -274,15 +318,14 @@
             </section>
           </section>
 
-          <section id="operationsMonitoringPanel" class="hidden">
-            <section class="panel panel--wide">
-              <h2>Operations Monitoring</h2>
-              <p>
-                Track live chat sessions and sign-in activity in near real time.
-                The lists refresh automatically while preserving the familiar
-                Cerillion Digital IM look and feel.
-              </p>
-              <div class="monitoring-config">
+          <!-- <section id="operationsMonitoringPanel" class="hidden"> -->
+            <section id="operationsMonitoringPanel" class="content-dashboard content-dashboard--wide hidden hidden">
+ 
+              <div class="content-dashboard-section content-dashboard-title">
+                <div class="content-title">Operations Monitoring</div>
+                <div class="content-subtitle">Track live chat sessions</div>
+              </div>
+              <!-- <div class="monitoring-config">
                 <label>
                   Monitoring API base URL
                   <input
@@ -297,8 +340,19 @@
                   property. Copy this value when hosting the UI separately so
                   the Operations Monitoring API can be reached.
                 </p>
+              </div> -->
+
+              <div class="content-dashboard-section">
+                <div class="content-section-title">Ongoing Sessions</div>
+                <div class="content-subtitle">Live chats currently in progress.</div>
               </div>
-              <div class="monitoring-vertical">
+
+              <div class="content-dashboard-section">
+                <div class="content-section-title">Sessions History</div>
+                <div class="content-subtitle">Completed Sessions</div>
+              </div>
+
+              <div class="content-form">
                 <div class="monitoring-card">
                   <div class="monitoring-card__header">
                     <div>
@@ -354,17 +408,23 @@
                 </div>
               </div>
             </section>
-          </section>
+          <!-- </section> -->
 
-          <section id="sendMessagesPanel" class="hidden">
-            <section class="panel panel--wide">
-              <h2>Send Messages</h2>
-              <p>
-                Deliver notifications to opted-in users on Telegram or WhatsApp.
-                Users must grant consent from their chat session before any
-                outbound message is sent.
-              </p>
-              <div class="monitoring-config">
+          <!-- <section class="hidden"> -->
+          <section
+            id="sendMessagesPanel"
+            class="content-dashboard content-dashboard--wide hidden">
+
+            <div class="content-dashboard-section content-dashboard-title">
+          
+            <div class="content-title">Send Messages</div>
+            <div class="content-subtitle">
+              Deliver notifications to opted-in users.<br>
+              Users must grant consent from their chat session before any
+              outbound message is sent.
+            </div>
+            </div>
+            <!-- <div class="monitoring-config">
                 <label>
                   Notifications API base URL
                   <input
@@ -379,47 +439,60 @@
                   property. Copy this value when hosting the UI separately so
                   the <code>/notifications</code> endpoint can be reached.
                 </p>
-              </div>
-              <form
-                id="sendMessageForm"
-                class="send-message-form"
-                autocomplete="off"
-              >
-                <label>
-                  Channel
-                  <select id="notificationChannel" required>
-                    <option value="telegram">Telegram</option>
-                    <option value="whatsapp">WhatsApp</option>
-                  </select>
-                </label>
-                <label>
-                  Chat ID / Phone Number
-                  <input
-                    id="notificationChatId"
-                    type="text"
-                    placeholder="e.g. 123456789"
-                    required
-                  />
-                </label>
-                <label>
-                  Message
+              </div> -->
+              <div class="content-dashboard-section">
+            <div class="content-form" id="sendMessageForm">
+              <div class="content-section-title">Notification Form</div>
+              <form id="sendMessageForm" class="" autocomplete="off">
+                <div class="content-form-selection">
+                  <div class="content-form-field">
+                    <span class="content-form-label">Channel</span>
+                    <select
+                      id="notificationChannel"
+                      class="content-form-input"
+                      required
+                    >
+                      <option value="telegram">Telegram</option>
+                      <option value="whatsapp">WhatsApp</option>
+                    </select>
+                  </div>
+
+                  <div class="content-form-field">
+                    <span class="content-form-label"
+                      >Chat ID / Phone Number</span
+                    >
+                    <input
+                      id="notificationChatId"
+                      type="text"
+                      class="content-form-input"
+                      placeholder="e.g. 123456789"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div class="content-form-field content-form-message">
+                  <span class="content-form-label">Message</span>
                   <textarea
                     id="notificationMessage"
-                    rows="4"
+                    class="content-form-input content-form-textarea"
                     placeholder="Type the notification to send"
                     required
                   ></textarea>
-                </label>
+                </div>
+                </div>
+
                 <div class="panel-actions">
                   <button type="submit">Send notification</button>
                 </div>
               </form>
+
               <div
                 id="notificationResult"
-                class="notification-result"
+                class="notification-result hidden"
                 aria-live="polite"
               ></div>
-            </section>
+            </div>
           </section>
 
           <section id="connectorsPanel" class="hidden">
@@ -428,41 +501,85 @@
                 <div>
                   <h2>Connectors</h2>
                   <p>
-                    Manage channel availability flags and individual connector settings. Values are read directly from
-                    the <code>CONFIGURATIONS/</code> directory.
+                    Manage channel availability flags and individual connector
+                    settings. Values are read directly from the
+                    <code>CONFIGURATIONS/</code> directory.
                   </p>
                 </div>
               </div>
 
-              <div class="tabs" role="tablist" aria-label="Connector configuration">
-                <button class="tab active" data-connectors-tab="general" type="button">General</button>
-                <button class="tab" data-connectors-tab="telegram" type="button">Telegram</button>
-                <button class="tab" data-connectors-tab="whatsapp" type="button">WhatsApp</button>
-                <button class="tab" data-connectors-tab="messenger" type="button">Messenger</button>
+              <div
+                class="tabs"
+                role="tablist"
+                aria-label="Connector configuration"
+              >
+                <button
+                  class="tab active"
+                  data-connectors-tab="general"
+                  type="button"
+                >
+                  General
+                </button>
+                <button
+                  class="tab"
+                  data-connectors-tab="telegram"
+                  type="button"
+                >
+                  Telegram
+                </button>
+                <button
+                  class="tab"
+                  data-connectors-tab="whatsapp"
+                  type="button"
+                >
+                  WhatsApp
+                </button>
+                <button
+                  class="tab"
+                  data-connectors-tab="messenger"
+                  type="button"
+                >
+                  Messenger
+                </button>
               </div>
 
-              <div class="connector-tab connector-tab--active" data-connectors-tab-panel="general">
+              <div
+                class="connector-tab connector-tab--active"
+                data-connectors-tab-panel="general"
+              >
                 <div class="monitoring-config config-viewer__header">
                   <div>
                     <div class="hint">Configuration source</div>
-                    <div id="connectorsFileName" class="config-viewer__filename">Loading...</div>
+                    <div
+                      id="connectorsFileName"
+                      class="config-viewer__filename"
+                    >
+                      Loading...
+                    </div>
                   </div>
                   <div class="panel-actions">
-                    <button id="connectorsReloadButton" type="button" class="secondary">
+                    <button
+                      id="connectorsReloadButton"
+                      type="button"
+                      class="secondary"
+                    >
                       Reload from file
                     </button>
                   </div>
                   <div id="connectorsStatus" class="hint"></div>
                 </div>
                 <p class="hint">
-                  Use the switches to enable or disable each messaging channel. Changes are reflected below and can be
-                  downloaded as <code>connectors-local.yml</code>.
+                  Use the switches to enable or disable each messaging channel.
+                  Changes are reflected below and can be downloaded as
+                  <code>connectors-local.yml</code>.
                 </p>
                 <div class="switch-grid">
                   <div class="switch-tile">
                     <div class="switch-text">
                       <div class="switch-label">Telegram</div>
-                      <div class="switch-subtitle">Toggle the Telegram connector availability.</div>
+                      <div class="switch-subtitle">
+                        Toggle the Telegram connector availability.
+                      </div>
                     </div>
                     <label class="switch">
                       <input type="checkbox" id="telegramConnectorToggle" />
@@ -473,7 +590,9 @@
                   <div class="switch-tile">
                     <div class="switch-text">
                       <div class="switch-label">WhatsApp</div>
-                      <div class="switch-subtitle">Toggle the WhatsApp connector availability.</div>
+                      <div class="switch-subtitle">
+                        Toggle the WhatsApp connector availability.
+                      </div>
                     </div>
                     <label class="switch">
                       <input type="checkbox" id="whatsappConnectorToggle" />
@@ -484,7 +603,9 @@
                   <div class="switch-tile">
                     <div class="switch-text">
                       <div class="switch-label">Messenger</div>
-                      <div class="switch-subtitle">Toggle the Messenger connector availability.</div>
+                      <div class="switch-subtitle">
+                        Toggle the Messenger connector availability.
+                      </div>
                     </div>
                     <label class="switch">
                       <input type="checkbox" id="messengerConnectorToggle" />
@@ -507,25 +628,37 @@
                   ></pre>
                 </div>
                 <div class="download-actions">
-                  <button id="connectorsDownloadButton" type="button" class="button">
+                  <button
+                    id="connectorsDownloadButton"
+                    type="button"
+                    class="button"
+                  >
                     Download connectors-local.yml
                   </button>
                 </div>
               </div>
 
-                <div class="connector-tab" data-connectors-tab-panel="telegram">
+              <div class="connector-tab" data-connectors-tab-panel="telegram">
                 <div class="connector-tab__header">
                   <div>
                     <div class="switch-label">Telegram configuration</div>
                     <div id="telegramConfigStatus" class="hint"></div>
                   </div>
                   <div class="panel-actions">
-                    <button id="telegramReloadButton" type="button" class="secondary">
+                    <button
+                      id="telegramReloadButton"
+                      type="button"
+                      class="secondary"
+                    >
                       Reload from file
                     </button>
                   </div>
                 </div>
-                <div id="telegramDisabledMessage" class="empty-state hidden" aria-live="polite">
+                <div
+                  id="telegramDisabledMessage"
+                  class="empty-state hidden"
+                  aria-live="polite"
+                >
                   Telegram is disabled in your configuration.
                 </div>
                 <div class="config-editor">
@@ -546,25 +679,37 @@
                   ></pre>
                 </div>
                 <div class="download-actions">
-                  <button id="telegramDownloadButton" type="button" class="button">
+                  <button
+                    id="telegramDownloadButton"
+                    type="button"
+                    class="button"
+                  >
                     Download telegram-local.yml
                   </button>
                 </div>
               </div>
 
-                <div class="connector-tab" data-connectors-tab-panel="whatsapp">
+              <div class="connector-tab" data-connectors-tab-panel="whatsapp">
                 <div class="connector-tab__header">
                   <div>
                     <div class="switch-label">WhatsApp configuration</div>
                     <div id="whatsappConfigStatus" class="hint"></div>
                   </div>
                   <div class="panel-actions">
-                    <button id="whatsappReloadButton" type="button" class="secondary">
+                    <button
+                      id="whatsappReloadButton"
+                      type="button"
+                      class="secondary"
+                    >
                       Reload from file
                     </button>
                   </div>
                 </div>
-                <div id="whatsappDisabledMessage" class="empty-state hidden" aria-live="polite">
+                <div
+                  id="whatsappDisabledMessage"
+                  class="empty-state hidden"
+                  aria-live="polite"
+                >
                   WhatsApp is disabled in your configuration.
                 </div>
                 <div class="config-editor">
@@ -585,25 +730,37 @@
                   ></pre>
                 </div>
                 <div class="download-actions">
-                  <button id="whatsappDownloadButton" type="button" class="button">
+                  <button
+                    id="whatsappDownloadButton"
+                    type="button"
+                    class="button"
+                  >
                     Download whatsapp-local.yml
                   </button>
                 </div>
               </div>
 
-                <div class="connector-tab" data-connectors-tab-panel="messenger">
+              <div class="connector-tab" data-connectors-tab-panel="messenger">
                 <div class="connector-tab__header">
                   <div>
                     <div class="switch-label">Messenger configuration</div>
                     <div id="messengerConfigStatus" class="hint"></div>
                   </div>
                   <div class="panel-actions">
-                    <button id="messengerReloadButton" type="button" class="secondary">
+                    <button
+                      id="messengerReloadButton"
+                      type="button"
+                      class="secondary"
+                    >
                       Reload from file
                     </button>
                   </div>
                 </div>
-                <div id="messengerDisabledMessage" class="empty-state hidden" aria-live="polite">
+                <div
+                  id="messengerDisabledMessage"
+                  class="empty-state hidden"
+                  aria-live="polite"
+                >
                   Messenger is disabled in your configuration.
                 </div>
                 <div class="config-editor">
@@ -624,7 +781,11 @@
                   ></pre>
                 </div>
                 <div class="download-actions">
-                  <button id="messengerDownloadButton" type="button" class="button">
+                  <button
+                    id="messengerDownloadButton"
+                    type="button"
+                    class="button"
+                  >
                     Download messenger-local.yml
                   </button>
                 </div>
@@ -638,8 +799,9 @@
                 <div>
                   <h2>Web Links Configuration</h2>
                   <p>
-                    Manage reusable links for menu items. Authenticated links automatically append the
-                    user's <code>exchangeId</code> when available.
+                    Manage reusable links for menu items. Authenticated links
+                    automatically append the user's <code>exchangeId</code> when
+                    available.
                   </p>
                 </div>
               </div>
@@ -647,10 +809,16 @@
               <div class="monitoring-config config-viewer__header">
                 <div>
                   <div class="hint">Configuration source</div>
-                  <div id="weblinksFileName" class="config-viewer__filename">Loading...</div>
+                  <div id="weblinksFileName" class="config-viewer__filename">
+                    Loading...
+                  </div>
                 </div>
                 <div class="panel-actions">
-                  <button id="weblinksReloadButton" type="button" class="secondary">
+                  <button
+                    id="weblinksReloadButton"
+                    type="button"
+                    class="secondary"
+                  >
                     Reload from file
                   </button>
                 </div>
@@ -658,25 +826,38 @@
               </div>
 
               <p class="hint">
-                If <code>weblinks-local.yml</code> is not present, the example configuration is loaded
-                instead. Edit entries below or download the generated file for deployment.
+                If <code>weblinks-local.yml</code> is not present, the example
+                configuration is loaded instead. Edit entries below or download
+                the generated file for deployment.
               </p>
 
               <div id="weblinksList" class="config-tree"></div>
 
               <div class="panel-actions">
-                <button id="addWeblinkButton" type="button" class="button">Add new weblink</button>
+                <button id="addWeblinkButton" type="button" class="button">
+                  Add new weblink
+                </button>
               </div>
 
               <form id="weblinksAddForm" class="card hidden" autocomplete="off">
                 <div class="two-col-grid">
                   <label>
                     URL name
-                    <input id="weblinkNameInput" type="text" placeholder="Support Portal" required />
+                    <input
+                      id="weblinkNameInput"
+                      type="text"
+                      placeholder="Support Portal"
+                      required
+                    />
                   </label>
                   <label>
                     URL
-                    <input id="weblinkUrlInput" type="url" placeholder="https://example.com" required />
+                    <input
+                      id="weblinkUrlInput"
+                      type="url"
+                      placeholder="https://example.com"
+                      required
+                    />
                   </label>
                 </div>
                 <label>
@@ -693,7 +874,13 @@
                 </label>
                 <div class="toolbar toolbar--end">
                   <button id="confirmWeblinkButton" type="submit">OK</button>
-                  <button id="cancelWeblinkButton" type="button" class="secondary">Cancel</button>
+                  <button
+                    id="cancelWeblinkButton"
+                    type="button"
+                    class="secondary"
+                  >
+                    Cancel
+                  </button>
                 </div>
               </form>
 
@@ -701,11 +888,19 @@
                 <div class="connector-preview__header">
                   <div class="hint">Generated weblinks-local.yml</div>
                 </div>
-                <pre id="weblinksPreview" class="preview config-preview" aria-live="polite"></pre>
+                <pre
+                  id="weblinksPreview"
+                  class="preview config-preview"
+                  aria-live="polite"
+                ></pre>
               </div>
 
               <div class="download-actions">
-                <button id="weblinksDownloadButton" type="button" class="button">
+                <button
+                  id="weblinksDownloadButton"
+                  type="button"
+                  class="button"
+                >
                   Download weblinks-local.yml
                 </button>
               </div>

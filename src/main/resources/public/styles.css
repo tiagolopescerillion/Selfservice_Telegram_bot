@@ -1,13 +1,40 @@
 :root {
     color-scheme: light dark;
-    --accent: #0056b3;
+    --accent: #0052ff;
     --accent-light: #e1efff;
     --border: #cbd5e1;
     --bg: #f8fafc;
+
+      --shadow-soft: 0 14px 45px rgba(15, 23, 42, 0.12);
+  --radius-xl: 28px;
+  --radius-lg: 10px;
+  --radius-md: 10px;
+  --radius-pill: 10px;
+  --gap-lg: 24px;
+  --gap-md: 16px;
+  --gap-sm: 8px;
+  --font-family-sans: system-ui, -apple-system, BlinkMacSystemFont,
+    "Segoe UI", "Roboto", "Helvetica Neue", Arial, sans-serif,
+    "Segoe UI", sans-serif;
 }
 
 * {
     box-sizing: border-box;
+}
+
+html {
+    /* Always reserve space for the vertical scrollbar so layout doesn't shift */
+    overflow-y: scroll;
+    scrollbar-gutter: stable;
+    /* nice-to-have in modern browsers */
+}
+
+
+html,
+body {
+    margin: 0;
+    padding: 0;
+    min-height: 100vh;
 }
 
 body {
@@ -17,29 +44,75 @@ body {
     background: var(--bg);
     color: #0f172a;
     line-height: 1.6;
-    padding: 1.5rem;
+    padding: 8px;
+
 }
 
 .app-shell {
-    display: grid;
-    grid-template-columns: 260px 1fr;
-    gap: 1.5rem;
-    align-items: start;
+    min-height: 100vh;
+    /* max-width: 1320px; */
+    margin: 0 auto;
+    /* padding: 24px; */
+    display: flex;
+    align-items: flex-start;
+    /* better for sidebar + content */
+    gap: 12px;
+    /* space between sidebar and content */
+}
+
+@media (max-width: 900px) {
+    .app-shell {
+        flex-direction: column;
+        padding: 16px;
+    }
 }
 
 .sidebar {
-    background: #fff;
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 1rem;
-    box-shadow: 0 10px 25px rgba(15, 23, 42, 0.07);
-    position: sticky;
-    top: 1.5rem;
+    background: rgba(255, 255, 255, 0.96);
+    backdrop-filter: blur(12px);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-soft);
+    display: flex;
+    flex-direction: column;
+    
+    margin-left: 0px;
+    /* make it behave like the old 260px grid column */
+    flex: 0 0 260px;
+    max-width: 280px;
+        position: sticky;
+    top: 12px; /* distance from the top while scrolling */
+            padding: 0px 20px 20px;
 }
 
-.sidebar__title {
+.sidebar-logo {
+    width: 100%;
+    height: auto;
+    padding: 8px; 
+    border-radius: var(--radius-xl);
+
+}
+
+
+
+
+.sidebar-title {
+    font-size: 24px;
     font-weight: 700;
-    margin-bottom: 0.75rem;
+    margin-top: 12px;
+    margin-bottom: 8px
+
+}
+
+.side-menu-divider {
+    font-size: 14px;
+    font-weight: 600;
+    color: #000;
+    margin-top: 8px;
+    margin-bottom: 8px;
+    
+    border-bottom: #64748b;
+    border-bottom-style: solid;
+    border-bottom-width: 0.5px;
 }
 
 .sidebar__nav {
@@ -53,10 +126,10 @@ body {
     width: 100%;
     background: #fff;
     color: #0f172a;
-    border: 1px solid var(--border);
+    
     border-radius: 0.75rem;
-    padding: 0.75rem 0.9rem;
-    font-weight: 600;
+    padding: 0.25rem 0.9rem;
+    font-weight: 400;
     transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
 }
 
@@ -64,17 +137,145 @@ body {
     transform: translateY(-1px);
     border-color: var(--accent);
     box-shadow: 0 8px 20px rgba(0, 86, 179, 0.12);
+    color: var(--accent);
+    background: var(--accent-light);
+        font-weight: 600;
 }
 
 .sidebar__link.active {
-    background: var(--accent-light);
+
     border-color: var(--accent);
-    color: #0f172a;
+    color: var(--accent);
+        font-weight: 600;
 }
 
 .content {
     max-width: 1366px;
+    justify-content: center;
+    width: 100%;
 }
+
+.content-title {
+    font-size: 24px;
+    font-weight: 700;
+}
+
+
+.content-section-title {
+    font-size: 20px;
+    font-weight: 700;
+}
+.content-subtitle
+{
+    font-size: 16px;
+    color: #6e6e6e;;
+}
+
+.content-dashboard {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    max-width: 1366px;
+}
+
+.content-dashboard-section {
+    background: #fff;
+    border-radius: 12px;
+    padding: 1.5rem;
+    box-shadow: 0 10px 25px rgba(15, 23, 42, 0.07);
+    border: 1px solid var(--border);
+    display: flex;
+    flex-direction: column  ;
+}
+
+.content-dashboard-title{
+            position: sticky;
+    top: 12px; 
+}
+
+
+.content-dashboard h2 {
+    margin-top: 0;
+}
+
+.content-dashboard-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin-top: 1rem;
+}
+
+.content-dashboard-actions--end {
+    margin-left: auto;
+}
+
+.content-dashboard-heading {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+
+.content-form {
+    /* background: #fff;
+    border-radius: 12px;
+    padding: 16px;
+    box-shadow: 0 10px 25px rgba(15, 23, 42, 0.07);
+    border: 1px solid var(--border); */
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.content-form-selection {
+    display:flex;
+    flex-direction: row;
+    gap: 16px
+}
+
+.content-form-messages {
+    display:flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.content-form-input {
+width: 250px;
+}
+
+.content-form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Consistent label styling */
+.content-form-label {
+  font-weight: 600;
+  color: #0f172a;
+  font-size: 0.95rem;
+}
+
+/* Make message box visually harmonized with other inputs */
+.content-form-textarea {
+  resize: vertical;
+  min-height: 60px;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  background: #fff;
+  font: inherit;
+  line-height: 1.5;
+  width: 100%;
+}
+
+
+
+
+
+
 
 header {
     margin: 0 0 1.5rem;
@@ -225,11 +426,11 @@ main {
     transition: transform 0.15s ease;
 }
 
-.switch input:checked + .switch-slider {
+.switch input:checked+.switch-slider {
     background: var(--accent);
 }
 
-.switch input:checked + .switch-slider::after {
+.switch input:checked+.switch-slider::after {
     transform: translateX(20px);
 }
 
@@ -255,7 +456,7 @@ label {
     display: flex;
     flex-direction: column;
     font-weight: 600;
-    gap: 0.25rem;
+    gap: 8px;
 }
 
 input[type="text"],
@@ -612,9 +813,12 @@ button:disabled {
     grid-column: 1 / -1;
 }
 
+.notification-result.hidden {
+  display: none;
+}
+
 .notification-result {
-    margin-top: 1rem;
-    padding: 0.9rem 1rem;
+    padding: 16px 16px;
     border-radius: 12px;
     border: 1px solid var(--border);
     background: #f8fafc;
@@ -745,7 +949,7 @@ button:disabled {
     gap: 0.25rem;
 }
 
-.service-function__line + .service-function__line {
+.service-function__line+.service-function__line {
     margin-top: 0.55rem;
     padding-top: 0.55rem;
     border-top: 1px dashed var(--border);
