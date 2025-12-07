@@ -1,6 +1,7 @@
 package com.selfservice.whatsapp.service;
 
 import com.selfservice.application.dto.AccountSummary;
+import com.selfservice.application.dto.InvoiceSummary;
 import com.selfservice.application.dto.ServiceSummary;
 import com.selfservice.application.dto.TroubleTicketSummary;
 import org.springframework.stereotype.Service;
@@ -51,6 +52,9 @@ public class WhatsappSessionService {
     private final Map<String, TokenInfo> byUser = new ConcurrentHashMap<>();
     private final Map<String, List<ServiceSummary>> servicesByUser = new ConcurrentHashMap<>();
     private final Map<String, ServiceSummary> selectedServiceByUser = new ConcurrentHashMap<>();
+    private final Map<String, List<InvoiceSummary>> invoicesByUser = new ConcurrentHashMap<>();
+    private final Map<String, InvoiceSummary> selectedInvoiceByUser = new ConcurrentHashMap<>();
+    private final Map<String, String> invoiceActionsMenuByUser = new ConcurrentHashMap<>();
     private final Map<String, List<TroubleTicketSummary>> ticketsByUser = new ConcurrentHashMap<>();
     private final Map<String, String> languageByUser = new ConcurrentHashMap<>();
     private final Map<String, List<String>> menuPathByUser = new ConcurrentHashMap<>();
@@ -63,6 +67,8 @@ public class WhatsappSessionService {
         NONE,
         ACCOUNT,
         SERVICE,
+        INVOICE,
+        INVOICE_ACTION,
         TICKET,
         OPT_IN,
         SETTINGS
@@ -183,6 +189,7 @@ public class WhatsappSessionService {
         clearServices(userId);
         clearTroubleTickets(userId);
         clearSelectedService(userId);
+        clearInvoices(userId);
     }
 
     public void clearSelectedAccount(String userId) {
@@ -199,6 +206,7 @@ public class WhatsappSessionService {
         clearServices(userId);
         clearTroubleTickets(userId);
         clearSelectedService(userId);
+        clearInvoices(userId);
     }
 
     public void saveServices(String userId, List<ServiceSummary> services) {
@@ -249,6 +257,67 @@ public class WhatsappSessionService {
         selectedServiceByUser.remove(userId);
     }
 
+    public void saveInvoices(String userId, List<InvoiceSummary> invoices) {
+        List<InvoiceSummary> copy = invoices == null ? List.of() : List.copyOf(invoices);
+        invoicesByUser.put(userId, copy);
+        InvoiceSummary currentSelection = selectedInvoiceByUser.get(userId);
+        if (copy.size() == 1) {
+            selectedInvoiceByUser.put(userId, copy.get(0));
+        } else if (currentSelection != null) {
+            boolean stillPresent = copy.stream()
+                    .anyMatch(inv -> inv.id().equals(currentSelection.id()));
+            if (!stillPresent) {
+                selectedInvoiceByUser.remove(userId);
+            }
+        } else {
+            selectedInvoiceByUser.remove(userId);
+        }
+    }
+
+    public List<InvoiceSummary> getInvoices(String userId) {
+        return invoicesByUser.getOrDefault(userId, List.of());
+    }
+
+    public void setInvoiceActionsMenu(String userId, String menuId) {
+        if (menuId == null || menuId.isBlank()) {
+            invoiceActionsMenuByUser.remove(userId);
+        } else {
+            invoiceActionsMenuByUser.put(userId, menuId);
+        }
+    }
+
+    public String getInvoiceActionsMenu(String userId) {
+        return invoiceActionsMenuByUser.get(userId);
+    }
+
+    public void clearInvoices(String userId) {
+        invoicesByUser.remove(userId);
+        clearSelectedInvoice(userId);
+        invoiceActionsMenuByUser.remove(userId);
+    }
+
+    public InvoiceSummary getSelectedInvoice(String userId) {
+        return selectedInvoiceByUser.get(userId);
+    }
+
+    public void selectInvoice(String userId, InvoiceSummary invoice) {
+        if (invoice == null) {
+            return;
+        }
+        List<InvoiceSummary> invoices = invoicesByUser.getOrDefault(userId, List.of());
+        InvoiceSummary matched = invoices.stream()
+                .filter(inv -> inv.id().equals(invoice.id()))
+                .findFirst()
+                .orElse(null);
+        if (matched != null) {
+            selectedInvoiceByUser.put(userId, matched);
+        }
+    }
+
+    public void clearSelectedInvoice(String userId) {
+        selectedInvoiceByUser.remove(userId);
+    }
+
     public void saveTroubleTickets(String userId, List<TroubleTicketSummary> tickets) {
         ticketsByUser.put(userId, tickets == null ? List.of() : List.copyOf(tickets));
     }
@@ -265,6 +334,9 @@ public class WhatsappSessionService {
         byUser.remove(userId);
         servicesByUser.remove(userId);
         selectedServiceByUser.remove(userId);
+        invoicesByUser.remove(userId);
+        selectedInvoiceByUser.remove(userId);
+        invoiceActionsMenuByUser.remove(userId);
         ticketsByUser.remove(userId);
         languageByUser.remove(userId);
         menuPathByUser.remove(userId);
@@ -300,6 +372,7 @@ public class WhatsappSessionService {
 
     public boolean clear(String userId) {
         clearServices(userId);
+        clearInvoices(userId);
         clearTroubleTickets(userId);
         languageByUser.remove(userId);
         menuPathByUser.remove(userId);

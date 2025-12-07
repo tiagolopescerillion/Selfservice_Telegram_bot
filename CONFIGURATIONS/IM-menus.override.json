@@ -180,8 +180,17 @@
           "submenuId": null
         },
         {
-          "type": "submenu",
+          "type": "function-menu",
           "order": 6,
+          "label": "Invoice history",
+          "function": "INVOICE_HISTORY",
+          "callbackData": "INVOICE_HISTORY",
+          "translationKey": "ButtonInvoiceHistory",
+          "submenuId": "invoice-actions"
+        },
+        {
+          "type": "submenu",
+          "order": 7,
           "label": "Settings",
           "function": null,
           "callbackData": null,
@@ -190,7 +199,7 @@
         },
         {
           "type": "weblink",
-          "order": 7,
+          "order": 8,
           "label": "Eshop",
           "function": null,
           "callbackData": null,
@@ -203,7 +212,7 @@
         },
         {
           "type": "weblink",
-          "order": 8,
+          "order": 9,
           "label": "My Care",
           "function": null,
           "callbackData": null,
@@ -246,6 +255,49 @@
           "function": "MENU",
           "callbackData": "MENU",
           "translationKey": "ButtonMenu",
+          "submenuId": null
+        }
+      ]
+    },
+    {
+      "id": "invoice-actions",
+      "name": "Invoice actions",
+      "parentId": null,
+      "items": [
+        {
+          "type": "function",
+          "order": 1,
+          "label": "View invoice PDF",
+          "function": "INVOICE_VIEW_PDF",
+          "callbackData": "INVOICE_VIEW_PDF:",
+          "translationKey": "ButtonInvoiceViewPdf",
+          "submenuId": null
+        },
+        {
+          "type": "function",
+          "order": 2,
+          "label": "Pay invoice",
+          "function": "INVOICE_PAY",
+          "callbackData": "INVOICE_PAY:",
+          "translationKey": "ButtonInvoicePay",
+          "submenuId": null
+        },
+        {
+          "type": "function",
+          "order": 3,
+          "label": "Compare bills",
+          "function": "INVOICE_COMPARE",
+          "callbackData": "INVOICE_COMPARE:",
+          "translationKey": "ButtonInvoiceCompare",
+          "submenuId": null
+        },
+        {
+          "type": "function",
+          "order": 4,
+          "label": "Back to menu",
+          "function": "INVOICE_BACK_TO_MENU",
+          "callbackData": "INVOICE_BACK_TO_MENU",
+          "translationKey": "ButtonBackToMenu",
           "submenuId": null
         }
       ]

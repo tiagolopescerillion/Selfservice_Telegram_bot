@@ -106,6 +106,15 @@
         },
         {
           "order": 6,
+          "label": "Invoice history",
+          "type": "function-menu",
+          "function": "INVOICE_HISTORY",
+          "callbackData": "INVOICE_HISTORY",
+          "translationKey": "ButtonInvoiceHistory",
+          "submenuId": "invoice-actions"
+        },
+        {
+          "order": 7,
           "label": "Settings",
           "function": null,
           "callbackData": null,
@@ -141,6 +150,45 @@
           "function": "MENU",
           "callbackData": "MENU",
           "translationKey": "ButtonMenu",
+          "submenuId": null
+        }
+      ]
+    },
+    {
+      "id": "invoice-actions",
+      "name": "Invoice actions",
+      "parentId": null,
+      "items": [
+        {
+          "order": 1,
+          "label": "View invoice PDF",
+          "function": "INVOICE_VIEW_PDF",
+          "callbackData": "INVOICE_VIEW_PDF:",
+          "translationKey": "ButtonInvoiceViewPdf",
+          "submenuId": null
+        },
+        {
+          "order": 2,
+          "label": "Pay invoice",
+          "function": "INVOICE_PAY",
+          "callbackData": "INVOICE_PAY:",
+          "translationKey": "ButtonInvoicePay",
+          "submenuId": null
+        },
+        {
+          "order": 3,
+          "label": "Compare bills",
+          "function": "INVOICE_COMPARE",
+          "callbackData": "INVOICE_COMPARE:",
+          "translationKey": "ButtonInvoiceCompare",
+          "submenuId": null
+        },
+        {
+          "order": 4,
+          "label": "Back to menu",
+          "function": "INVOICE_BACK_TO_MENU",
+          "callbackData": "INVOICE_BACK_TO_MENU",
+          "translationKey": "ButtonBackToMenu",
           "submenuId": null
         }
       ]

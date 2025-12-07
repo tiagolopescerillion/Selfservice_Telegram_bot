@@ -17,6 +17,7 @@ public class ApimanEndpointsProperties {
     private Endpoint product = new Endpoint();
     private Endpoint troubleTicket = new Endpoint();
     private Endpoint impersonationInitiate = new Endpoint();
+    private Endpoint bill = new Endpoint();
 
     private static final Map<String, String> DEFAULT_FIND_USER_QUERY_PARAMS = Map.of(
             "offset", "0",
@@ -35,6 +36,13 @@ public class ApimanEndpointsProperties {
 
     private static final Map<String, String> DEFAULT_TROUBLE_TICKET_QUERY_PARAMS = Map.of(
             "relatedEntity.billingAccount.id", ""
+    );
+
+    private static final Map<String, String> DEFAULT_BILL_QUERY_PARAMS = Map.of(
+            "offset", "0",
+            "limit", "6",
+            "billingAccount.id", "",
+            "sort", "-billDate"
     );
 
     public String getBaseUrl() {
@@ -112,6 +120,26 @@ public class ApimanEndpointsProperties {
 
     public void setTroubleTicket(Endpoint troubleTicket) {
         this.troubleTicket = troubleTicket;
+    }
+
+    public String getBillUrl() {
+        return bill == null ? null : bill.getUrl();
+    }
+
+    public HttpMethod getBillMethod() {
+        return resolveMethod(bill);
+    }
+
+    public Map<String, String> getBillQueryParams() {
+        return resolveQueryParams(bill, DEFAULT_BILL_QUERY_PARAMS);
+    }
+
+    public Map<String, String> getDefaultBillQueryParams() {
+        return DEFAULT_BILL_QUERY_PARAMS;
+    }
+
+    public void setBill(Endpoint bill) {
+        this.bill = bill;
     }
 
     public String getImpersonationInitiateUrl() {
