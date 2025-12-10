@@ -658,34 +658,32 @@ function extractLoginMenus(loginMenu) {
     console.info("Using nested login menu definition", loginMenu.menus);
     return loginMenu.menus;
   }
-  if (Array.isArray(loginMenu?.menu) || Array.isArray(loginMenu?.settingsMenu)) {
-    console.info("Using legacy login menu definition with settingsMenu");
-    const settingsId = "login-settings";
-    return [
-      {
+  const hasLegacyMenu = Array.isArray(loginMenu?.menu) && loginMenu.menu.length;
+  const hasLegacySettingsMenu = Array.isArray(loginMenu?.settingsMenu) && loginMenu.settingsMenu.length;
+
+  if (hasLegacyMenu || hasLegacySettingsMenu) {
+    console.info("Using legacy login menu definition without auto-appended items");
+    const legacyMenus = [];
+
+    if (hasLegacyMenu) {
+      legacyMenus.push({
         id: LOGIN_ROOT_MENU_ID,
         name: "Home",
         parentId: null,
-        items: [
-          ...(Array.isArray(loginMenu.menu) ? loginMenu.menu : []).map((item) => ({
-            label: item.label,
-            function: item.function,
-            useTranslation: Boolean(item.translationKey)
-          })),
-          { label: "Settings", type: "submenu", submenuId: settingsId }
-        ]
-      },
-      {
-        id: settingsId,
+        items: loginMenu.menu.map((item) => ({ ...item }))
+      });
+    }
+
+    if (hasLegacySettingsMenu) {
+      legacyMenus.push({
+        id: "login-settings",
         name: "Settings",
         parentId: LOGIN_ROOT_MENU_ID,
-        items: (loginMenu.settingsMenu || []).map((item) => ({
-          label: item.label,
-          function: item.function,
-          useTranslation: Boolean(item.translationKey)
-        }))
-      }
-    ];
+        items: loginMenu.settingsMenu.map((item) => ({ ...item }))
+      });
+    }
+
+    return legacyMenus;
   }
   return null;
 }
