@@ -6,7 +6,7 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 public class LoginMenuItem {
     private int order;
     private String label;
-    private LoginMenuFunction function;
+    private String function;
     private String translationKey;
     private String callbackData;
 
@@ -26,11 +26,11 @@ public class LoginMenuItem {
         this.label = label;
     }
 
-    public LoginMenuFunction getFunction() {
+    public String getFunction() {
         return function;
     }
 
-    public void setFunction(LoginMenuFunction function) {
+    public void setFunction(String function) {
         this.function = function;
     }
 
@@ -51,6 +51,6 @@ public class LoginMenuItem {
     }
 
     public LoginMenuFunction resolvedFunction() {
-        return function;
+        return LoginMenuFunction.fromString(function);
     }
 }

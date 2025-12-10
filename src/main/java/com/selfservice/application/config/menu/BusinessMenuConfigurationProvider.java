@@ -254,8 +254,25 @@ public class BusinessMenuConfigurationProvider {
 
     private LoginMenuDefinition copyLoginMenu(LoginMenuDefinition menu) {
         LoginMenuDefinition copy = new LoginMenuDefinition();
+        copy.setMenus(copyLoginMenus(menu == null ? List.of() : menu.getMenus()));
         copy.setMenu(menu == null ? List.of() : menu.normalizedMenu());
         copy.setSettingsMenu(menu == null ? List.of() : menu.normalizedSettingsMenu());
         return copy;
+    }
+
+    private List<BusinessMenuDefinition> copyLoginMenus(List<BusinessMenuDefinition> menus) {
+        if (menus == null) {
+            return List.of();
+        }
+        return menus.stream()
+                .map(menu -> {
+                    BusinessMenuDefinition copy = new BusinessMenuDefinition();
+                    copy.setId(menu.getId());
+                    copy.setName(menu.getName());
+                    copy.setParentId(menu.getParentId());
+                    copy.setItems(menu.sortedItems());
+                    return copy;
+                })
+                .toList();
     }
 }

@@ -98,7 +98,6 @@ public class LoginMenuDefinition {
         return menuDefinition.sortedItems().stream()
                 .filter(BusinessMenuItem::isAction)
                 .map(LoginMenuDefinition::toLoginMenuItem)
-                .filter(item -> item.resolvedFunction() != null)
                 .toList();
     }
 
@@ -112,7 +111,7 @@ public class LoginMenuDefinition {
                         LoginMenuItem settings = new LoginMenuItem();
                         settings.setOrder(item.order());
                         settings.setLabel(item.label() == null || item.label().isBlank() ? "Settings" : item.label());
-                        settings.setFunction(LoginMenuFunction.SETTINGS);
+                        settings.setFunction(LoginMenuFunction.SETTINGS.name());
                         settings.setTranslationKey(item.translationKey() == null || item.translationKey().isBlank()
                                 ? "ButtonSettings"
                                 : item.translationKey());
@@ -127,7 +126,6 @@ public class LoginMenuDefinition {
                     return null;
                 })
                 .filter(Objects::nonNull)
-                .filter(item -> item.resolvedFunction() != null)
                 .toList();
     }
 
@@ -135,7 +133,6 @@ public class LoginMenuDefinition {
         List<LoginMenuItem> candidates = (input == null || input.isEmpty()) ? defaults : input;
         return candidates.stream()
                 .filter(Objects::nonNull)
-                .filter(item -> item.resolvedFunction() != null)
                 .sorted(Comparator.comparingInt(LoginMenuItem::getOrder))
                 .map(LoginMenuDefinition::copy)
                 .toList();
@@ -145,7 +142,7 @@ public class LoginMenuDefinition {
         LoginMenuItem item = new LoginMenuItem();
         item.setOrder(source.getOrder());
         item.setLabel(source.getLabel());
-        item.setFunction(source.resolvedFunction());
+        item.setFunction(source.getFunction());
         item.setTranslationKey(source.getTranslationKey());
         item.setCallbackData(source.getCallbackData());
         return item;
@@ -155,7 +152,7 @@ public class LoginMenuDefinition {
         LoginMenuItem item = new LoginMenuItem();
         item.setOrder(source.order());
         item.setLabel(source.label());
-        item.setFunction(LoginMenuFunction.fromString(source.function()));
+        item.setFunction(source.function());
         item.setTranslationKey(source.translationKey());
         item.setCallbackData(source.callbackData());
         return item;
