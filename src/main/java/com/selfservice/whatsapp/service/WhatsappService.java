@@ -438,12 +438,20 @@ public class WhatsappService {
         if (item == null) {
             return false;
         }
-        if (TelegramService.CALLBACK_MENU.equalsIgnoreCase(item.callbackData())
-                || TelegramService.CALLBACK_INVOICE_BACK_TO_MENU.equalsIgnoreCase(item.callbackData())) {
+        if (TelegramService.CALLBACK_MENU.equalsIgnoreCase(item.callbackData())) {
             return true;
         }
-        return TelegramService.CALLBACK_MENU.equalsIgnoreCase(item.function())
-                || TelegramService.CALLBACK_INVOICE_BACK_TO_MENU.equalsIgnoreCase(item.function());
+        return TelegramService.CALLBACK_MENU.equalsIgnoreCase(item.function());
+    }
+
+    private boolean isMenuUpItem(BusinessMenuItem item) {
+        if (item == null) {
+            return false;
+        }
+        if (TelegramService.CALLBACK_BUSINESS_MENU_UP.equalsIgnoreCase(item.callbackData())) {
+            return true;
+        }
+        return TelegramService.CALLBACK_BUSINESS_MENU_UP.equalsIgnoreCase(item.function());
     }
 
     private boolean shouldDisplayBusinessMenuItem(BusinessMenuItem item, int menuDepth, boolean hasAlternateAccount, boolean loggedIn) {
@@ -451,6 +459,9 @@ public class WhatsappService {
             return false;
         }
         if (isBackToMenuItem(item) && menuDepth < 1) {
+            return false;
+        }
+        if (isMenuUpItem(item) && menuDepth < 2) {
             return false;
         }
         if (isChangeAccountItem(item) && !hasAlternateAccount) {
@@ -685,8 +696,8 @@ public class WhatsappService {
                             TelegramService.CALLBACK_INVOICE_COMPARE_PREFIX,
                             TelegramService.CALLBACK_INVOICE_COMPARE_PREFIX, null, null, null, null, null, null),
                     new BusinessMenuItem(4, translate(userId, TelegramService.KEY_BUTTON_BACK_TO_MENU),
-                            TelegramService.CALLBACK_INVOICE_BACK_TO_MENU,
-                            TelegramService.CALLBACK_INVOICE_BACK_TO_MENU, null, null, null, null, null, null));
+                            TelegramService.CALLBACK_MENU,
+                            TelegramService.CALLBACK_MENU, null, null, null, null, null, null));
         }
         return actions;
     }

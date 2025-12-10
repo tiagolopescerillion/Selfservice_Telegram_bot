@@ -92,6 +92,13 @@ const BASE_FUNCTION_OPTIONS = [
     description: "Returns to the previous menu."
   },
   {
+    id: "BUSINESS_MENU_UP",
+    label: "Menu Up",
+    callbackData: "BUSINESS_MENU_UP",
+    translationKey: "BusinessMenuUp",
+    description: "Navigates up one menu level."
+  },
+  {
     id: "LOGOUT",
     label: "Logout",
     callbackData: "LOGOUT",
@@ -109,6 +116,9 @@ const FUNCTION_RULES = {
   },
   CHANGE_ACCOUNT: {
     note: "Select a Different Account option will be displayed when users have access to more than one account",
+  },
+  BUSINESS_MENU_UP: {
+    note: "Menu Up option will be displayed in the menus of level 3 and above",
   },
 };
 

@@ -82,7 +82,6 @@ public class TelegramService {
     public static final String CALLBACK_INVOICE_VIEW_PDF_PREFIX = "INVOICE_VIEW_PDF:";
     public static final String CALLBACK_INVOICE_PAY_PREFIX = "INVOICE_PAY:";
     public static final String CALLBACK_INVOICE_COMPARE_PREFIX = "INVOICE_COMPARE:";
-    public static final String CALLBACK_INVOICE_BACK_TO_MENU = "INVOICE_BACK_TO_MENU";
     public static final String CALLBACK_BUSINESS_MENU_HOME = "BUSINESS_MENU_HOME";
     public static final String CALLBACK_BUSINESS_MENU_UP = "BUSINESS_MENU_UP";
     public static final String CALLBACK_BUSINESS_MENU_PREFIX = "BUSINESS_MENU:";
@@ -497,10 +496,20 @@ public class TelegramService {
         if (item == null) {
             return false;
         }
-        if (CALLBACK_MENU.equalsIgnoreCase(item.callbackData()) || CALLBACK_INVOICE_BACK_TO_MENU.equalsIgnoreCase(item.callbackData())) {
+        if (CALLBACK_MENU.equalsIgnoreCase(item.callbackData())) {
             return true;
         }
-        return CALLBACK_MENU.equalsIgnoreCase(item.function()) || CALLBACK_INVOICE_BACK_TO_MENU.equalsIgnoreCase(item.function());
+        return CALLBACK_MENU.equalsIgnoreCase(item.function());
+    }
+
+    private boolean isMenuUpItem(BusinessMenuItem item) {
+        if (item == null) {
+            return false;
+        }
+        if (CALLBACK_BUSINESS_MENU_UP.equalsIgnoreCase(item.callbackData())) {
+            return true;
+        }
+        return CALLBACK_BUSINESS_MENU_UP.equalsIgnoreCase(item.function());
     }
 
     private boolean shouldDisplayBusinessMenuItem(BusinessMenuItem item, int menuDepth, boolean hasAlternateAccount, boolean loggedIn) {
@@ -508,6 +517,9 @@ public class TelegramService {
             return false;
         }
         if (isBackToMenuItem(item) && menuDepth < 1) {
+            return false;
+        }
+        if (isMenuUpItem(item) && menuDepth < 2) {
             return false;
         }
         if (isChangeAccountItem(item) && !hasAlternateAccount) {
@@ -795,7 +807,7 @@ public class TelegramService {
 
         rows.add(List.of(Map.of(
                 "text", translate(chatId, KEY_BUTTON_BACK_TO_MENU),
-                "callback_data", CALLBACK_INVOICE_BACK_TO_MENU)));
+                "callback_data", CALLBACK_MENU)));
 
         String url = baseUrl + "/sendMessage";
         HttpHeaders headers = new HttpHeaders();
@@ -831,8 +843,8 @@ public class TelegramService {
                             CALLBACK_INVOICE_PAY_PREFIX, null, null, null, null, null, null),
                     new BusinessMenuItem(3, translate(chatId, "ButtonInvoiceCompare"), CALLBACK_INVOICE_COMPARE_PREFIX,
                             CALLBACK_INVOICE_COMPARE_PREFIX, null, null, null, null, null, null),
-                    new BusinessMenuItem(4, translate(chatId, KEY_BUTTON_BACK_TO_MENU), CALLBACK_INVOICE_BACK_TO_MENU,
-                            CALLBACK_INVOICE_BACK_TO_MENU, null, null, null, null, null, null));
+                    new BusinessMenuItem(4, translate(chatId, KEY_BUTTON_BACK_TO_MENU), CALLBACK_MENU,
+                            CALLBACK_MENU, null, null, null, null, null, null));
         }
 
         for (BusinessMenuItem action : actions) {

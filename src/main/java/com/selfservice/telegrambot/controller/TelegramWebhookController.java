@@ -624,16 +624,6 @@ public class TelegramWebhookController {
                         telegramService.sendLoginMenu(chatId, oauthSessionService.buildAuthUrl(chatId));
                     }
                     break;
-                case TelegramService.CALLBACK_INVOICE_BACK_TO_MENU:
-                    if (hasValidToken && ensureAccountSelected(chatId)) {
-                        AccountSummary selectedAccount = userSessionService.getSelectedAccount(chatId);
-                        telegramService.sendLoggedInMenu(chatId, selectedAccount,
-                                userSessionService.getAccounts(chatId).size() > 1);
-                    } else {
-                        telegramService.sendMessage(chatId, loginReminder);
-                        telegramService.sendLoginMenu(chatId, oauthSessionService.buildAuthUrl(chatId));
-                    }
-                    break;
                 case TelegramService.CALLBACK_SELF_SERVICE_LOGIN:
                 case "3":
                     if (hasValidToken) {

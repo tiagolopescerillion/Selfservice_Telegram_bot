@@ -869,7 +869,7 @@ public class WhatsappWebhookController {
         }
         BusinessMenuItem action = actions.get(numeric - 1);
         String callback = whatsappService.invoiceActionCallback(userId, action, selectedInvoice);
-        if (TelegramService.CALLBACK_INVOICE_BACK_TO_MENU.equalsIgnoreCase(callback)) {
+        if (TelegramService.CALLBACK_MENU.equalsIgnoreCase(callback)) {
             AccountSummary selected = sessionService.getSelectedAccount(userId);
             whatsappService.sendLoggedInMenu(from, selected, sessionService.getAccounts(userId).size() > 1);
             return;

@@ -242,8 +242,8 @@
         {
           "order": 4,
           "label": "Back to menu",
-          "function": "INVOICE_BACK_TO_MENU",
-          "callbackData": "INVOICE_BACK_TO_MENU",
+          "function": "MENU",
+          "callbackData": "MENU",
           "translationKey": "ButtonBackToMenu",
           "submenuId": null
         }
