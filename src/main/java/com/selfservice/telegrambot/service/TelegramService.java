@@ -286,6 +286,9 @@ public class TelegramService {
         String menuId = resolveCurrentMenuId(chatId);
         List<BusinessMenuItem> menuItems = menuConfigurationProvider.getMenuItems(menuId);
         for (BusinessMenuItem item : menuItems) {
+            if (!showChangeAccountOption && isChangeAccountItem(item)) {
+                continue;
+            }
             if (item.isSubMenu() && !menuConfigurationProvider.menuExists(item.submenuId())) {
                 log.warn("Chat {} attempted to render missing submenu {}", chatId, item.submenuId());
                 continue;
@@ -307,31 +310,6 @@ public class TelegramService {
 
             keyboard.add(List.of(button));
         }
-
-        int depth = userSessionService.getBusinessMenuDepth(chatId, menuConfigurationProvider.getRootMenuId());
-        if (depth >= 1) {
-            List<Map<String, Object>> navigationRow = new ArrayList<>();
-            navigationRow.add(Map.of(
-                    "text", translate(chatId, KEY_BUTTON_BUSINESS_MENU_HOME),
-                    "callback_data", CALLBACK_BUSINESS_MENU_HOME));
-            if (depth >= 2) {
-                navigationRow.add(Map.of(
-                        "text", translate(chatId, KEY_BUTTON_BUSINESS_MENU_UP),
-                        "callback_data", CALLBACK_BUSINESS_MENU_UP));
-            }
-            keyboard.add(navigationRow);
-        }
-        if (showChangeAccountOption) {
-            keyboard.add(List.of(Map.of(
-                    "text", translate(chatId, KEY_BUTTON_CHANGE_ACCOUNT),
-                    "callback_data", CALLBACK_CHANGE_ACCOUNT)));
-        }
-        keyboard.add(List.of(Map.of(
-                "text", translate(chatId, KEY_BUTTON_SETTINGS),
-                "callback_data", CALLBACK_SETTINGS_MENU)));
-        keyboard.add(List.of(Map.of(
-                "text", translate(chatId, KEY_BUTTON_LOGOUT),
-                "callback_data", CALLBACK_LOGOUT)));
 
         Map<String, Object> replyMarkup = Map.of("inline_keyboard", keyboard);
 
@@ -432,6 +410,16 @@ public class TelegramService {
             return CALLBACK_BUSINESS_MENU_PREFIX + item.submenuId();
         }
         return item.function();
+    }
+
+    private boolean isChangeAccountItem(BusinessMenuItem item) {
+        if (item == null) {
+            return false;
+        }
+        if (CALLBACK_CHANGE_ACCOUNT.equalsIgnoreCase(item.callbackData())) {
+            return true;
+        }
+        return CALLBACK_CHANGE_ACCOUNT.equalsIgnoreCase(item.function());
     }
 
     private String resolveWeblinkUrl(long chatId, BusinessMenuItem item) {

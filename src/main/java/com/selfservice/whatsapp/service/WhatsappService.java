@@ -310,6 +310,9 @@ public class WhatsappService {
 
         int index = 1;
         for (BusinessMenuItem item : menuItems) {
+            if (!showChangeAccountOption && isChangeAccountItem(item)) {
+                continue;
+            }
             if (item.isSubMenu() && !menuConfigurationProvider.menuExists(item.submenuId())) {
                 log.warn("User {} attempted to render missing submenu {}", to, item.submenuId());
                 continue;
@@ -321,32 +324,6 @@ public class WhatsappService {
         }
 
         int depth = sessionService.getBusinessMenuDepth(to, menuConfigurationProvider.getRootMenuId());
-        int actionIndex = index;
-        if (depth >= 1) {
-            body.append(actionIndex).append(") ")
-                    .append(translate(to, TelegramKey.BUTTON_BUSINESS_MENU_HOME.toString()))
-                    .append("\n");
-            actionIndex++;
-            if (depth >= 2) {
-                body.append(actionIndex).append(") ")
-                        .append(translate(to, TelegramKey.BUTTON_BUSINESS_MENU_UP.toString()))
-                        .append("\n");
-                actionIndex++;
-            }
-        }
-        if (showChangeAccountOption) {
-            body.append(actionIndex).append(") ")
-                    .append(translate(to, TelegramKey.BUTTON_CHANGE_ACCOUNT.toString()))
-                    .append("\n");
-            actionIndex++;
-        }
-        body.append(actionIndex).append(") ")
-                .append(translate(to, TelegramKey.BUTTON_SETTINGS.toString()))
-                .append("\n");
-        actionIndex++;
-        body.append(actionIndex).append(") ")
-                .append(translate(to, TelegramKey.BUTTON_LOGOUT.toString()))
-                .append("\n");
         body.append(translate(to, "WhatsappMenuInstruction"));
         if (whatsappProperties.isBasicUxEnabled() || shouldSendFallbackText()) {
             sendText(to, body.toString());
@@ -356,6 +333,9 @@ public class WhatsappService {
             List<Map<String, Object>> rows = new ArrayList<>();
             int rowIndex = 1;
             for (BusinessMenuItem item : menuItems) {
+                if (!showChangeAccountOption && isChangeAccountItem(item)) {
+                    continue;
+                }
                 if (item.isSubMenu() && !menuConfigurationProvider.menuExists(item.submenuId())) {
                     continue;
                 }
@@ -363,31 +343,21 @@ public class WhatsappService {
                 rowIndex++;
             }
 
-            int depthLevel = sessionService.getBusinessMenuDepth(to, menuConfigurationProvider.getRootMenuId());
-            if (depthLevel >= 1) {
-                rows.add(buildListRow(String.valueOf(rowIndex),
-                        translate(to, TelegramKey.BUTTON_BUSINESS_MENU_HOME.toString())));
-                rowIndex++;
-                if (depthLevel >= 2) {
-                    rows.add(buildListRow(String.valueOf(rowIndex),
-                            translate(to, TelegramKey.BUTTON_BUSINESS_MENU_UP.toString())));
-                    rowIndex++;
-                }
-            }
-            if (showChangeAccountOption) {
-                rows.add(buildListRow(String.valueOf(rowIndex),
-                        translate(to, TelegramKey.BUTTON_CHANGE_ACCOUNT.toString())));
-                rowIndex++;
-            }
-            rows.add(buildListRow(String.valueOf(rowIndex), translate(to, TelegramKey.BUTTON_SETTINGS.toString())));
-            rowIndex++;
-            rows.add(buildListRow(String.valueOf(rowIndex), translate(to, TelegramKey.BUTTON_LOGOUT.toString())));
-
             sendInteractiveList(to,
                     translate(to, "LoginWelcome"),
                     translate(to, "WhatsappMenuInstruction"),
                     rows);
         }
+    }
+
+    private boolean isChangeAccountItem(BusinessMenuItem item) {
+        if (item == null) {
+            return false;
+        }
+        if (TelegramService.CALLBACK_CHANGE_ACCOUNT.equalsIgnoreCase(item.callbackData())) {
+            return true;
+        }
+        return TelegramService.CALLBACK_CHANGE_ACCOUNT.equalsIgnoreCase(item.function());
     }
 
     public void sendWeblink(String to, BusinessMenuItem item) {

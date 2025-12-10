@@ -42,7 +42,7 @@ public class LoginMenuDefinition {
         if (!treeMenuItems.isEmpty()) {
             return treeMenuItems;
         }
-        return normalize(menu, defaultMenuItems());
+        return normalize(menu, List.of());
     }
 
     public List<LoginMenuItem> normalizedSettingsMenu() {
@@ -50,7 +50,7 @@ public class LoginMenuDefinition {
         if (!treeSettingsItems.isEmpty()) {
             return treeSettingsItems;
         }
-        return normalize(settingsMenu, defaultSettingsItems());
+        return normalize(settingsMenu, List.of());
     }
 
     private List<LoginMenuItem> normalizedTreeMenu() {
@@ -139,39 +139,6 @@ public class LoginMenuDefinition {
                 .sorted(Comparator.comparingInt(LoginMenuItem::getOrder))
                 .map(LoginMenuDefinition::copy)
                 .toList();
-    }
-
-    private static List<LoginMenuItem> defaultMenuItems() {
-        return List.of(
-                item(1, "Self-service login", LoginMenuFunction.DIGITAL_LOGIN,
-                        "ButtonSelfServiceLogin", "SELF_SERVICE_LOGIN"),
-                item(2, "Direct login", LoginMenuFunction.CRM_LOGIN,
-                        "ButtonDirectLogin", "DIRECT_LOGIN"),
-                item(3, "Settings", LoginMenuFunction.SETTINGS,
-                        "ButtonSettings", "SETTINGS_MENU")
-        );
-    }
-
-    private static List<LoginMenuItem> defaultSettingsItems() {
-        return List.of(
-                item(1, "Consent management", LoginMenuFunction.OPT_IN,
-                        "ButtonOptIn", "OPT_IN"),
-                item(2, "Language settings", LoginMenuFunction.CHANGE_LANGUAGE,
-                        "ButtonChangeLanguage", "CHANGE_LANGUAGE"),
-                item(3, "Back to menu", LoginMenuFunction.MENU,
-                        "ButtonMenu", "MENU")
-        );
-    }
-
-    private static LoginMenuItem item(int order, String label, LoginMenuFunction function, String translationKey,
-            String callbackData) {
-        LoginMenuItem item = new LoginMenuItem();
-        item.setOrder(order);
-        item.setLabel(label);
-        item.setFunction(function);
-        item.setTranslationKey(translationKey);
-        item.setCallbackData(callbackData);
-        return item;
     }
 
     private static LoginMenuItem copy(LoginMenuItem source) {
