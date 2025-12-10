@@ -37,15 +37,14 @@ public class BusinessMenuConfigurationProvider {
         BusinessMenuConfiguration defaultConfig = tryLoadConfiguration(
                 toFileResource(DEFAULT_FILE), objectMapper, resourceLoader);
 
-        BusinessMenuConfiguration selectedConfiguration = firstWithMenus(overrideConfig, defaultConfig);
-        BusinessMenuConfiguration preferredDefault = firstWithMenus(defaultConfig, overrideConfig);
+        BusinessMenuConfiguration selectedConfiguration = firstWithAnyMenu(overrideConfig, defaultConfig);
+        BusinessMenuConfiguration preferredDefault = firstWithAnyMenu(defaultConfig, overrideConfig);
+        List<BusinessMenuDefinition> loadedMenus = resolveMenus(overrideConfig, defaultConfig);
+        LoginMenuDefinition loadedLoginMenu = resolveLoginMenu(overrideConfig, defaultConfig);
 
-        if (selectedConfiguration == null || selectedConfiguration.normalizedMenus().isEmpty()) {
+        if (selectedConfiguration == null || loadedMenus.isEmpty()) {
             throw new IllegalStateException("Business menu configuration could not be loaded from CONFIGURATIONS");
         }
-
-        List<BusinessMenuDefinition> loadedMenus = selectedConfiguration.normalizedMenus();
-        LoginMenuDefinition loadedLoginMenu = selectedConfiguration.normalizedLoginMenu();
 
         Map<String, BusinessMenuDefinition> mapped = new LinkedHashMap<>();
         for (BusinessMenuDefinition definition : loadedMenus) {
@@ -71,11 +70,16 @@ public class BusinessMenuConfigurationProvider {
 
         this.menusById = Collections.unmodifiableMap(mapped);
         this.loginMenuDefinition = loadedLoginMenu == null ? new LoginMenuDefinition() : loadedLoginMenu;
-        this.effectiveConfiguration = snapshotConfiguration(selectedConfiguration, loadedMenus, this.loginMenuDefinition);
+        this.effectiveConfiguration = snapshotConfiguration(
+                selectedConfiguration,
+                loadedMenus,
+                this.loginMenuDefinition);
+        List<BusinessMenuDefinition> defaultMenus = resolveMenus(preferredDefault, selectedConfiguration);
+        LoginMenuDefinition defaultLoginMenu = resolveLoginMenu(preferredDefault, selectedConfiguration);
         this.defaultConfiguration = snapshotConfiguration(
                 preferredDefault == null ? selectedConfiguration : preferredDefault,
-                preferredDefault == null ? loadedMenus : preferredDefault.normalizedMenus(),
-                preferredDefault == null ? this.loginMenuDefinition : preferredDefault.normalizedLoginMenu());
+                defaultMenus.isEmpty() ? loadedMenus : defaultMenus,
+                defaultLoginMenu == null ? this.loginMenuDefinition : defaultLoginMenu);
         log.info("Business menu configuration loaded with {} menus", menusById.size());
     }
 
@@ -167,16 +171,50 @@ public class BusinessMenuConfigurationProvider {
         return "file:" + path.toAbsolutePath();
     }
 
-    private BusinessMenuConfiguration firstWithMenus(BusinessMenuConfiguration... candidates) {
+    private BusinessMenuConfiguration firstWithAnyMenu(BusinessMenuConfiguration... candidates) {
         if (candidates == null) {
             return null;
         }
         for (BusinessMenuConfiguration candidate : candidates) {
-            if (candidate != null && !candidate.normalizedMenus().isEmpty()) {
+            if (candidate == null) {
+                continue;
+            }
+            if (!candidate.normalizedMenus().isEmpty() || hasLoginMenuContent(candidate.normalizedLoginMenu())) {
                 return candidate;
             }
         }
         return null;
+    }
+
+    private List<BusinessMenuDefinition> resolveMenus(
+            BusinessMenuConfiguration primary,
+            BusinessMenuConfiguration fallback) {
+        if (primary != null && !primary.normalizedMenus().isEmpty()) {
+            return primary.normalizedMenus();
+        }
+        if (fallback != null && !fallback.normalizedMenus().isEmpty()) {
+            return fallback.normalizedMenus();
+        }
+        return List.of();
+    }
+
+    private LoginMenuDefinition resolveLoginMenu(
+            BusinessMenuConfiguration primary,
+            BusinessMenuConfiguration fallback) {
+        if (primary != null && hasLoginMenuContent(primary.normalizedLoginMenu())) {
+            return primary.normalizedLoginMenu();
+        }
+        if (fallback != null && hasLoginMenuContent(fallback.normalizedLoginMenu())) {
+            return fallback.normalizedLoginMenu();
+        }
+        return null;
+    }
+
+    private boolean hasLoginMenuContent(LoginMenuDefinition loginMenu) {
+        return loginMenu != null
+                && ((loginMenu.getMenus() != null && !loginMenu.getMenus().isEmpty())
+                || (loginMenu.getMenu() != null && !loginMenu.getMenu().isEmpty())
+                || (loginMenu.getSettingsMenu() != null && !loginMenu.getSettingsMenu().isEmpty()));
     }
 
     private BusinessMenuConfiguration snapshotConfiguration(
