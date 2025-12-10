@@ -183,7 +183,7 @@ public class WhatsappWebhookController {
         monitoringService.recordActivity("WhatsApp", userId, null, hasValidToken,
                 monitoringService.toTokenDetails(tokenSnapshot), optedIn);
         WhatsappSessionService.SelectionContext selectionContext = sessionService.getSelectionContext(userId);
-        List<LoginMenuItem> loginMenuOptions = whatsappService.loginMenuOptions();
+        List<LoginMenuItem> loginMenuOptions = whatsappService.loginMenuOptions(userId);
         LoginMenuItem selectedLoginItem = (!hasValidToken
                 && selectionContext == WhatsappSessionService.SelectionContext.NONE)
                 ? parseLoginMenuSelection(body, loginMenuOptions)
@@ -261,7 +261,7 @@ public class WhatsappWebhookController {
         }
 
         if (selectionContext == WhatsappSessionService.SelectionContext.SETTINGS) {
-            List<LoginMenuItem> settingsOptions = whatsappService.loginSettingsMenuOptions();
+            List<LoginMenuItem> settingsOptions = whatsappService.loginSettingsMenuOptions(userId);
             LoginMenuItem settingsSelection = parseLoginMenuSelection(body, settingsOptions);
             if (settingsSelection == null && lower.equals(menuText)) {
                 settingsSelection = settingsOptions.stream()

@@ -100,6 +100,18 @@ const BASE_FUNCTION_OPTIONS = [
   }
 ];
 
+const FUNCTION_RULES = {
+  LOGOUT: {
+    note: "Logout menu option will be displayed in the menus, when user is logged in",
+  },
+  MENU: {
+    note: "Back to Menu option will be displayed in the menu level 2 and above",
+  },
+  CHANGE_ACCOUNT: {
+    note: "Select a Different Account option will be displayed when users have access to more than one account",
+  },
+};
+
 const DEFAULT_STRUCTURE = [
   {
     id: ROOT_MENU_ID,
@@ -451,6 +463,18 @@ function initFunctionSelect(selectEl) {
       opt.title = option.description;
       selectEl.append(opt);
     });
+}
+
+function applyFunctionRuleNotice(element, functionId) {
+  if (!element) return;
+  const rule = FUNCTION_RULES[functionId];
+  if (!rule?.note) {
+    element.textContent = "";
+    element.style.display = "none";
+    return;
+  }
+  element.textContent = rule.note;
+  element.style.display = "block";
 }
 
 function slugify(value) {
@@ -901,11 +925,15 @@ function renderItemDetails(container, menuId, item, index) {
     const functionDropdown = document.createElement("select");
     initFunctionSelect(functionDropdown);
     functionDropdown.value = item.function;
+    const functionRuleNotice = document.createElement("p");
+    functionRuleNotice.className = "hint";
+    applyFunctionRuleNotice(functionRuleNotice, functionDropdown.value);
     functionDropdown.addEventListener("change", (event) => {
       if (!functionDictionary[event.target.value]) {
         return;
       }
       menusById.get(menuId).items[index].function = event.target.value;
+      applyFunctionRuleNotice(functionRuleNotice, event.target.value);
       updatePreview();
     });
     functionWrapper.append(functionDropdown);
@@ -927,7 +955,7 @@ function renderItemDetails(container, menuId, item, index) {
     translationHint.className = "hint";
     translationHint.textContent = "Keeps the original multilingual text for this function.";
 
-    container.append(functionWrapper, translationToggle, translationHint);
+    container.append(functionWrapper, translationToggle, translationHint, functionRuleNotice);
 
     if (item.type === ITEM_TYPES.FUNCTION_MENU) {
       const submenuWrapper = document.createElement("label");

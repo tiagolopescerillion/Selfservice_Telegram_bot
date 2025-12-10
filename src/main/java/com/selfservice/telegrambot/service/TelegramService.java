@@ -156,7 +156,11 @@ public class TelegramService {
         post(url, body, headers);
     }
 
-    public List<LoginMenuItem> loginMenuOptions() {
+    public List<LoginMenuItem> loginMenuOptions(long chatId) {
+        return loginMenuOptions(chatId, 0);
+    }
+
+    public List<LoginMenuItem> loginMenuOptions(long chatId, int menuDepth) {
         List<LoginMenuItem> configured = menuConfigurationProvider.getLoginMenuItems();
         List<LoginMenuItem> options = new ArrayList<>();
         for (LoginMenuItem item : configured) {
@@ -167,17 +171,68 @@ public class TelegramService {
             if (function == LoginMenuFunction.CRM_LOGIN && !loginMenuProperties.isCrmLoginEnabled()) {
                 continue;
             }
+            if (!shouldDisplayLoginMenuItem(item, chatId, menuDepth)) {
+                continue;
+            }
             options.add(item);
         }
         return options;
     }
 
-    public List<LoginMenuItem> loginSettingsMenuOptions() {
-        return menuConfigurationProvider.getLoginSettingsMenuItems();
+    public List<LoginMenuItem> loginSettingsMenuOptions(long chatId) {
+        return loginSettingsMenuOptions(chatId, 1);
+    }
+
+    public List<LoginMenuItem> loginSettingsMenuOptions(long chatId, int menuDepth) {
+        List<LoginMenuItem> configured = menuConfigurationProvider.getLoginSettingsMenuItems();
+        List<LoginMenuItem> options = new ArrayList<>();
+        for (LoginMenuItem item : configured) {
+            if (!shouldDisplayLoginMenuItem(item, chatId, menuDepth)) {
+                continue;
+            }
+            options.add(item);
+        }
+        return options;
     }
 
     public LoginMenuItem findLoginMenuItemByCallback(String callbackData) {
         return menuConfigurationProvider.findLoginMenuItemByCallback(callbackData);
+    }
+
+    private boolean isLoggedIn(long chatId) {
+        return userSessionService.getTokenSnapshot(chatId).state() == UserSessionService.TokenState.VALID;
+    }
+
+    private boolean hasAlternateAccount(long chatId) {
+        AccountSummary selected = userSessionService.getSelectedAccount(chatId);
+        if (selected == null) {
+            return false;
+        }
+        return userSessionService.getAccounts(chatId).stream()
+                .anyMatch(account -> !account.accountId().equals(selected.accountId()));
+    }
+
+    private boolean hasFunction(LoginMenuItem item, String expected) {
+        if (item == null || expected == null) {
+            return false;
+        }
+        if (expected.equalsIgnoreCase(item.getFunction())) {
+            return true;
+        }
+        return expected.equalsIgnoreCase(item.getCallbackData());
+    }
+
+    private boolean shouldDisplayLoginMenuItem(LoginMenuItem item, long chatId, int menuDepth) {
+        if (hasFunction(item, CALLBACK_LOGOUT) && !isLoggedIn(chatId)) {
+            return false;
+        }
+        if (hasFunction(item, CALLBACK_MENU) && menuDepth < 1) {
+            return false;
+        }
+        if ((hasFunction(item, CALLBACK_CHANGE_ACCOUNT) || hasFunction(item, "CHANGE_ACCOUNT")) && !hasAlternateAccount(chatId)) {
+            return false;
+        }
+        return true;
     }
 
     private String resolveLoginMenuLabel(long chatId, LoginMenuItem item) {
@@ -226,7 +281,7 @@ public class TelegramService {
         headers.setContentType(MediaType.APPLICATION_JSON);
 
         List<List<Map<String, Object>>> keyboard = new ArrayList<>();
-        List<LoginMenuItem> options = loginMenuOptions();
+        List<LoginMenuItem> options = loginMenuOptions(chatId);
         for (LoginMenuItem option : options) {
             LoginMenuFunction function = option.resolvedFunction();
             if (function == LoginMenuFunction.DIGITAL_LOGIN && loginUrl != null && !loginUrl.isBlank()) {
@@ -285,8 +340,14 @@ public class TelegramService {
         List<List<Map<String, Object>>> keyboard = new ArrayList<>();
         String menuId = resolveCurrentMenuId(chatId);
         List<BusinessMenuItem> menuItems = menuConfigurationProvider.getMenuItems(menuId);
+        boolean loggedIn = isLoggedIn(chatId);
+        boolean hasAlternateAccount = hasAlternateAccount(chatId);
+        int depth = userSessionService.getBusinessMenuDepth(chatId, menuConfigurationProvider.getRootMenuId());
         for (BusinessMenuItem item : menuItems) {
             if (!showChangeAccountOption && isChangeAccountItem(item)) {
+                continue;
+            }
+            if (!shouldDisplayBusinessMenuItem(item, depth, hasAlternateAccount, loggedIn)) {
                 continue;
             }
             if (item.isSubMenu() && !menuConfigurationProvider.menuExists(item.submenuId())) {
@@ -365,7 +426,7 @@ public class TelegramService {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
 
-        List<LoginMenuItem> options = loginSettingsMenuOptions();
+        List<LoginMenuItem> options = loginSettingsMenuOptions(chatId);
         List<List<Map<String, Object>>> keyboard = new ArrayList<>();
         for (LoginMenuItem option : options) {
             keyboard.add(List.of(Map.of(
@@ -420,6 +481,39 @@ public class TelegramService {
             return true;
         }
         return CALLBACK_CHANGE_ACCOUNT.equalsIgnoreCase(item.function());
+    }
+
+    private boolean isLogoutItem(BusinessMenuItem item) {
+        if (item == null) {
+            return false;
+        }
+        if (CALLBACK_LOGOUT.equalsIgnoreCase(item.callbackData())) {
+            return true;
+        }
+        return CALLBACK_LOGOUT.equalsIgnoreCase(item.function());
+    }
+
+    private boolean isBackToMenuItem(BusinessMenuItem item) {
+        if (item == null) {
+            return false;
+        }
+        if (CALLBACK_MENU.equalsIgnoreCase(item.callbackData()) || CALLBACK_INVOICE_BACK_TO_MENU.equalsIgnoreCase(item.callbackData())) {
+            return true;
+        }
+        return CALLBACK_MENU.equalsIgnoreCase(item.function()) || CALLBACK_INVOICE_BACK_TO_MENU.equalsIgnoreCase(item.function());
+    }
+
+    private boolean shouldDisplayBusinessMenuItem(BusinessMenuItem item, int menuDepth, boolean hasAlternateAccount, boolean loggedIn) {
+        if (isLogoutItem(item) && !loggedIn) {
+            return false;
+        }
+        if (isBackToMenuItem(item) && menuDepth < 1) {
+            return false;
+        }
+        if (isChangeAccountItem(item) && !hasAlternateAccount) {
+            return false;
+        }
+        return true;
     }
 
     private String resolveWeblinkUrl(long chatId, BusinessMenuItem item) {
