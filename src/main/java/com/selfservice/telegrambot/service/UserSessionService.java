@@ -60,6 +60,7 @@ public class UserSessionService {
     private final Map<Long, String> invoiceActionsMenuByChat = new ConcurrentHashMap<>();
     private final Map<Long, String> languageByChat = new ConcurrentHashMap<>();
     private final Map<Long, List<String>> menuPathByChat = new ConcurrentHashMap<>();
+    private final Map<Long, List<String>> loginMenuPathByChat = new ConcurrentHashMap<>();
     private final Map<Long, Boolean> optInByChat = new ConcurrentHashMap<>();
 
     public void save(long chatId, String accessToken, String refreshToken, String idToken, long expiresInSeconds,
@@ -365,6 +366,10 @@ public class UserSessionService {
         menuPathByChat.put(chatId, new ArrayList<>(List.of(rootMenuId)));
     }
 
+    public void resetLoginMenu(long chatId, String rootMenuId) {
+        loginMenuPathByChat.put(chatId, new ArrayList<>(List.of(rootMenuId)));
+    }
+
     public boolean isOptedIn(long chatId) {
         return optInByChat.getOrDefault(chatId, false);
     }
@@ -382,8 +387,23 @@ public class UserSessionService {
         return path.get(path.size() - 1);
     }
 
+    public String currentLoginMenu(long chatId, String rootMenuId) {
+        List<String> path = ensureLoginMenuPath(chatId, rootMenuId);
+        return path.get(path.size() - 1);
+    }
+
     public void enterBusinessMenu(long chatId, String menuId, String rootMenuId) {
         menuPathByChat.compute(chatId, (id, existing) -> {
+            List<String> path = (existing == null || existing.isEmpty())
+                    ? new ArrayList<>(List.of(rootMenuId))
+                    : new ArrayList<>(existing);
+            path.add(menuId);
+            return path;
+        });
+    }
+
+    public void enterLoginMenu(long chatId, String menuId, String rootMenuId) {
+        loginMenuPathByChat.compute(chatId, (id, existing) -> {
             List<String> path = (existing == null || existing.isEmpty())
                     ? new ArrayList<>(List.of(rootMenuId))
                     : new ArrayList<>(existing);
@@ -407,13 +427,42 @@ public class UserSessionService {
         return moved[0];
     }
 
+    public boolean goUpLoginMenu(long chatId, String rootMenuId) {
+        final boolean[] moved = {false};
+        loginMenuPathByChat.compute(chatId, (id, existing) -> {
+            List<String> path = (existing == null || existing.isEmpty())
+                    ? new ArrayList<>(List.of(rootMenuId))
+                    : new ArrayList<>(existing);
+            if (path.size() > 1) {
+                path.remove(path.size() - 1);
+                moved[0] = true;
+            }
+            return path;
+        });
+        return moved[0];
+    }
+
     public int getBusinessMenuDepth(long chatId, String rootMenuId) {
         List<String> path = ensureMenuPath(chatId, rootMenuId);
         return Math.max(0, path.size() - 1);
     }
 
+    public int getLoginMenuDepth(long chatId, String rootMenuId) {
+        List<String> path = ensureLoginMenuPath(chatId, rootMenuId);
+        return Math.max(0, path.size() - 1);
+    }
+
     private List<String> ensureMenuPath(long chatId, String rootMenuId) {
         return menuPathByChat.compute(chatId, (id, existing) -> {
+            if (existing == null || existing.isEmpty()) {
+                return new ArrayList<>(List.of(rootMenuId));
+            }
+            return existing;
+        });
+    }
+
+    private List<String> ensureLoginMenuPath(long chatId, String rootMenuId) {
+        return loginMenuPathByChat.compute(chatId, (id, existing) -> {
             if (existing == null || existing.isEmpty()) {
                 return new ArrayList<>(List.of(rootMenuId));
             }

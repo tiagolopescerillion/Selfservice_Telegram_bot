@@ -9,6 +9,8 @@ import java.util.stream.Stream;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class LoginMenuDefinition {
+    public static final String ROOT_MENU_ID = "login-home";
+
     private List<BusinessMenuDefinition> menus;
     private List<LoginMenuItem> menu;
     private List<LoginMenuItem> settingsMenu;
@@ -148,7 +150,7 @@ public class LoginMenuDefinition {
         return item;
     }
 
-    private static LoginMenuItem toLoginMenuItem(BusinessMenuItem source) {
+    public static LoginMenuItem toLoginMenuItem(BusinessMenuItem source) {
         LoginMenuItem item = new LoginMenuItem();
         item.setOrder(source.order());
         item.setLabel(source.label());

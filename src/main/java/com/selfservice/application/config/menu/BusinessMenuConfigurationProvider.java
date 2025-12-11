@@ -24,9 +24,12 @@ public class BusinessMenuConfigurationProvider {
     private static final Path OVERRIDE_FILE = CONFIG_DIR.resolve("IM-menus.override.json");
 
     private final Map<String, BusinessMenuDefinition> menusById;
+    private final Map<String, BusinessMenuDefinition> loginMenusById;
     private final LoginMenuDefinition loginMenuDefinition;
     private final BusinessMenuConfiguration effectiveConfiguration;
     private final BusinessMenuConfiguration defaultConfiguration;
+    private final String loginRootMenuId;
+    private final String loginSettingsMenuId;
 
     public BusinessMenuConfigurationProvider(
             ObjectMapper objectMapper,
@@ -70,6 +73,10 @@ public class BusinessMenuConfigurationProvider {
 
         this.menusById = Collections.unmodifiableMap(mapped);
         this.loginMenuDefinition = loadedLoginMenu == null ? new LoginMenuDefinition() : loadedLoginMenu;
+        Map<String, BusinessMenuDefinition> loginMenus = mapLoginMenus(this.loginMenuDefinition);
+        this.loginMenusById = Collections.unmodifiableMap(loginMenus);
+        this.loginRootMenuId = resolveLoginRootMenuId(loginMenus);
+        this.loginSettingsMenuId = resolveLoginSettingsMenuId(loginMenus, this.loginRootMenuId);
         this.effectiveConfiguration = snapshotConfiguration(
                 selectedConfiguration,
                 loadedMenus,
@@ -87,6 +94,10 @@ public class BusinessMenuConfigurationProvider {
         return BusinessMenuDefinition.ROOT_MENU_ID;
     }
 
+    public String getLoginRootMenuId() {
+        return loginRootMenuId;
+    }
+
     public boolean menuExists(String menuId) {
         return menuId != null && menusById.containsKey(menuId);
     }
@@ -101,6 +112,22 @@ public class BusinessMenuConfigurationProvider {
 
     public LoginMenuDefinition getLoginMenuDefinition() {
         return loginMenuDefinition;
+    }
+
+    public boolean loginMenuExists(String menuId) {
+        return menuId != null && loginMenusById.containsKey(menuId);
+    }
+
+    public List<BusinessMenuItem> getLoginMenuItems(String menuId) {
+        BusinessMenuDefinition definition = loginMenusById.getOrDefault(menuId, loginMenusById.get(loginRootMenuId));
+        if (definition == null) {
+            return List.of();
+        }
+        return definition.sortedItems();
+    }
+
+    public String getLoginSettingsMenuId() {
+        return loginSettingsMenuId;
     }
 
     public List<LoginMenuItem> getLoginMenuItems() {
@@ -274,5 +301,43 @@ public class BusinessMenuConfigurationProvider {
                     return copy;
                 })
                 .toList();
+    }
+
+    private Map<String, BusinessMenuDefinition> mapLoginMenus(LoginMenuDefinition definition) {
+        if (definition == null || definition.getMenus() == null) {
+            return Collections.emptyMap();
+        }
+        Map<String, BusinessMenuDefinition> mapped = new LinkedHashMap<>();
+        for (BusinessMenuDefinition menu : definition.getMenus()) {
+            if (menu == null || menu.getId() == null || menu.getId().isBlank()) {
+                continue;
+            }
+            BusinessMenuDefinition copy = new BusinessMenuDefinition();
+            copy.setId(menu.getId());
+            String resolvedName = menu.getName();
+            if (resolvedName == null || resolvedName.isBlank()) {
+                resolvedName = LoginMenuDefinition.ROOT_MENU_ID.equals(menu.getId()) ? "Home" : menu.getId();
+            }
+            copy.setName(resolvedName);
+            copy.setParentId(menu.getParentId());
+            copy.setItems(menu.sortedItems());
+            mapped.put(copy.getId(), copy);
+        }
+        return mapped;
+    }
+
+    private String resolveLoginRootMenuId(Map<String, BusinessMenuDefinition> mapped) {
+        if (mapped.containsKey(LoginMenuDefinition.ROOT_MENU_ID)) {
+            return LoginMenuDefinition.ROOT_MENU_ID;
+        }
+        return mapped.keySet().stream().findFirst().orElse(LoginMenuDefinition.ROOT_MENU_ID);
+    }
+
+    private String resolveLoginSettingsMenuId(Map<String, BusinessMenuDefinition> mapped, String rootMenuId) {
+        return mapped.values().stream()
+                .filter(def -> rootMenuId.equals(def.getParentId()))
+                .map(BusinessMenuDefinition::getId)
+                .findFirst()
+                .orElse(null);
     }
 }

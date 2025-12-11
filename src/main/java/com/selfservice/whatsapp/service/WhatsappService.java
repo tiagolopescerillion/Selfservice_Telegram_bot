@@ -118,7 +118,8 @@ public class WhatsappService {
     }
 
     public List<LoginMenuItem> loginSettingsMenuOptions(String userId) {
-        return loginSettingsMenuOptions(userId, 1);
+        int depth = sessionService.getLoginMenuDepth(userId, menuConfigurationProvider.getLoginRootMenuId());
+        return loginSettingsMenuOptions(userId, depth);
     }
 
     public List<LoginMenuItem> loginSettingsMenuOptions(String userId, int menuDepth) {
@@ -185,6 +186,9 @@ public class WhatsappService {
         if (hasFunction(item, TelegramService.CALLBACK_MENU) && menuDepth < 1) {
             return false;
         }
+        if (hasFunction(item, TelegramService.CALLBACK_BUSINESS_MENU_UP) && menuDepth < 2) {
+            return false;
+        }
         if ((hasFunction(item, TelegramService.CALLBACK_CHANGE_ACCOUNT) || hasFunction(item, "CHANGE_ACCOUNT"))
                 && !hasAlternateAccount(userId)) {
             return false;
@@ -193,11 +197,18 @@ public class WhatsappService {
     }
 
     public List<LoginMenuItem> loginMenuOptions(String userId) {
-        return loginMenuOptions(userId, 0);
+        String menuId = resolveCurrentLoginMenu(userId);
+        int menuDepth = sessionService.getLoginMenuDepth(userId, menuConfigurationProvider.getLoginRootMenuId());
+        return loginMenuOptions(userId, menuId, menuDepth);
     }
 
-    public List<LoginMenuItem> loginMenuOptions(String userId, int menuDepth) {
-        List<LoginMenuItem> configured = menuConfigurationProvider.getLoginMenuItems();
+    public List<LoginMenuItem> loginMenuOptions(String userId, String menuId, int menuDepth) {
+        List<LoginMenuItem> configured = menuConfigurationProvider.getLoginMenuItems(menuId).stream()
+                .map(LoginMenuDefinition::toLoginMenuItem)
+                .toList();
+        if (configured.isEmpty()) {
+            configured = menuConfigurationProvider.getLoginMenuItems();
+        }
         List<LoginMenuItem> options = new ArrayList<>();
         for (LoginMenuItem item : configured) {
             LoginMenuFunction function = item.resolvedFunction();
@@ -318,6 +329,10 @@ public class WhatsappService {
 
     public void sendSettingsMenu(String to) {
         sessionService.setSelectionContext(to, WhatsappSessionService.SelectionContext.SETTINGS);
+        String settingsMenuId = menuConfigurationProvider.getLoginSettingsMenuId();
+        if (settingsMenuId != null) {
+            goToLoginMenu(to, settingsMenuId);
+        }
         List<LoginMenuItem> options = loginSettingsMenuOptions(to);
         StringBuilder menu = new StringBuilder();
         menu.append(translate(to, "SettingsMenuPrompt")).append("\n\n");
@@ -771,6 +786,11 @@ public class WhatsappService {
         return new ArrayList<>(menuConfigurationProvider.getMenuItems(menuId));
     }
 
+    public List<BusinessMenuItem> currentLoginMenuItems(String userId) {
+        String menuId = resolveCurrentLoginMenu(userId);
+        return new ArrayList<>(menuConfigurationProvider.getLoginMenuItems(menuId));
+    }
+
     public int currentMenuDepth(String userId) {
         return sessionService.getBusinessMenuDepth(userId, menuConfigurationProvider.getRootMenuId());
     }
@@ -783,12 +803,28 @@ public class WhatsappService {
         return true;
     }
 
+    public boolean goToLoginMenu(String userId, String menuId) {
+        if (menuId == null || menuId.isBlank() || !menuConfigurationProvider.loginMenuExists(menuId)) {
+            return false;
+        }
+        sessionService.enterLoginMenu(userId, menuId, menuConfigurationProvider.getLoginRootMenuId());
+        return true;
+    }
+
     public void goHomeBusinessMenu(String userId) {
         sessionService.resetBusinessMenu(userId, menuConfigurationProvider.getRootMenuId());
     }
 
+    public void goHomeLoginMenu(String userId) {
+        sessionService.resetLoginMenu(userId, menuConfigurationProvider.getLoginRootMenuId());
+    }
+
     public boolean goUpBusinessMenu(String userId) {
         return sessionService.goUpBusinessMenu(userId, menuConfigurationProvider.getRootMenuId());
+    }
+
+    public boolean goUpLoginMenu(String userId) {
+        return sessionService.goUpLoginMenu(userId, menuConfigurationProvider.getLoginRootMenuId());
     }
 
     private String resolveCurrentMenuId(String userId) {
@@ -797,6 +833,15 @@ public class WhatsappService {
             log.warn("User {} had stale menu id {}, resetting to root", userId, menuId);
             sessionService.resetBusinessMenu(userId, menuConfigurationProvider.getRootMenuId());
             menuId = menuConfigurationProvider.getRootMenuId();
+        }
+        return menuId;
+    }
+
+    private String resolveCurrentLoginMenu(String userId) {
+        String menuId = sessionService.currentLoginMenu(userId, menuConfigurationProvider.getLoginRootMenuId());
+        if (!menuConfigurationProvider.loginMenuExists(menuId)) {
+            sessionService.resetLoginMenu(userId, menuConfigurationProvider.getLoginRootMenuId());
+            menuId = menuConfigurationProvider.getLoginRootMenuId();
         }
         return menuId;
     }

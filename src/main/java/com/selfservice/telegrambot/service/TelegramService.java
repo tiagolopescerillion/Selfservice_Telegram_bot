@@ -73,6 +73,7 @@ public class TelegramService {
     public static final String CALLBACK_LANGUAGE_MENU = "LANGUAGE_MENU";
     public static final String CALLBACK_MENU = "MENU";
     public static final String CALLBACK_SETTINGS_MENU = "SETTINGS_MENU";
+    public static final String CALLBACK_LOGIN_MENU_PREFIX = "LOGIN_MENU:";
     public static final String CALLBACK_LANGUAGE_PREFIX = "LANGUAGE:";
     public static final String CALLBACK_LOGOUT = "LOGOUT";
     public static final String CALLBACK_SHOW_MORE_ACCOUNTS_PREFIX = "SHOW_MORE_ACCOUNTS:";
@@ -156,11 +157,18 @@ public class TelegramService {
     }
 
     public List<LoginMenuItem> loginMenuOptions(long chatId) {
-        return loginMenuOptions(chatId, 0);
+        String menuId = resolveCurrentLoginMenu(chatId);
+        int menuDepth = userSessionService.getLoginMenuDepth(chatId, menuConfigurationProvider.getLoginRootMenuId());
+        return loginMenuOptions(chatId, menuId, menuDepth);
     }
 
-    public List<LoginMenuItem> loginMenuOptions(long chatId, int menuDepth) {
-        List<LoginMenuItem> configured = menuConfigurationProvider.getLoginMenuItems();
+    public List<LoginMenuItem> loginMenuOptions(long chatId, String menuId, int menuDepth) {
+        List<LoginMenuItem> configured = menuConfigurationProvider.getLoginMenuItems(menuId).stream()
+                .map(LoginMenuDefinition::toLoginMenuItem)
+                .toList();
+        if (configured.isEmpty()) {
+            configured = menuConfigurationProvider.getLoginMenuItems();
+        }
         List<LoginMenuItem> options = new ArrayList<>();
         for (LoginMenuItem item : configured) {
             LoginMenuFunction function = item.resolvedFunction();
@@ -179,7 +187,8 @@ public class TelegramService {
     }
 
     public List<LoginMenuItem> loginSettingsMenuOptions(long chatId) {
-        return loginSettingsMenuOptions(chatId, 1);
+        int depth = userSessionService.getLoginMenuDepth(chatId, menuConfigurationProvider.getLoginRootMenuId());
+        return loginSettingsMenuOptions(chatId, depth);
     }
 
     public List<LoginMenuItem> loginSettingsMenuOptions(long chatId, int menuDepth) {
@@ -226,6 +235,9 @@ public class TelegramService {
             return false;
         }
         if (hasFunction(item, CALLBACK_MENU) && menuDepth < 1) {
+            return false;
+        }
+        if (hasFunction(item, CALLBACK_BUSINESS_MENU_UP) && menuDepth < 2) {
             return false;
         }
         if ((hasFunction(item, CALLBACK_CHANGE_ACCOUNT) || hasFunction(item, "CHANGE_ACCOUNT")) && !hasAlternateAccount(chatId)) {
@@ -425,6 +437,11 @@ public class TelegramService {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
 
+        String settingsMenuId = menuConfigurationProvider.getLoginSettingsMenuId();
+        if (settingsMenuId != null) {
+            goToLoginMenu(chatId, settingsMenuId);
+        }
+
         List<LoginMenuItem> options = loginSettingsMenuOptions(chatId);
         List<List<Map<String, Object>>> keyboard = new ArrayList<>();
         for (LoginMenuItem option : options) {
@@ -604,6 +621,15 @@ public class TelegramService {
         return menuId;
     }
 
+    private String resolveCurrentLoginMenu(long chatId) {
+        String menuId = userSessionService.currentLoginMenu(chatId, menuConfigurationProvider.getLoginRootMenuId());
+        if (!menuConfigurationProvider.loginMenuExists(menuId)) {
+            userSessionService.resetLoginMenu(chatId, menuConfigurationProvider.getLoginRootMenuId());
+            menuId = menuConfigurationProvider.getLoginRootMenuId();
+        }
+        return menuId;
+    }
+
     public boolean goToBusinessMenu(long chatId, String menuId) {
         if (menuId == null || menuId.isBlank() || !menuConfigurationProvider.menuExists(menuId)) {
             return false;
@@ -612,12 +638,28 @@ public class TelegramService {
         return true;
     }
 
+    public boolean goToLoginMenu(long chatId, String menuId) {
+        if (menuId == null || menuId.isBlank() || !menuConfigurationProvider.loginMenuExists(menuId)) {
+            return false;
+        }
+        userSessionService.enterLoginMenu(chatId, menuId, menuConfigurationProvider.getLoginRootMenuId());
+        return true;
+    }
+
     public void goHomeBusinessMenu(long chatId) {
         userSessionService.resetBusinessMenu(chatId, menuConfigurationProvider.getRootMenuId());
     }
 
+    public void goHomeLoginMenu(long chatId) {
+        userSessionService.resetLoginMenu(chatId, menuConfigurationProvider.getLoginRootMenuId());
+    }
+
     public boolean goUpBusinessMenu(long chatId) {
         return userSessionService.goUpBusinessMenu(chatId, menuConfigurationProvider.getRootMenuId());
+    }
+
+    public boolean goUpLoginMenu(long chatId) {
+        return userSessionService.goUpLoginMenu(chatId, menuConfigurationProvider.getLoginRootMenuId());
     }
 
     public void answerCallbackQuery(String callbackQueryId) {
