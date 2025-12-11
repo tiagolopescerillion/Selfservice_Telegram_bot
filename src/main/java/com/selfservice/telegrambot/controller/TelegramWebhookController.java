@@ -202,6 +202,7 @@ public class TelegramWebhookController {
             }
 
             if (text.equals(TelegramService.CALLBACK_MENU)) {
+                telegramService.goHomeBusinessMenu(chatId);
                 if (hasValidToken && ensureAccountSelected(chatId)) {
                     AccountSummary selected = userSessionService.getSelectedAccount(chatId);
                     telegramService.sendLoggedInMenu(chatId, selected,

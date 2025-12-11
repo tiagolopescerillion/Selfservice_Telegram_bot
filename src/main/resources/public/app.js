@@ -85,6 +85,13 @@ const BASE_FUNCTION_OPTIONS = [
     description: "Lets the user pick a language."
   },
   {
+    id: "CHANGE_ACCOUNT",
+    label: "Select a different account",
+    callbackData: "CHANGE_ACCOUNT",
+    translationKey: "ButtonChangeAccount",
+    description: "Allows the user to switch to another available account."
+  },
+  {
     id: "MENU",
     label: "Back to menu",
     callbackData: "MENU",

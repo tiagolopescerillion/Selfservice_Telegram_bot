@@ -618,6 +618,11 @@ public class WhatsappWebhookController {
                 case TelegramService.CALLBACK_SELECT_SERVICE -> handleServiceLookup(sessionKey, userId, token);
                 case TelegramService.CALLBACK_MY_ISSUES -> handleTroubleTickets(sessionKey, userId, token);
                 case TelegramService.CALLBACK_INVOICE_HISTORY -> handleInvoiceHistory(sessionKey, userId, token);
+                case TelegramService.CALLBACK_MENU -> {
+                    whatsappService.goHomeBusinessMenu(userId);
+                    AccountSummary selected = sessionService.getSelectedAccount(userId);
+                    whatsappService.sendLoggedInMenu(from, selected, sessionService.getAccounts(userId).size() > 1);
+                }
                 default -> sendBusinessMenu(from, userId);
             }
             return;
@@ -870,6 +875,7 @@ public class WhatsappWebhookController {
         BusinessMenuItem action = actions.get(numeric - 1);
         String callback = whatsappService.invoiceActionCallback(userId, action, selectedInvoice);
         if (TelegramService.CALLBACK_MENU.equalsIgnoreCase(callback)) {
+            whatsappService.goHomeBusinessMenu(userId);
             AccountSummary selected = sessionService.getSelectedAccount(userId);
             whatsappService.sendLoggedInMenu(from, selected, sessionService.getAccounts(userId).size() > 1);
             return;
