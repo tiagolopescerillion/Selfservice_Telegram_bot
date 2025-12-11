@@ -7,6 +7,7 @@ import com.selfservice.application.dto.ServiceSummary;
 import com.selfservice.application.dto.TroubleTicketSummary;
 import com.selfservice.application.config.menu.BusinessMenuConfigurationProvider;
 import com.selfservice.application.config.menu.BusinessMenuItem;
+import com.selfservice.application.config.menu.LoginMenuDefinition;
 import com.selfservice.application.config.menu.LoginMenuFunction;
 import com.selfservice.application.config.menu.LoginMenuItem;
 import com.selfservice.application.service.TranslationService;
@@ -117,8 +118,21 @@ public class WhatsappService {
         postToWhatsapp(payload);
     }
 
-    public List<LoginMenuItem> loginSettingsMenuOptions() {
-        return menuConfigurationProvider.getLoginSettingsMenuItems();
+    public List<LoginMenuItem> loginSettingsMenuOptions(String userId) {
+        int depth = sessionService.getLoginMenuDepth(userId, menuConfigurationProvider.getLoginRootMenuId());
+        return loginSettingsMenuOptions(userId, depth);
+    }
+
+    public List<LoginMenuItem> loginSettingsMenuOptions(String userId, int menuDepth) {
+        List<LoginMenuItem> configured = menuConfigurationProvider.getLoginSettingsMenuItems();
+        List<LoginMenuItem> options = new ArrayList<>();
+        for (LoginMenuItem item : configured) {
+            if (!shouldDisplayLoginMenuItem(item, userId, menuDepth)) {
+                continue;
+            }
+            options.add(item);
+        }
+        return options;
     }
 
     public String resolveLoginMenuLabel(String to, LoginMenuItem item) {
@@ -143,8 +157,59 @@ public class WhatsappService {
         return function == null ? "" : function.name();
     }
 
-    public List<LoginMenuItem> loginMenuOptions() {
-        List<LoginMenuItem> configured = menuConfigurationProvider.getLoginMenuItems();
+    private boolean isLoggedIn(String userId) {
+        return sessionService.getTokenSnapshot(userId).state() == WhatsappSessionService.TokenState.VALID;
+    }
+
+    private boolean hasAlternateAccount(String userId) {
+        AccountSummary selected = sessionService.getSelectedAccount(userId);
+        if (selected == null) {
+            return false;
+        }
+        return sessionService.getAccounts(userId).stream()
+                .anyMatch(account -> !account.accountId().equals(selected.accountId()));
+    }
+
+    private boolean hasFunction(LoginMenuItem item, String expected) {
+        if (item == null || expected == null) {
+            return false;
+        }
+        if (expected.equalsIgnoreCase(item.getFunction())) {
+            return true;
+        }
+        return expected.equalsIgnoreCase(item.getCallbackData());
+    }
+
+    private boolean shouldDisplayLoginMenuItem(LoginMenuItem item, String userId, int menuDepth) {
+        if (hasFunction(item, TelegramService.CALLBACK_LOGOUT) && !isLoggedIn(userId)) {
+            return false;
+        }
+        if (hasFunction(item, TelegramService.CALLBACK_MENU) && menuDepth < 1) {
+            return false;
+        }
+        if (hasFunction(item, TelegramService.CALLBACK_BUSINESS_MENU_UP) && menuDepth < 2) {
+            return false;
+        }
+        if ((hasFunction(item, TelegramService.CALLBACK_CHANGE_ACCOUNT) || hasFunction(item, "CHANGE_ACCOUNT"))
+                && !hasAlternateAccount(userId)) {
+            return false;
+        }
+        return true;
+    }
+
+    public List<LoginMenuItem> loginMenuOptions(String userId) {
+        String menuId = resolveCurrentLoginMenu(userId);
+        int menuDepth = sessionService.getLoginMenuDepth(userId, menuConfigurationProvider.getLoginRootMenuId());
+        return loginMenuOptions(userId, menuId, menuDepth);
+    }
+
+    public List<LoginMenuItem> loginMenuOptions(String userId, String menuId, int menuDepth) {
+        List<LoginMenuItem> configured = menuConfigurationProvider.getLoginMenuItems(menuId).stream()
+                .map(LoginMenuDefinition::toLoginMenuItem)
+                .toList();
+        if (configured.isEmpty()) {
+            configured = menuConfigurationProvider.getLoginMenuItems();
+        }
         List<LoginMenuItem> options = new ArrayList<>();
         for (LoginMenuItem item : configured) {
             LoginMenuFunction function = item.resolvedFunction();
@@ -154,6 +219,9 @@ public class WhatsappService {
             if (function == LoginMenuFunction.CRM_LOGIN && !loginMenuProperties.isCrmLoginEnabled()) {
                 continue;
             }
+            if (!shouldDisplayLoginMenuItem(item, userId, menuDepth)) {
+                continue;
+            }
             options.add(item);
         }
         return options;
@@ -161,7 +229,7 @@ public class WhatsappService {
 
     public void sendLoginMenu(String to) {
         sessionService.setSelectionContext(to, WhatsappSessionService.SelectionContext.NONE);
-        List<LoginMenuItem> options = loginMenuOptions();
+        List<LoginMenuItem> options = loginMenuOptions(to);
 
         boolean textSent = false;
         if (whatsappProperties.isBasicUxEnabled() || shouldSendFallbackText()) {
@@ -262,7 +330,11 @@ public class WhatsappService {
 
     public void sendSettingsMenu(String to) {
         sessionService.setSelectionContext(to, WhatsappSessionService.SelectionContext.SETTINGS);
-        List<LoginMenuItem> options = loginSettingsMenuOptions();
+        String settingsMenuId = menuConfigurationProvider.getLoginSettingsMenuId();
+        if (settingsMenuId != null) {
+            goToLoginMenu(to, settingsMenuId);
+        }
+        List<LoginMenuItem> options = loginSettingsMenuOptions(to);
         StringBuilder menu = new StringBuilder();
         menu.append(translate(to, "SettingsMenuPrompt")).append("\n\n");
         int index = 1;
@@ -309,7 +381,16 @@ public class WhatsappService {
         }
 
         int index = 1;
+        boolean loggedIn = isLoggedIn(to);
+        boolean hasAlternateAccount = hasAlternateAccount(to);
+        int menuDepth = sessionService.getBusinessMenuDepth(to, menuConfigurationProvider.getRootMenuId());
         for (BusinessMenuItem item : menuItems) {
+            if (!showChangeAccountOption && isChangeAccountItem(item)) {
+                continue;
+            }
+            if (!shouldDisplayBusinessMenuItem(item, menuDepth, hasAlternateAccount, loggedIn)) {
+                continue;
+            }
             if (item.isSubMenu() && !menuConfigurationProvider.menuExists(item.submenuId())) {
                 log.warn("User {} attempted to render missing submenu {}", to, item.submenuId());
                 continue;
@@ -320,33 +401,6 @@ public class WhatsappService {
             index++;
         }
 
-        int depth = sessionService.getBusinessMenuDepth(to, menuConfigurationProvider.getRootMenuId());
-        int actionIndex = index;
-        if (depth >= 1) {
-            body.append(actionIndex).append(") ")
-                    .append(translate(to, TelegramKey.BUTTON_BUSINESS_MENU_HOME.toString()))
-                    .append("\n");
-            actionIndex++;
-            if (depth >= 2) {
-                body.append(actionIndex).append(") ")
-                        .append(translate(to, TelegramKey.BUTTON_BUSINESS_MENU_UP.toString()))
-                        .append("\n");
-                actionIndex++;
-            }
-        }
-        if (showChangeAccountOption) {
-            body.append(actionIndex).append(") ")
-                    .append(translate(to, TelegramKey.BUTTON_CHANGE_ACCOUNT.toString()))
-                    .append("\n");
-            actionIndex++;
-        }
-        body.append(actionIndex).append(") ")
-                .append(translate(to, TelegramKey.BUTTON_SETTINGS.toString()))
-                .append("\n");
-        actionIndex++;
-        body.append(actionIndex).append(") ")
-                .append(translate(to, TelegramKey.BUTTON_LOGOUT.toString()))
-                .append("\n");
         body.append(translate(to, "WhatsappMenuInstruction"));
         if (whatsappProperties.isBasicUxEnabled() || shouldSendFallbackText()) {
             sendText(to, body.toString());
@@ -356,6 +410,12 @@ public class WhatsappService {
             List<Map<String, Object>> rows = new ArrayList<>();
             int rowIndex = 1;
             for (BusinessMenuItem item : menuItems) {
+                if (!showChangeAccountOption && isChangeAccountItem(item)) {
+                    continue;
+                }
+                if (!shouldDisplayBusinessMenuItem(item, menuDepth, hasAlternateAccount, loggedIn)) {
+                    continue;
+                }
                 if (item.isSubMenu() && !menuConfigurationProvider.menuExists(item.submenuId())) {
                     continue;
                 }
@@ -363,31 +423,67 @@ public class WhatsappService {
                 rowIndex++;
             }
 
-            int depthLevel = sessionService.getBusinessMenuDepth(to, menuConfigurationProvider.getRootMenuId());
-            if (depthLevel >= 1) {
-                rows.add(buildListRow(String.valueOf(rowIndex),
-                        translate(to, TelegramKey.BUTTON_BUSINESS_MENU_HOME.toString())));
-                rowIndex++;
-                if (depthLevel >= 2) {
-                    rows.add(buildListRow(String.valueOf(rowIndex),
-                            translate(to, TelegramKey.BUTTON_BUSINESS_MENU_UP.toString())));
-                    rowIndex++;
-                }
-            }
-            if (showChangeAccountOption) {
-                rows.add(buildListRow(String.valueOf(rowIndex),
-                        translate(to, TelegramKey.BUTTON_CHANGE_ACCOUNT.toString())));
-                rowIndex++;
-            }
-            rows.add(buildListRow(String.valueOf(rowIndex), translate(to, TelegramKey.BUTTON_SETTINGS.toString())));
-            rowIndex++;
-            rows.add(buildListRow(String.valueOf(rowIndex), translate(to, TelegramKey.BUTTON_LOGOUT.toString())));
-
             sendInteractiveList(to,
                     translate(to, "LoginWelcome"),
                     translate(to, "WhatsappMenuInstruction"),
                     rows);
         }
+    }
+
+    private boolean isChangeAccountItem(BusinessMenuItem item) {
+        if (item == null) {
+            return false;
+        }
+        if (TelegramService.CALLBACK_CHANGE_ACCOUNT.equalsIgnoreCase(item.callbackData())) {
+            return true;
+        }
+        return TelegramService.CALLBACK_CHANGE_ACCOUNT.equalsIgnoreCase(item.function());
+    }
+
+    private boolean isLogoutItem(BusinessMenuItem item) {
+        if (item == null) {
+            return false;
+        }
+        if (TelegramService.CALLBACK_LOGOUT.equalsIgnoreCase(item.callbackData())) {
+            return true;
+        }
+        return TelegramService.CALLBACK_LOGOUT.equalsIgnoreCase(item.function());
+    }
+
+    private boolean isBackToMenuItem(BusinessMenuItem item) {
+        if (item == null) {
+            return false;
+        }
+        if (TelegramService.CALLBACK_MENU.equalsIgnoreCase(item.callbackData())) {
+            return true;
+        }
+        return TelegramService.CALLBACK_MENU.equalsIgnoreCase(item.function());
+    }
+
+    private boolean isMenuUpItem(BusinessMenuItem item) {
+        if (item == null) {
+            return false;
+        }
+        if (TelegramService.CALLBACK_BUSINESS_MENU_UP.equalsIgnoreCase(item.callbackData())) {
+            return true;
+        }
+        return TelegramService.CALLBACK_BUSINESS_MENU_UP.equalsIgnoreCase(item.function());
+    }
+
+    private boolean shouldDisplayBusinessMenuItem(BusinessMenuItem item, int menuDepth, boolean hasAlternateAccount, boolean loggedIn) {
+        if (isLogoutItem(item) && !loggedIn) {
+            return false;
+        }
+        if (isBackToMenuItem(item) && menuDepth < 1) {
+            return false;
+        }
+        if (isMenuUpItem(item) && menuDepth < 2) {
+            return false;
+        }
+        if (isChangeAccountItem(item) && !hasAlternateAccount) {
+            return false;
+        }
+        return true;
     }
 
     public void sendWeblink(String to, BusinessMenuItem item) {
@@ -616,8 +712,8 @@ public class WhatsappService {
                             TelegramService.CALLBACK_INVOICE_COMPARE_PREFIX,
                             TelegramService.CALLBACK_INVOICE_COMPARE_PREFIX, null, null, null, null, null, null),
                     new BusinessMenuItem(4, translate(userId, TelegramService.KEY_BUTTON_BACK_TO_MENU),
-                            TelegramService.CALLBACK_INVOICE_BACK_TO_MENU,
-                            TelegramService.CALLBACK_INVOICE_BACK_TO_MENU, null, null, null, null, null, null));
+                            TelegramService.CALLBACK_MENU,
+                            TelegramService.CALLBACK_MENU, null, null, null, null, null, null));
         }
         return actions;
     }
@@ -691,6 +787,11 @@ public class WhatsappService {
         return new ArrayList<>(menuConfigurationProvider.getMenuItems(menuId));
     }
 
+    public List<BusinessMenuItem> currentLoginMenuItems(String userId) {
+        String menuId = resolveCurrentLoginMenu(userId);
+        return new ArrayList<>(menuConfigurationProvider.getLoginMenuItems(menuId));
+    }
+
     public int currentMenuDepth(String userId) {
         return sessionService.getBusinessMenuDepth(userId, menuConfigurationProvider.getRootMenuId());
     }
@@ -703,12 +804,28 @@ public class WhatsappService {
         return true;
     }
 
+    public boolean goToLoginMenu(String userId, String menuId) {
+        if (menuId == null || menuId.isBlank() || !menuConfigurationProvider.loginMenuExists(menuId)) {
+            return false;
+        }
+        sessionService.enterLoginMenu(userId, menuId, menuConfigurationProvider.getLoginRootMenuId());
+        return true;
+    }
+
     public void goHomeBusinessMenu(String userId) {
         sessionService.resetBusinessMenu(userId, menuConfigurationProvider.getRootMenuId());
     }
 
+    public void goHomeLoginMenu(String userId) {
+        sessionService.resetLoginMenu(userId, menuConfigurationProvider.getLoginRootMenuId());
+    }
+
     public boolean goUpBusinessMenu(String userId) {
         return sessionService.goUpBusinessMenu(userId, menuConfigurationProvider.getRootMenuId());
+    }
+
+    public boolean goUpLoginMenu(String userId) {
+        return sessionService.goUpLoginMenu(userId, menuConfigurationProvider.getLoginRootMenuId());
     }
 
     private String resolveCurrentMenuId(String userId) {
@@ -717,6 +834,15 @@ public class WhatsappService {
             log.warn("User {} had stale menu id {}, resetting to root", userId, menuId);
             sessionService.resetBusinessMenu(userId, menuConfigurationProvider.getRootMenuId());
             menuId = menuConfigurationProvider.getRootMenuId();
+        }
+        return menuId;
+    }
+
+    private String resolveCurrentLoginMenu(String userId) {
+        String menuId = sessionService.currentLoginMenu(userId, menuConfigurationProvider.getLoginRootMenuId());
+        if (!menuConfigurationProvider.loginMenuExists(menuId)) {
+            sessionService.resetLoginMenu(userId, menuConfigurationProvider.getLoginRootMenuId());
+            menuId = menuConfigurationProvider.getLoginRootMenuId();
         }
         return menuId;
     }

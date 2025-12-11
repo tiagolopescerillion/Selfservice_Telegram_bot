@@ -23,6 +23,14 @@
             "callbackData": "DIRECT_LOGIN",
             "translationKey": "ButtonDirectLogin",
             "submenuId": null
+          },
+          {
+            "order": 3,
+            "label": "Settings",
+            "function": "SETTINGS",
+            "callbackData": "SETTINGS_MENU",
+            "translationKey": "ButtonSettings",
+            "submenuId": "login-settings"
           }
         ]
       },
@@ -49,6 +57,22 @@
           },
           {
             "order": 3,
+            "label": "Select a different account",
+            "function": "CHANGE_ACCOUNT",
+            "callbackData": "CHANGE_ACCOUNT",
+            "translationKey": "ButtonChangeAccount",
+            "submenuId": null
+          },
+          {
+            "order": 4,
+            "label": "Logout",
+            "function": "LOGOUT",
+            "callbackData": "LOGOUT",
+            "translationKey": "ButtonLogout",
+            "submenuId": null
+          },
+          {
+            "order": 5,
             "label": "Back to menu",
             "function": "MENU",
             "callbackData": "MENU",
@@ -120,6 +144,22 @@
           "callbackData": null,
           "translationKey": null,
           "submenuId": "settings"
+        },
+        {
+          "order": 8,
+          "label": "Select a different account",
+          "function": "CHANGE_ACCOUNT",
+          "callbackData": "CHANGE_ACCOUNT",
+          "translationKey": "ButtonChangeAccount",
+          "submenuId": null
+        },
+        {
+          "order": 9,
+          "label": "Logout",
+          "function": "LOGOUT",
+          "callbackData": "LOGOUT",
+          "translationKey": "ButtonLogout",
+          "submenuId": null
         }
       ]
     },
@@ -146,6 +186,22 @@
         },
         {
           "order": 3,
+          "label": "Select a different account",
+          "function": "CHANGE_ACCOUNT",
+          "callbackData": "CHANGE_ACCOUNT",
+          "translationKey": "ButtonChangeAccount",
+          "submenuId": null
+        },
+        {
+          "order": 4,
+          "label": "Logout",
+          "function": "LOGOUT",
+          "callbackData": "LOGOUT",
+          "translationKey": "ButtonLogout",
+          "submenuId": null
+        },
+        {
+          "order": 5,
           "label": "Back to menu",
           "function": "MENU",
           "callbackData": "MENU",
@@ -186,8 +242,8 @@
         {
           "order": 4,
           "label": "Back to menu",
-          "function": "INVOICE_BACK_TO_MENU",
-          "callbackData": "INVOICE_BACK_TO_MENU",
+          "function": "MENU",
+          "callbackData": "MENU",
           "translationKey": "ButtonBackToMenu",
           "submenuId": null
         }

@@ -58,6 +58,7 @@ public class WhatsappSessionService {
     private final Map<String, List<TroubleTicketSummary>> ticketsByUser = new ConcurrentHashMap<>();
     private final Map<String, String> languageByUser = new ConcurrentHashMap<>();
     private final Map<String, List<String>> menuPathByUser = new ConcurrentHashMap<>();
+    private final Map<String, List<String>> loginMenuPathByUser = new ConcurrentHashMap<>();
     private final Map<String, Boolean> awaitingLanguageSelectionByUser = new ConcurrentHashMap<>();
     private final Map<String, SelectionContext> selectionContextByUser = new ConcurrentHashMap<>();
     private final Map<String, Integer> selectionPageStartByUser = new ConcurrentHashMap<>();
@@ -444,13 +445,32 @@ public class WhatsappSessionService {
         menuPathByUser.put(userId, new ArrayList<>(List.of(rootMenuId)));
     }
 
+    public void resetLoginMenu(String userId, String rootMenuId) {
+        loginMenuPathByUser.put(userId, new ArrayList<>(List.of(rootMenuId)));
+    }
+
     public String currentBusinessMenu(String userId, String rootMenuId) {
         List<String> path = ensureMenuPath(userId, rootMenuId);
         return path.get(path.size() - 1);
     }
 
+    public String currentLoginMenu(String userId, String rootMenuId) {
+        List<String> path = ensureLoginMenuPath(userId, rootMenuId);
+        return path.get(path.size() - 1);
+    }
+
     public void enterBusinessMenu(String userId, String menuId, String rootMenuId) {
         menuPathByUser.compute(userId, (id, existing) -> {
+            List<String> path = (existing == null || existing.isEmpty())
+                    ? new ArrayList<>(List.of(rootMenuId))
+                    : new ArrayList<>(existing);
+            path.add(menuId);
+            return path;
+        });
+    }
+
+    public void enterLoginMenu(String userId, String menuId, String rootMenuId) {
+        loginMenuPathByUser.compute(userId, (id, existing) -> {
             List<String> path = (existing == null || existing.isEmpty())
                     ? new ArrayList<>(List.of(rootMenuId))
                     : new ArrayList<>(existing);
@@ -474,13 +494,42 @@ public class WhatsappSessionService {
         return moved[0];
     }
 
+    public boolean goUpLoginMenu(String userId, String rootMenuId) {
+        final boolean[] moved = {false};
+        loginMenuPathByUser.compute(userId, (id, existing) -> {
+            List<String> path = (existing == null || existing.isEmpty())
+                    ? new ArrayList<>(List.of(rootMenuId))
+                    : new ArrayList<>(existing);
+            if (path.size() > 1) {
+                path.remove(path.size() - 1);
+                moved[0] = true;
+            }
+            return path;
+        });
+        return moved[0];
+    }
+
     public int getBusinessMenuDepth(String userId, String rootMenuId) {
         List<String> path = ensureMenuPath(userId, rootMenuId);
         return Math.max(0, path.size() - 1);
     }
 
+    public int getLoginMenuDepth(String userId, String rootMenuId) {
+        List<String> path = ensureLoginMenuPath(userId, rootMenuId);
+        return Math.max(0, path.size() - 1);
+    }
+
     private List<String> ensureMenuPath(String userId, String rootMenuId) {
         return menuPathByUser.compute(userId, (id, existing) -> {
+            if (existing == null || existing.isEmpty()) {
+                return new ArrayList<>(List.of(rootMenuId));
+            }
+            return existing;
+        });
+    }
+
+    private List<String> ensureLoginMenuPath(String userId, String rootMenuId) {
+        return loginMenuPathByUser.compute(userId, (id, existing) -> {
             if (existing == null || existing.isEmpty()) {
                 return new ArrayList<>(List.of(rootMenuId));
             }

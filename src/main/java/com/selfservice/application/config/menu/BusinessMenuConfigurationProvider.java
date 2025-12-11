@@ -24,9 +24,12 @@ public class BusinessMenuConfigurationProvider {
     private static final Path OVERRIDE_FILE = CONFIG_DIR.resolve("IM-menus.override.json");
 
     private final Map<String, BusinessMenuDefinition> menusById;
+    private final Map<String, BusinessMenuDefinition> loginMenusById;
     private final LoginMenuDefinition loginMenuDefinition;
     private final BusinessMenuConfiguration effectiveConfiguration;
     private final BusinessMenuConfiguration defaultConfiguration;
+    private final String loginRootMenuId;
+    private final String loginSettingsMenuId;
 
     public BusinessMenuConfigurationProvider(
             ObjectMapper objectMapper,
@@ -37,15 +40,14 @@ public class BusinessMenuConfigurationProvider {
         BusinessMenuConfiguration defaultConfig = tryLoadConfiguration(
                 toFileResource(DEFAULT_FILE), objectMapper, resourceLoader);
 
-        BusinessMenuConfiguration selectedConfiguration = firstWithMenus(overrideConfig, defaultConfig);
-        BusinessMenuConfiguration preferredDefault = firstWithMenus(defaultConfig, overrideConfig);
+        BusinessMenuConfiguration selectedConfiguration = firstWithAnyMenu(overrideConfig, defaultConfig);
+        BusinessMenuConfiguration preferredDefault = firstWithAnyMenu(defaultConfig, overrideConfig);
+        List<BusinessMenuDefinition> loadedMenus = resolveMenus(overrideConfig, defaultConfig);
+        LoginMenuDefinition loadedLoginMenu = resolveLoginMenu(overrideConfig, defaultConfig);
 
-        if (selectedConfiguration == null || selectedConfiguration.normalizedMenus().isEmpty()) {
+        if (selectedConfiguration == null || loadedMenus.isEmpty()) {
             throw new IllegalStateException("Business menu configuration could not be loaded from CONFIGURATIONS");
         }
-
-        List<BusinessMenuDefinition> loadedMenus = selectedConfiguration.normalizedMenus();
-        LoginMenuDefinition loadedLoginMenu = selectedConfiguration.normalizedLoginMenu();
 
         Map<String, BusinessMenuDefinition> mapped = new LinkedHashMap<>();
         for (BusinessMenuDefinition definition : loadedMenus) {
@@ -71,16 +73,29 @@ public class BusinessMenuConfigurationProvider {
 
         this.menusById = Collections.unmodifiableMap(mapped);
         this.loginMenuDefinition = loadedLoginMenu == null ? new LoginMenuDefinition() : loadedLoginMenu;
-        this.effectiveConfiguration = snapshotConfiguration(selectedConfiguration, loadedMenus, this.loginMenuDefinition);
+        Map<String, BusinessMenuDefinition> loginMenus = mapLoginMenus(this.loginMenuDefinition);
+        this.loginMenusById = Collections.unmodifiableMap(loginMenus);
+        this.loginRootMenuId = resolveLoginRootMenuId(loginMenus);
+        this.loginSettingsMenuId = resolveLoginSettingsMenuId(loginMenus, this.loginRootMenuId);
+        this.effectiveConfiguration = snapshotConfiguration(
+                selectedConfiguration,
+                loadedMenus,
+                this.loginMenuDefinition);
+        List<BusinessMenuDefinition> defaultMenus = resolveMenus(preferredDefault, selectedConfiguration);
+        LoginMenuDefinition defaultLoginMenu = resolveLoginMenu(preferredDefault, selectedConfiguration);
         this.defaultConfiguration = snapshotConfiguration(
                 preferredDefault == null ? selectedConfiguration : preferredDefault,
-                preferredDefault == null ? loadedMenus : preferredDefault.normalizedMenus(),
-                preferredDefault == null ? this.loginMenuDefinition : preferredDefault.normalizedLoginMenu());
+                defaultMenus.isEmpty() ? loadedMenus : defaultMenus,
+                defaultLoginMenu == null ? this.loginMenuDefinition : defaultLoginMenu);
         log.info("Business menu configuration loaded with {} menus", menusById.size());
     }
 
     public String getRootMenuId() {
         return BusinessMenuDefinition.ROOT_MENU_ID;
+    }
+
+    public String getLoginRootMenuId() {
+        return loginRootMenuId;
     }
 
     public boolean menuExists(String menuId) {
@@ -97,6 +112,22 @@ public class BusinessMenuConfigurationProvider {
 
     public LoginMenuDefinition getLoginMenuDefinition() {
         return loginMenuDefinition;
+    }
+
+    public boolean loginMenuExists(String menuId) {
+        return menuId != null && loginMenusById.containsKey(menuId);
+    }
+
+    public List<BusinessMenuItem> getLoginMenuItems(String menuId) {
+        BusinessMenuDefinition definition = loginMenusById.getOrDefault(menuId, loginMenusById.get(loginRootMenuId));
+        if (definition == null) {
+            return List.of();
+        }
+        return definition.sortedItems();
+    }
+
+    public String getLoginSettingsMenuId() {
+        return loginSettingsMenuId;
     }
 
     public List<LoginMenuItem> getLoginMenuItems() {
@@ -167,16 +198,50 @@ public class BusinessMenuConfigurationProvider {
         return "file:" + path.toAbsolutePath();
     }
 
-    private BusinessMenuConfiguration firstWithMenus(BusinessMenuConfiguration... candidates) {
+    private BusinessMenuConfiguration firstWithAnyMenu(BusinessMenuConfiguration... candidates) {
         if (candidates == null) {
             return null;
         }
         for (BusinessMenuConfiguration candidate : candidates) {
-            if (candidate != null && !candidate.normalizedMenus().isEmpty()) {
+            if (candidate == null) {
+                continue;
+            }
+            if (!candidate.normalizedMenus().isEmpty() || hasLoginMenuContent(candidate.normalizedLoginMenu())) {
                 return candidate;
             }
         }
         return null;
+    }
+
+    private List<BusinessMenuDefinition> resolveMenus(
+            BusinessMenuConfiguration primary,
+            BusinessMenuConfiguration fallback) {
+        if (primary != null && !primary.normalizedMenus().isEmpty()) {
+            return primary.normalizedMenus();
+        }
+        if (fallback != null && !fallback.normalizedMenus().isEmpty()) {
+            return fallback.normalizedMenus();
+        }
+        return List.of();
+    }
+
+    private LoginMenuDefinition resolveLoginMenu(
+            BusinessMenuConfiguration primary,
+            BusinessMenuConfiguration fallback) {
+        if (primary != null && hasLoginMenuContent(primary.normalizedLoginMenu())) {
+            return primary.normalizedLoginMenu();
+        }
+        if (fallback != null && hasLoginMenuContent(fallback.normalizedLoginMenu())) {
+            return fallback.normalizedLoginMenu();
+        }
+        return null;
+    }
+
+    private boolean hasLoginMenuContent(LoginMenuDefinition loginMenu) {
+        return loginMenu != null
+                && ((loginMenu.getMenus() != null && !loginMenu.getMenus().isEmpty())
+                || (loginMenu.getMenu() != null && !loginMenu.getMenu().isEmpty())
+                || (loginMenu.getSettingsMenu() != null && !loginMenu.getSettingsMenu().isEmpty()));
     }
 
     private BusinessMenuConfiguration snapshotConfiguration(
@@ -216,8 +281,63 @@ public class BusinessMenuConfigurationProvider {
 
     private LoginMenuDefinition copyLoginMenu(LoginMenuDefinition menu) {
         LoginMenuDefinition copy = new LoginMenuDefinition();
+        copy.setMenus(copyLoginMenus(menu == null ? List.of() : menu.getMenus()));
         copy.setMenu(menu == null ? List.of() : menu.normalizedMenu());
         copy.setSettingsMenu(menu == null ? List.of() : menu.normalizedSettingsMenu());
         return copy;
+    }
+
+    private List<BusinessMenuDefinition> copyLoginMenus(List<BusinessMenuDefinition> menus) {
+        if (menus == null) {
+            return List.of();
+        }
+        return menus.stream()
+                .map(menu -> {
+                    BusinessMenuDefinition copy = new BusinessMenuDefinition();
+                    copy.setId(menu.getId());
+                    copy.setName(menu.getName());
+                    copy.setParentId(menu.getParentId());
+                    copy.setItems(menu.sortedItems());
+                    return copy;
+                })
+                .toList();
+    }
+
+    private Map<String, BusinessMenuDefinition> mapLoginMenus(LoginMenuDefinition definition) {
+        if (definition == null || definition.getMenus() == null) {
+            return Collections.emptyMap();
+        }
+        Map<String, BusinessMenuDefinition> mapped = new LinkedHashMap<>();
+        for (BusinessMenuDefinition menu : definition.getMenus()) {
+            if (menu == null || menu.getId() == null || menu.getId().isBlank()) {
+                continue;
+            }
+            BusinessMenuDefinition copy = new BusinessMenuDefinition();
+            copy.setId(menu.getId());
+            String resolvedName = menu.getName();
+            if (resolvedName == null || resolvedName.isBlank()) {
+                resolvedName = LoginMenuDefinition.ROOT_MENU_ID.equals(menu.getId()) ? "Home" : menu.getId();
+            }
+            copy.setName(resolvedName);
+            copy.setParentId(menu.getParentId());
+            copy.setItems(menu.sortedItems());
+            mapped.put(copy.getId(), copy);
+        }
+        return mapped;
+    }
+
+    private String resolveLoginRootMenuId(Map<String, BusinessMenuDefinition> mapped) {
+        if (mapped.containsKey(LoginMenuDefinition.ROOT_MENU_ID)) {
+            return LoginMenuDefinition.ROOT_MENU_ID;
+        }
+        return mapped.keySet().stream().findFirst().orElse(LoginMenuDefinition.ROOT_MENU_ID);
+    }
+
+    private String resolveLoginSettingsMenuId(Map<String, BusinessMenuDefinition> mapped, String rootMenuId) {
+        return mapped.values().stream()
+                .filter(def -> rootMenuId.equals(def.getParentId()))
+                .map(BusinessMenuDefinition::getId)
+                .findFirst()
+                .orElse(null);
     }
 }

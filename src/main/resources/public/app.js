@@ -85,11 +85,25 @@ const BASE_FUNCTION_OPTIONS = [
     description: "Lets the user pick a language."
   },
   {
+    id: "CHANGE_ACCOUNT",
+    label: "Select a different account",
+    callbackData: "CHANGE_ACCOUNT",
+    translationKey: "ButtonChangeAccount",
+    description: "Allows the user to switch to another available account."
+  },
+  {
     id: "MENU",
     label: "Back to menu",
     callbackData: "MENU",
     translationKey: "ButtonMenu",
     description: "Returns to the previous menu."
+  },
+  {
+    id: "BUSINESS_MENU_UP",
+    label: "Menu Up",
+    callbackData: "BUSINESS_MENU_UP",
+    translationKey: "BusinessMenuUp",
+    description: "Navigates up one menu level."
   },
   {
     id: "LOGOUT",
@@ -99,6 +113,21 @@ const BASE_FUNCTION_OPTIONS = [
     description: "Ends the authenticated session."
   }
 ];
+
+const FUNCTION_RULES = {
+  LOGOUT: {
+    note: "Logout menu option will be displayed in the menus, when user is logged in",
+  },
+  MENU: {
+    note: "Back to Menu option will be displayed in the menu level 2 and above",
+  },
+  CHANGE_ACCOUNT: {
+    note: "Select a Different Account option will be displayed when users have access to more than one account",
+  },
+  BUSINESS_MENU_UP: {
+    note: "Menu Up option will be displayed in the menus of level 3 and above",
+  },
+};
 
 const DEFAULT_STRUCTURE = [
   {
@@ -453,6 +482,18 @@ function initFunctionSelect(selectEl) {
     });
 }
 
+function applyFunctionRuleNotice(element, functionId) {
+  if (!element) return;
+  const rule = FUNCTION_RULES[functionId];
+  if (!rule?.note) {
+    element.textContent = "";
+    element.style.display = "none";
+    return;
+  }
+  element.textContent = rule.note;
+  element.style.display = "block";
+}
+
 function slugify(value) {
   return value
     .toLowerCase()
@@ -658,34 +699,32 @@ function extractLoginMenus(loginMenu) {
     console.info("Using nested login menu definition", loginMenu.menus);
     return loginMenu.menus;
   }
-  if (Array.isArray(loginMenu?.menu) || Array.isArray(loginMenu?.settingsMenu)) {
-    console.info("Using legacy login menu definition with settingsMenu");
-    const settingsId = "login-settings";
-    return [
-      {
+  const hasLegacyMenu = Array.isArray(loginMenu?.menu) && loginMenu.menu.length;
+  const hasLegacySettingsMenu = Array.isArray(loginMenu?.settingsMenu) && loginMenu.settingsMenu.length;
+
+  if (hasLegacyMenu || hasLegacySettingsMenu) {
+    console.info("Using legacy login menu definition without auto-appended items");
+    const legacyMenus = [];
+
+    if (hasLegacyMenu) {
+      legacyMenus.push({
         id: LOGIN_ROOT_MENU_ID,
         name: "Home",
         parentId: null,
-        items: [
-          ...(Array.isArray(loginMenu.menu) ? loginMenu.menu : []).map((item) => ({
-            label: item.label,
-            function: item.function,
-            useTranslation: Boolean(item.translationKey)
-          })),
-          { label: "Settings", type: "submenu", submenuId: settingsId }
-        ]
-      },
-      {
-        id: settingsId,
+        items: loginMenu.menu.map((item) => ({ ...item }))
+      });
+    }
+
+    if (hasLegacySettingsMenu) {
+      legacyMenus.push({
+        id: "login-settings",
         name: "Settings",
         parentId: LOGIN_ROOT_MENU_ID,
-        items: (loginMenu.settingsMenu || []).map((item) => ({
-          label: item.label,
-          function: item.function,
-          useTranslation: Boolean(item.translationKey)
-        }))
-      }
-    ];
+        items: loginMenu.settingsMenu.map((item) => ({ ...item }))
+      });
+    }
+
+    return legacyMenus;
   }
   return null;
 }
@@ -903,11 +942,15 @@ function renderItemDetails(container, menuId, item, index) {
     const functionDropdown = document.createElement("select");
     initFunctionSelect(functionDropdown);
     functionDropdown.value = item.function;
+    const functionRuleNotice = document.createElement("p");
+    functionRuleNotice.className = "hint";
+    applyFunctionRuleNotice(functionRuleNotice, functionDropdown.value);
     functionDropdown.addEventListener("change", (event) => {
       if (!functionDictionary[event.target.value]) {
         return;
       }
       menusById.get(menuId).items[index].function = event.target.value;
+      applyFunctionRuleNotice(functionRuleNotice, event.target.value);
       updatePreview();
     });
     functionWrapper.append(functionDropdown);
@@ -929,7 +972,7 @@ function renderItemDetails(container, menuId, item, index) {
     translationHint.className = "hint";
     translationHint.textContent = "Keeps the original multilingual text for this function.";
 
-    container.append(functionWrapper, translationToggle, translationHint);
+    container.append(functionWrapper, translationToggle, translationHint, functionRuleNotice);
 
     if (item.type === ITEM_TYPES.FUNCTION_MENU) {
       const submenuWrapper = document.createElement("label");

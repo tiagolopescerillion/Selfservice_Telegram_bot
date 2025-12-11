@@ -202,6 +202,8 @@ public class TelegramWebhookController {
             }
 
             if (text.equals(TelegramService.CALLBACK_MENU)) {
+                telegramService.goHomeBusinessMenu(chatId);
+                telegramService.goHomeLoginMenu(chatId);
                 if (hasValidToken && ensureAccountSelected(chatId)) {
                     AccountSummary selected = userSessionService.getSelectedAccount(chatId);
                     telegramService.sendLoggedInMenu(chatId, selected,
@@ -213,12 +215,13 @@ public class TelegramWebhookController {
             }
 
             if (text.equals(TelegramService.CALLBACK_BUSINESS_MENU_UP)) {
-                telegramService.goUpBusinessMenu(chatId);
                 if (hasValidToken && ensureAccountSelected(chatId)) {
+                    telegramService.goUpBusinessMenu(chatId);
                     AccountSummary selected = userSessionService.getSelectedAccount(chatId);
                     telegramService.sendLoggedInMenu(chatId, selected,
                             userSessionService.getAccounts(chatId).size() > 1);
                 } else {
+                    telegramService.goUpLoginMenu(chatId);
                     telegramService.sendLoginMenu(chatId, oauthSessionService.buildAuthUrl(chatId));
                 }
                 return ResponseEntity.ok().build();
@@ -619,16 +622,6 @@ public class TelegramWebhookController {
                             userSessionService.saveInvoices(chatId, invoices.invoices());
                             telegramService.sendInvoicePage(chatId, invoices.invoices(), 0);
                         }
-                    } else {
-                        telegramService.sendMessage(chatId, loginReminder);
-                        telegramService.sendLoginMenu(chatId, oauthSessionService.buildAuthUrl(chatId));
-                    }
-                    break;
-                case TelegramService.CALLBACK_INVOICE_BACK_TO_MENU:
-                    if (hasValidToken && ensureAccountSelected(chatId)) {
-                        AccountSummary selectedAccount = userSessionService.getSelectedAccount(chatId);
-                        telegramService.sendLoggedInMenu(chatId, selectedAccount,
-                                userSessionService.getAccounts(chatId).size() > 1);
                     } else {
                         telegramService.sendMessage(chatId, loginReminder);
                         telegramService.sendLoginMenu(chatId, oauthSessionService.buildAuthUrl(chatId));
