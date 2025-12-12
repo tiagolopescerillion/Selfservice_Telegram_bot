@@ -62,11 +62,14 @@ public class ServiceCatalog {
 
         try (InputStream input = Files.newInputStream(source)) {
             Object loaded = new Yaml().load(input);
-            if (!(loaded instanceof Map<?, ?> map)) {
+            if (!(loaded instanceof Map<?, ?> rawMap)) {
                 log.warn("Service configuration at {} is empty or invalid", source);
                 return List.of();
             }
-            Object entries = map.getOrDefault("services", List.of());
+            Map<String, Object> map = new LinkedHashMap<>();
+            rawMap.forEach((key, value) -> map.put(String.valueOf(key), value));
+
+            Object entries = map.containsKey("services") ? map.get("services") : List.of();
             if (!(entries instanceof Iterable<?> iterable)) {
                 log.warn("Service configuration at {} does not contain a 'services' list", source);
                 return List.of();

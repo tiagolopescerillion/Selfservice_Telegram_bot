@@ -61,11 +61,14 @@ public class ApiRegistry {
 
         try (InputStream input = Files.newInputStream(source)) {
             Object loaded = new Yaml().load(input);
-            if (!(loaded instanceof Map<?, ?> map)) {
+            if (!(loaded instanceof Map<?, ?> rawMap)) {
                 log.warn("API configuration at {} is empty or invalid", source);
                 return List.of();
             }
-            Object entries = map.getOrDefault("apis", List.of());
+            Map<String, Object> map = new LinkedHashMap<>();
+            rawMap.forEach((key, value) -> map.put(String.valueOf(key), value));
+
+            Object entries = map.containsKey("apis") ? map.get("apis") : List.of();
             if (!(entries instanceof Iterable<?> iterable)) {
                 log.warn("API configuration at {} does not contain an 'apis' list", source);
                 return List.of();
