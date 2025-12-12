@@ -243,6 +243,8 @@ const navMenuConfig = document.getElementById("navMenuConfig");
 const navOperationsMonitoring = document.getElementById("navOperationsMonitoring");
 const navSendMessages = document.getElementById("navSendMessages");
 const navImServerAdmin = document.getElementById("navImServerAdmin");
+const navApiRegistration = document.getElementById("navApiRegistration");
+const navServiceBuilder = document.getElementById("navServiceBuilder");
 const navConnectors = document.getElementById("navConnectors");
 const navWeblinks = document.getElementById("navWeblinks");
 const navServiceFunctions = document.getElementById("navServiceFunctions");
@@ -250,6 +252,8 @@ const menuConfigurationPanel = document.getElementById("menuConfigurationPanel")
 const operationsMonitoringPanel = document.getElementById("operationsMonitoringPanel");
 const sendMessagesPanel = document.getElementById("sendMessagesPanel");
 const imServerAdminPanel = document.getElementById("imServerAdminPanel");
+const apiRegistryPanel = document.getElementById("apiRegistryPanel");
+const serviceBuilderPanel = document.getElementById("serviceBuilderPanel");
 const connectorsPanel = document.getElementById("connectorsPanel");
 const weblinksPanel = document.getElementById("weblinksPanel");
 const serviceFunctionsPanel = document.getElementById("serviceFunctionsPanel");
@@ -265,6 +269,24 @@ const newServiceFunctionQueryParams = document.getElementById("newServiceFunctio
 const saveNewServiceFunction = document.getElementById("saveNewServiceFunction");
 const cancelNewServiceFunction = document.getElementById("cancelNewServiceFunction");
 const downloadQueryParamsButton = document.getElementById("downloadQueryParamsButton");
+const addApiButton = document.getElementById("addApiButton");
+const downloadApiListButton = document.getElementById("downloadApiListButton");
+const apiForm = document.getElementById("apiForm");
+const apiNameInput = document.getElementById("apiNameInput");
+const apiUrlInput = document.getElementById("apiUrlInput");
+const cancelApiButton = document.getElementById("cancelApiButton");
+const apiList = document.getElementById("apiList");
+const apiRegistryStatus = document.getElementById("apiRegistryStatus");
+const addServiceButton = document.getElementById("addServiceButton");
+const downloadServicesButton = document.getElementById("downloadServicesButton");
+const serviceForm = document.getElementById("serviceForm");
+const serviceNameInput = document.getElementById("serviceNameInput");
+const serviceApiSelect = document.getElementById("serviceApiSelect");
+const serviceQueryParamsInput = document.getElementById("serviceQueryParamsInput");
+const serviceResponseTemplate = document.getElementById("serviceResponseTemplate");
+const cancelServiceButton = document.getElementById("cancelServiceButton");
+const serviceList = document.getElementById("serviceList");
+const serviceBuilderStatus = document.getElementById("serviceBuilderStatus");
 const liveSessionsContainer = document.getElementById("liveSessions");
 const sessionHistoryContainer = document.getElementById("sessionHistory");
 const monitoringApiBaseInput = document.getElementById("monitoringApiBase");
@@ -449,6 +471,8 @@ let configEndpointCache = "";
 let serviceFunctionEntries = [];
 let availableServiceFunctionEndpoints = [];
 const serviceFunctionOverrides = new Map();
+let apiRegistryEntries = [];
+let serviceBuilderEntries = [];
 
 function getServiceFunctionOverride(key) {
   const existing = serviceFunctionOverrides.get(key);
@@ -1553,6 +1577,8 @@ function setActiveApp(target) {
   const showOperations = target === "operations";
   const showSendMessages = target === "notifications";
   const showImServerAdmin = target === "admin";
+  const showApiRegistry = target === "api-registry";
+  const showServiceBuilder = target === "service-builder";
   const showServiceFunctions = target === "service-functions";
   const showConnectors = target === "connectors";
   const showWeblinks = target === "weblinks";
@@ -1560,6 +1586,8 @@ function setActiveApp(target) {
   operationsMonitoringPanel.classList.toggle("hidden", !showOperations);
   sendMessagesPanel.classList.toggle("hidden", !showSendMessages);
   imServerAdminPanel.classList.toggle("hidden", !showImServerAdmin);
+  apiRegistryPanel.classList.toggle("hidden", !showApiRegistry);
+  serviceBuilderPanel.classList.toggle("hidden", !showServiceBuilder);
   if (connectorsPanel) {
     connectorsPanel.classList.toggle("hidden", !showConnectors);
   }
@@ -1571,6 +1599,12 @@ function setActiveApp(target) {
   navOperationsMonitoring.classList.toggle("active", showOperations);
   navSendMessages.classList.toggle("active", showSendMessages);
   navImServerAdmin.classList.toggle("active", showImServerAdmin);
+  if (navApiRegistration) {
+    navApiRegistration.classList.toggle("active", showApiRegistry);
+  }
+  if (navServiceBuilder) {
+    navServiceBuilder.classList.toggle("active", showServiceBuilder);
+  }
   if (navConnectors) {
     navConnectors.classList.toggle("active", showConnectors);
   }
@@ -1583,6 +1617,12 @@ function setActiveApp(target) {
   }
   if (showImServerAdmin) {
     loadImServerConfig();
+  }
+  if (showApiRegistry) {
+    loadApiRegistry();
+  }
+  if (showServiceBuilder) {
+    loadServiceBuilder();
   }
   if (showConnectors) {
     loadConnectorsPanel();
@@ -2528,6 +2568,144 @@ async function loadServiceFunctions() {
   }
 }
 
+function renderApiList() {
+  if (!apiList) return;
+  apiList.innerHTML = "";
+  if (!apiRegistryEntries.length) {
+    apiList.innerHTML = '<div class="empty">No APIs configured.</div>';
+    return;
+  }
+  apiRegistryEntries.forEach((api) => {
+    const row = document.createElement("div");
+    row.className = "config-entry";
+    const name = document.createElement("div");
+    name.className = "config-entry__key";
+    name.textContent = api.name;
+    const url = document.createElement("div");
+    url.className = "config-entry__value";
+    url.textContent = api.url;
+    row.append(name, url);
+    apiList.append(row);
+  });
+}
+
+function renderServiceList() {
+  if (!serviceList) return;
+  serviceList.innerHTML = "";
+  if (!serviceBuilderEntries.length) {
+    serviceList.innerHTML = '<div class="empty">No services configured.</div>';
+    return;
+  }
+  serviceBuilderEntries.forEach((service) => {
+    const row = document.createElement("div");
+    row.className = "config-entry";
+    const header = document.createElement("div");
+    header.className = "config-entry__key";
+    header.textContent = `${service.name} → ${service.apiName}`;
+    const body = document.createElement("div");
+    body.className = "config-entry__value";
+    const qp = formatQueryParams(service.queryParameters || {});
+    body.textContent = `${qp || "<no params>"} | Response: ${service.responseTemplate}`;
+    row.append(header, body);
+    serviceList.append(row);
+  });
+}
+
+function toggleApiForm(show) {
+  if (!apiForm) return;
+  const shouldShow = Boolean(show);
+  apiForm.classList.toggle("hidden", !shouldShow);
+  if (shouldShow) {
+    apiNameInput.value = "";
+    apiUrlInput.value = "";
+    apiNameInput.focus();
+  }
+}
+
+function toggleServiceForm(show) {
+  if (!serviceForm) return;
+  const shouldShow = Boolean(show);
+  serviceForm.classList.toggle("hidden", !shouldShow);
+  if (shouldShow) {
+    serviceNameInput.value = "";
+    serviceApiSelect.value = serviceApiSelect.options[0]?.value || "";
+    serviceQueryParamsInput.value = "";
+    serviceResponseTemplate.value = "JSON";
+    serviceNameInput.focus();
+  }
+}
+
+function hydrateServiceApiOptions() {
+  if (!serviceApiSelect) return;
+  serviceApiSelect.innerHTML = "";
+  apiRegistryEntries.forEach((api) => {
+    const option = document.createElement("option");
+    option.value = api.name;
+    option.textContent = api.name;
+    serviceApiSelect.append(option);
+  });
+}
+
+async function loadApiRegistry() {
+  if (!apiRegistryStatus || !apiList) return;
+  const endpoint = buildAdminEndpoint("/admin/apis");
+  if (!endpoint) {
+    apiRegistryStatus.textContent = "Set the monitoring API base URL to load APIs.";
+    apiRegistryStatus.className = "hint error-state";
+    return;
+  }
+  apiRegistryStatus.textContent = `Loading APIs from ${endpoint}...`;
+  apiRegistryStatus.className = "hint";
+  try {
+    const response = await fetch(endpoint, { cache: "no-cache" });
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+    const payload = await response.json();
+    apiRegistryEntries = Array.isArray(payload?.apis) ? payload.apis : [];
+    renderApiList();
+    hydrateServiceApiOptions();
+    apiRegistryStatus.textContent = apiRegistryEntries.length
+      ? `Loaded ${apiRegistryEntries.length} APIs.`
+      : "No API entries found.";
+    apiRegistryStatus.className = "hint";
+  } catch (error) {
+    apiRegistryStatus.textContent = `Unable to load API list: ${error.message}`;
+    apiRegistryStatus.className = "hint error-state";
+  }
+}
+
+async function loadServiceBuilder() {
+  if (!serviceBuilderStatus || !serviceList) return;
+  const endpoint = buildAdminEndpoint("/admin/services");
+  if (!endpoint) {
+    serviceBuilderStatus.textContent = "Set the monitoring API base URL to load services.";
+    serviceBuilderStatus.className = "hint error-state";
+    return;
+  }
+  serviceBuilderStatus.textContent = `Loading services from ${endpoint}...`;
+  serviceBuilderStatus.className = "hint";
+  try {
+    const response = await fetch(endpoint, { cache: "no-cache" });
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+    const payload = await response.json();
+    apiRegistryEntries = Array.isArray(payload?.apis) ? payload.apis : apiRegistryEntries;
+    serviceBuilderEntries = Array.isArray(payload?.services) ? payload.services : [];
+    hydrateServiceApiOptions();
+    renderApiList();
+    renderServiceList();
+    serviceBuilderStatus.textContent = serviceBuilderEntries.length
+      ? `Loaded ${serviceBuilderEntries.length} services.`
+      : "No service entries found.";
+    serviceBuilderStatus.className = "hint";
+  } catch (error) {
+    serviceBuilderStatus.textContent = `Unable to load services: ${error.message}`;
+    serviceBuilderStatus.className = "hint error-state";
+  }
+}
+
 function extractApiPath(value) {
   if (!value) {
     return "";
@@ -3321,6 +3499,12 @@ if (navWeblinks) {
   });
 }
 navServiceFunctions.addEventListener("click", () => setActiveApp("service-functions"));
+if (navApiRegistration) {
+  navApiRegistration.addEventListener("click", () => setActiveApp("api-registry"));
+}
+if (navServiceBuilder) {
+  navServiceBuilder.addEventListener("click", () => setActiveApp("service-builder"));
+}
 if (downloadQueryParamsButton) {
   downloadQueryParamsButton.addEventListener("click", downloadQueryParamConfig);
 }
@@ -3359,6 +3543,129 @@ if (connectorsDownloadButton) {
   connectorsDownloadButton.addEventListener("click", () => {
     const content = connectorsContent || buildConnectorsYaml();
     downloadYamlFile(content, "connectors-local.yml");
+  });
+}
+
+if (addApiButton) {
+  addApiButton.addEventListener("click", () => toggleApiForm(true));
+}
+if (cancelApiButton) {
+  cancelApiButton.addEventListener("click", () => toggleApiForm(false));
+}
+if (apiForm) {
+  apiForm.addEventListener("submit", (event) => {
+    event.preventDefault();
+    const name = (apiNameInput.value || "").trim();
+    const url = (apiUrlInput.value || "").trim();
+    if (!name || !url) {
+      alert("Provide both an API name and URL.");
+      return;
+    }
+    const slug = slugify(name);
+    apiRegistryEntries = [...apiRegistryEntries.filter((api) => api.name !== slug), { name: slug, url }];
+    apiRegistryStatus.textContent = `Saved API ${slug}.`;
+    apiRegistryStatus.className = "hint";
+    hydrateServiceApiOptions();
+    renderApiList();
+    toggleApiForm(false);
+  });
+}
+if (downloadApiListButton) {
+  downloadApiListButton.addEventListener("click", async () => {
+    const endpoint = buildAdminEndpoint("/admin/apis/export");
+    if (!endpoint) {
+      apiRegistryStatus.textContent = "Set the monitoring API base URL to download APIs.";
+      apiRegistryStatus.className = "hint error-state";
+      return;
+    }
+    try {
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(apiRegistryEntries)
+      });
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = "API-list-local.yml";
+      anchor.click();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      apiRegistryStatus.textContent = "API-list-local.yml downloaded.";
+      apiRegistryStatus.className = "hint";
+    } catch (error) {
+      apiRegistryStatus.textContent = `Unable to download API list: ${error.message}`;
+      apiRegistryStatus.className = "hint error-state";
+    }
+  });
+}
+
+if (addServiceButton) {
+  addServiceButton.addEventListener("click", () => toggleServiceForm(true));
+}
+if (cancelServiceButton) {
+  cancelServiceButton.addEventListener("click", () => toggleServiceForm(false));
+}
+if (serviceForm) {
+  serviceForm.addEventListener("submit", (event) => {
+    event.preventDefault();
+    const name = (serviceNameInput.value || "").trim();
+    const apiName = serviceApiSelect.value;
+    if (!name || !apiName) {
+      alert("Provide a service name and API name.");
+      return;
+    }
+    const slug = slugify(name);
+    const parsedParams = parseQueryParamString(serviceQueryParamsInput.value);
+    const responseTemplate = serviceResponseTemplate.value || "JSON";
+    serviceBuilderEntries = [
+      ...serviceBuilderEntries.filter((svc) => svc.name !== slug),
+      {
+        name: slug,
+        apiName,
+        queryParameters: parsedParams,
+        responseTemplate
+      }
+    ];
+    renderServiceList();
+    serviceBuilderStatus.textContent = `Saved service ${slug}.`;
+    serviceBuilderStatus.className = "hint";
+    toggleServiceForm(false);
+  });
+}
+if (downloadServicesButton) {
+  downloadServicesButton.addEventListener("click", async () => {
+    const endpoint = buildAdminEndpoint("/admin/services/export");
+    if (!endpoint) {
+      serviceBuilderStatus.textContent = "Set the monitoring API base URL to download services.";
+      serviceBuilderStatus.className = "hint error-state";
+      return;
+    }
+    try {
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(serviceBuilderEntries)
+      });
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = "services-local.yml";
+      anchor.click();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      serviceBuilderStatus.textContent = "services-local.yml downloaded.";
+      serviceBuilderStatus.className = "hint";
+    } catch (error) {
+      serviceBuilderStatus.textContent = `Unable to download services file: ${error.message}`;
+      serviceBuilderStatus.className = "hint error-state";
+    }
   });
 }
 

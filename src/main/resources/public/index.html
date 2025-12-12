@@ -35,6 +35,12 @@
           <button id="navMenuConfig" class="sidebar__link" type="button">
             IM Menus Configurator
           </button>
+          <button id="navApiRegistration" class="sidebar__link" type="button">
+            API Registration
+          </button>
+          <button id="navServiceBuilder" class="sidebar__link" type="button">
+            Service Builder
+          </button>
           <button id="navWeblinks" class="sidebar__link" type="button">
             Web Links Configuration
           </button>
@@ -57,6 +63,105 @@
 
       <div class="content">
         <main>
+          <section id="apiRegistryPanel" class="hidden">
+            <section class="panel panel--wide">
+              <h2>API Registration</h2>
+              <p>
+                Manage API endpoints loaded from <code>API-list-*.yml</code> files. Create new
+                entries, download a refreshed <code>API-list-local.yml</code>, and drop it into the
+                <code>CONFIGURATIONS</code> folder.
+              </p>
+              <div class="toolbar">
+                <button id="addApiButton" class="secondary" type="button">Add API</button>
+                <button id="downloadApiListButton" class="button" type="button">
+                  Download API-list-local.yml
+                </button>
+              </div>
+              <form id="apiForm" class="card hidden" autocomplete="off">
+                <div class="two-col-grid">
+                  <label>
+                    API name
+                    <input id="apiNameInput" type="text" required placeholder="find-user" />
+                  </label>
+                  <label>
+                    API URL
+                    <input
+                      id="apiUrlInput"
+                      type="text"
+                      required
+                      placeholder="https://example.com/api/v1/findUser"
+                    />
+                  </label>
+                </div>
+                <div class="toolbar toolbar--end">
+                  <button id="saveApiButton" type="submit">Save API</button>
+                  <button id="cancelApiButton" type="button" class="secondary">Cancel</button>
+                </div>
+              </form>
+              <div id="apiList" class="config-tree"></div>
+              <p id="apiRegistryStatus" class="hint" aria-live="polite"></p>
+            </section>
+          </section>
+
+          <section id="serviceBuilderPanel" class="hidden">
+            <section class="panel panel--wide">
+              <h2>Service Builder</h2>
+              <p>
+                Configure services backed by registered APIs. Save updates to a downloadable
+                <code>services-local.yml</code> file and drop it into the <code>CONFIGURATIONS</code>
+                folder.
+              </p>
+              <div class="toolbar">
+                <button id="addServiceButton" class="secondary" type="button">
+                  Add Service
+                </button>
+                <button id="downloadServicesButton" class="button" type="button">
+                  Download services-local.yml
+                </button>
+              </div>
+              <form id="serviceForm" class="card hidden" autocomplete="off">
+                <div class="two-col-grid">
+                  <label>
+                    Service name
+                    <input
+                      id="serviceNameInput"
+                      type="text"
+                      required
+                      placeholder="Product"
+                    />
+                  </label>
+                  <label>
+                    API name
+                    <select id="serviceApiSelect" required></select>
+                  </label>
+                </div>
+                <label>
+                  Query parameters
+                  <textarea
+                    id="serviceQueryParamsInput"
+                    rows="3"
+                    placeholder="key=value&limit=10"
+                  ></textarea>
+                </label>
+                <label>
+                  Response template
+                  <select id="serviceResponseTemplate">
+                    <option value="EXISTING">Existing</option>
+                    <option value="JSON">JSON</option>
+                  </select>
+                </label>
+                <div class="toolbar toolbar--end">
+                  <button id="saveServiceButton" type="submit">Save service</button>
+                  <button id="cancelServiceButton" class="secondary" type="button">
+                    Cancel
+                  </button>
+                </div>
+              </form>
+              <div id="serviceList" class="config-tree"></div>
+              <p id="serviceBuilderStatus" class="hint" aria-live="polite"></p>
+            </section>
+          </section>
+
           <section id="serviceFunctionsPanel" class="hidden">
             <section class="panel panel--wide">
               <h2>Service Functions</h2>

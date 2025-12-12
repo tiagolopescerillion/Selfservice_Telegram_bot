@@ -1,0 +1,11 @@
+apis:
+  - API-name: find-user
+    API-URL: ${endpoints.apiman-base-url}/findUser/1.0
+  - API-name: product
+    API-URL: ${endpoints.apiman-base-url}/product/1.0
+  - API-name: trouble-ticket
+    API-URL: ${endpoints.apiman-base-url}/troubleTicket/1.0
+  - API-name: bill
+    API-URL: ${endpoints.apiman-base-url}/bill/1.0
+  - API-name: trouble-ticket-openapi
+    API-URL: ${endpoints.rest-server-base-url}/openapi-fun-trouble-ticket/api/v1/troubleTicket

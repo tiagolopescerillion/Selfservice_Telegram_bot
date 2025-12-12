@@ -9,6 +9,8 @@ CONFIGURATIONS/application-prod.yml
 CONFIGURATIONS/IM-menus.override.json
 CONFIGURATIONS/IM-menus.no-override.json
 CONFIGURATIONS/connectors-local.yml
+CONFIGURATIONS/API-list-local.yml
+CONFIGURATIONS/services-local.yml
 CONFIGURATIONS/telegram-local.yml
 CONFIGURATIONS/whatsapp-local.yml
 CONFIGURATIONS/messenger-local.yml
