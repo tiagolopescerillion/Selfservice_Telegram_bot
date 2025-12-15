@@ -1660,6 +1660,9 @@ function setActiveApp(target) {
   if (showOperations) {
     refreshMonitoringData();
   }
+  if (showMenuConfig) {
+    loadServiceBuilder();
+  }
   if (showImServerAdmin) {
     loadImServerConfig();
   }
