@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 public record BusinessMenuItem(
+        String type,
         int order,
         String label,
         String function,
@@ -13,7 +14,8 @@ public record BusinessMenuItem(
         String weblink,
         String url,
         Boolean authenticated,
-        String context) {
+        String context,
+        Boolean useTranslation) {
 
     public boolean isSubMenu() {
         return submenuId != null && !submenuId.isBlank();

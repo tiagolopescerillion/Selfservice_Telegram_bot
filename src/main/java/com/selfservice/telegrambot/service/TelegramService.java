@@ -915,14 +915,14 @@ public class TelegramService {
                 userSessionService.getInvoiceActionsMenu(chatId));
         if (actions.isEmpty()) {
             actions = List.of(
-                    new BusinessMenuItem(1, translate(chatId, "ButtonInvoiceViewPdf"), CALLBACK_INVOICE_VIEW_PDF_PREFIX,
-                            CALLBACK_INVOICE_VIEW_PDF_PREFIX, null, null, null, null, null, null),
-                    new BusinessMenuItem(2, translate(chatId, "ButtonInvoicePay"), CALLBACK_INVOICE_PAY_PREFIX,
-                            CALLBACK_INVOICE_PAY_PREFIX, null, null, null, null, null, null),
-                    new BusinessMenuItem(3, translate(chatId, "ButtonInvoiceCompare"), CALLBACK_INVOICE_COMPARE_PREFIX,
-                            CALLBACK_INVOICE_COMPARE_PREFIX, null, null, null, null, null, null),
-                    new BusinessMenuItem(4, translate(chatId, KEY_BUTTON_BACK_TO_MENU), CALLBACK_MENU,
-                            CALLBACK_MENU, null, null, null, null, null, null));
+                    new BusinessMenuItem(null, 1, translate(chatId, "ButtonInvoiceViewPdf"), CALLBACK_INVOICE_VIEW_PDF_PREFIX,
+                            CALLBACK_INVOICE_VIEW_PDF_PREFIX, null, null, null, null, null, null, null),
+                    new BusinessMenuItem(null, 2, translate(chatId, "ButtonInvoicePay"), CALLBACK_INVOICE_PAY_PREFIX,
+                            CALLBACK_INVOICE_PAY_PREFIX, null, null, null, null, null, null, null),
+                    new BusinessMenuItem(null, 3, translate(chatId, "ButtonInvoiceCompare"), CALLBACK_INVOICE_COMPARE_PREFIX,
+                            CALLBACK_INVOICE_COMPARE_PREFIX, null, null, null, null, null, null, null),
+                    new BusinessMenuItem(null, 4, translate(chatId, KEY_BUTTON_BACK_TO_MENU), CALLBACK_MENU,
+                            CALLBACK_MENU, null, null, null, null, null, null, null));
         }
 
         for (BusinessMenuItem action : actions) {

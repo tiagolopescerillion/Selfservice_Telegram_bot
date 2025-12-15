@@ -690,10 +690,16 @@ function applyMenusToStore(menuType, menus) {
     const items = Array.isArray(menu.items) ? menu.items : [];
     console.info(`Processing ${items.length} items for menu ${menu.id}`, items);
     items.forEach((item) => {
+      const explicitType = item?.type;
       const hasSubmenu = item?.submenuId && store.menusById.has(item.submenuId);
       const functionId = item.function || item.id;
+      const isWeblink =
+        explicitType === ITEM_TYPES.WEBLINK ||
+        (!explicitType || explicitType === ITEM_TYPES.WEBLINK)
+          ? Boolean(item?.weblink)
+          : explicitType === ITEM_TYPES.WEBLINK;
 
-      if (hasSubmenu && functionId) {
+      if (explicitType === ITEM_TYPES.FUNCTION_MENU || (hasSubmenu && functionId && explicitType !== ITEM_TYPES.SUBMENU)) {
         if (!functionDictionary[functionId]) {
           registerFunctionOption({
             id: functionId,
@@ -716,7 +722,7 @@ function applyMenusToStore(menuType, menus) {
         return;
       }
 
-      if (hasSubmenu) {
+      if (explicitType === ITEM_TYPES.SUBMENU || hasSubmenu) {
         const submenu = store.menusById.get(item.submenuId);
         submenu.parentId = target.id;
         target.items.push({
@@ -730,7 +736,7 @@ function applyMenusToStore(menuType, menus) {
         return;
       }
 
-      if (item?.type === ITEM_TYPES.WEBLINK || item?.weblink) {
+      if (isWeblink) {
         target.items.push({
           id: item.id || nextItemId(),
           label: item.label ?? item.weblink ?? "Web link",

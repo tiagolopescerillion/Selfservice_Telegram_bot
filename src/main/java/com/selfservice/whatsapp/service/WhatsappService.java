@@ -725,18 +725,18 @@ public class WhatsappService {
                 .getMenuItems(sessionService.getInvoiceActionsMenu(userId));
         if (actions.isEmpty()) {
             return List.of(
-                    new BusinessMenuItem(1, translate(userId, "ButtonInvoiceViewPdf"),
+                    new BusinessMenuItem(null, 1, translate(userId, "ButtonInvoiceViewPdf"),
                             TelegramService.CALLBACK_INVOICE_VIEW_PDF_PREFIX,
-                            TelegramService.CALLBACK_INVOICE_VIEW_PDF_PREFIX, null, null, null, null, null, null),
-                    new BusinessMenuItem(2, translate(userId, "ButtonInvoicePay"),
+                            TelegramService.CALLBACK_INVOICE_VIEW_PDF_PREFIX, null, null, null, null, null, null, null),
+                    new BusinessMenuItem(null, 2, translate(userId, "ButtonInvoicePay"),
                             TelegramService.CALLBACK_INVOICE_PAY_PREFIX,
-                            TelegramService.CALLBACK_INVOICE_PAY_PREFIX, null, null, null, null, null, null),
-                    new BusinessMenuItem(3, translate(userId, "ButtonInvoiceCompare"),
+                            TelegramService.CALLBACK_INVOICE_PAY_PREFIX, null, null, null, null, null, null, null),
+                    new BusinessMenuItem(null, 3, translate(userId, "ButtonInvoiceCompare"),
                             TelegramService.CALLBACK_INVOICE_COMPARE_PREFIX,
-                            TelegramService.CALLBACK_INVOICE_COMPARE_PREFIX, null, null, null, null, null, null),
-                    new BusinessMenuItem(4, translate(userId, TelegramService.KEY_BUTTON_BACK_TO_MENU),
+                            TelegramService.CALLBACK_INVOICE_COMPARE_PREFIX, null, null, null, null, null, null, null),
+                    new BusinessMenuItem(null, 4, translate(userId, TelegramService.KEY_BUTTON_BACK_TO_MENU),
                             TelegramService.CALLBACK_MENU,
-                            TelegramService.CALLBACK_MENU, null, null, null, null, null, null));
+                            TelegramService.CALLBACK_MENU, null, null, null, null, null, null, null));
         }
         return actions;
     }
