@@ -201,6 +201,7 @@ function getConfigFetchPaths() {
 
 const functionDictionary = {};
 const functionOptions = [];
+const serviceFunctionOptionIds = new Set();
 
 function registerFunctionOption(option) {
   if (!option?.id) return;
@@ -213,6 +214,50 @@ function registerFunctionOption(option) {
   };
   functionDictionary[normalized.id] = normalized;
   functionOptions.push(normalized);
+}
+
+function titleCase(value) {
+  return (value || "")
+    .split(/[-_\s]+/)
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
+function syncServiceFunctionOptions(services) {
+  serviceFunctionOptionIds.forEach((id) => removeFunctionOption(id));
+  serviceFunctionOptionIds.clear();
+
+  if (!Array.isArray(services)) return;
+
+  services.forEach((service) => {
+    if (!service?.name) return;
+    const id = service.name;
+    const label = titleCase(service.name) || service.name;
+    const description = service.apiName
+      ? `Service Builder function for ${service.apiName}`
+      : "Service Builder function";
+    registerFunctionOption({
+      id,
+      label,
+      callbackData: id,
+      description
+    });
+    serviceFunctionOptionIds.add(id);
+  });
+
+  initFunctionSelect(menuFunctionSelect);
+  renderMenuItems();
+  updatePreview();
+}
+
+function removeFunctionOption(id) {
+  if (!id) return;
+  delete functionDictionary[id];
+  const index = functionOptions.findIndex((option) => option.id === id);
+  if (index !== -1) {
+    functionOptions.splice(index, 1);
+  }
 }
 
 BASE_FUNCTION_OPTIONS.forEach(registerFunctionOption);
@@ -2693,6 +2738,7 @@ async function loadServiceBuilder() {
     const payload = await response.json();
     apiRegistryEntries = Array.isArray(payload?.apis) ? payload.apis : apiRegistryEntries;
     serviceBuilderEntries = Array.isArray(payload?.services) ? payload.services : [];
+    syncServiceFunctionOptions(serviceBuilderEntries);
     hydrateServiceApiOptions();
     renderApiList();
     renderServiceList();
@@ -3630,6 +3676,7 @@ if (serviceForm) {
         responseTemplate
       }
     ];
+    syncServiceFunctionOptions(serviceBuilderEntries);
     renderServiceList();
     serviceBuilderStatus.textContent = `Saved service ${slug}.`;
     serviceBuilderStatus.className = "hint";
