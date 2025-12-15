@@ -12,6 +12,7 @@ import com.selfservice.application.dto.TroubleTicketSummary;
 import com.selfservice.application.service.InvoiceService;
 import com.selfservice.application.service.ProductService;
 import com.selfservice.application.service.TroubleTicketService;
+import com.selfservice.application.service.ServiceFunctionExecutor;
 import com.selfservice.application.config.menu.BusinessMenuItem;
 import com.selfservice.application.config.menu.LoginMenuFunction;
 import com.selfservice.application.config.menu.LoginMenuItem;
@@ -54,6 +55,7 @@ public class WhatsappWebhookController {
     private final OperationsMonitoringService monitoringService;
     private final ConnectorsProperties connectorsProperties;
     private final BusinessMenuConfigurationProvider menuConfigurationProvider;
+    private final ServiceFunctionExecutor serviceFunctionExecutor;
 
     public WhatsappWebhookController(
             WhatsappService whatsappService,
@@ -66,7 +68,8 @@ public class WhatsappWebhookController {
             @Value("${whatsapp.verify-token}") String verifyToken,
             OperationsMonitoringService monitoringService,
             ConnectorsProperties connectorsProperties,
-            BusinessMenuConfigurationProvider menuConfigurationProvider) {
+            BusinessMenuConfigurationProvider menuConfigurationProvider,
+            ServiceFunctionExecutor serviceFunctionExecutor) {
         this.whatsappService = whatsappService;
         this.oauthSessionService = oauthSessionService;
         this.sessionService = sessionService;
@@ -78,6 +81,7 @@ public class WhatsappWebhookController {
         this.monitoringService = monitoringService;
         this.connectorsProperties = connectorsProperties;
         this.menuConfigurationProvider = menuConfigurationProvider;
+        this.serviceFunctionExecutor = serviceFunctionExecutor;
     }
 
     @GetMapping
@@ -623,7 +627,22 @@ public class WhatsappWebhookController {
                     AccountSummary selected = sessionService.getSelectedAccount(userId);
                     whatsappService.sendLoggedInMenu(from, selected, sessionService.getAccounts(userId).size() > 1);
                 }
-                default -> sendBusinessMenu(from, userId);
+                default -> {
+                    if (!ensureAccountSelected(sessionKey, userId)) {
+                        return;
+                    }
+                    AccountSummary selected = sessionService.getSelectedAccount(userId);
+                    ServiceSummary selectedService = sessionService.getSelectedService(userId);
+                    ServiceFunctionExecutor.ExecutionResult result = serviceFunctionExecutor
+                            .execute(item.function(), token, selected, selectedService);
+                    if (result.handled()) {
+                        whatsappService.sendText(from, result.message());
+                        whatsappService.sendLoggedInMenu(from, selected,
+                                sessionService.getAccounts(userId).size() > 1);
+                    } else {
+                        sendBusinessMenu(from, userId);
+                    }
+                }
             }
             return;
         }
