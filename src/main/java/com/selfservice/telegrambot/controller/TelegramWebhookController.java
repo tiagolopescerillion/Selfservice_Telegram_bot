@@ -678,10 +678,15 @@ public class TelegramWebhookController {
                         if (!ensureAccountSelected(chatId)) {
                             break;
                         }
+                        BusinessMenuItem matchedItem = menuConfigurationProvider.findMenuItemByCallback(text);
                         AccountSummary selected = userSessionService.getSelectedAccount(chatId);
                         ServiceSummary selectedService = userSessionService.getSelectedService(chatId);
                         ServiceFunctionExecutor.ExecutionResult execResult = serviceFunctionExecutor
                                 .execute(text, existingToken, selected, selectedService);
+                        if (matchedItem != null && matchedItem.isFunctionMenu() && matchedItem.submenuId() != null
+                                && !matchedItem.submenuId().isBlank()) {
+                            telegramService.goToBusinessMenu(chatId, matchedItem.submenuId());
+                        }
                         if (execResult.handled()) {
                             if (execResult.mode() == ServiceFunctionExecutor.ResponseMode.CARD) {
                                 telegramService.sendCardMessage(chatId, execResult.message(), execResult.buttons());

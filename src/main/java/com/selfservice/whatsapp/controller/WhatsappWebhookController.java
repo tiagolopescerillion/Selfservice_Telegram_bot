@@ -635,6 +635,9 @@ public class WhatsappWebhookController {
                     ServiceSummary selectedService = sessionService.getSelectedService(userId);
                     ServiceFunctionExecutor.ExecutionResult result = serviceFunctionExecutor
                             .execute(item.function(), token, selected, selectedService);
+                    if (item.isFunctionMenu() && item.submenuId() != null && !item.submenuId().isBlank()) {
+                        whatsappService.goToBusinessMenu(userId, item.submenuId());
+                    }
                     if (result.handled()) {
                         if (result.mode() == ServiceFunctionExecutor.ResponseMode.CARD) {
                             whatsappService.sendCardMessage(from, result.message(), result.buttons());
