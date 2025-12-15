@@ -12,6 +12,7 @@ import com.selfservice.application.service.ProductService;
 import com.selfservice.application.service.InvoiceService;
 import com.selfservice.application.service.TroubleTicketService;
 import com.selfservice.application.service.OperationsMonitoringService;
+import com.selfservice.application.service.ServiceFunctionExecutor;
 import com.selfservice.application.config.menu.LoginMenuFunction;
 import com.selfservice.application.config.menu.LoginMenuItem;
 import com.selfservice.application.config.menu.BusinessMenuConfigurationProvider;
@@ -43,6 +44,7 @@ public class TelegramWebhookController {
     private final OperationsMonitoringService monitoringService;
     private final ConnectorsProperties connectorsProperties;
     private final BusinessMenuConfigurationProvider menuConfigurationProvider;
+    private final ServiceFunctionExecutor serviceFunctionExecutor;
 
     public TelegramWebhookController(TelegramService telegramService,
             KeycloakAuthService keycloakAuthService,
@@ -53,7 +55,8 @@ public class TelegramWebhookController {
             TroubleTicketService troubleTicketService,
             OperationsMonitoringService monitoringService,
             ConnectorsProperties connectorsProperties,
-            BusinessMenuConfigurationProvider menuConfigurationProvider) {
+            BusinessMenuConfigurationProvider menuConfigurationProvider,
+            ServiceFunctionExecutor serviceFunctionExecutor) {
         this.telegramService = telegramService;
         this.keycloakAuthService = keycloakAuthService;
         this.productService = productService;
@@ -65,6 +68,7 @@ public class TelegramWebhookController {
         this.monitoringService = monitoringService;
         this.connectorsProperties = connectorsProperties;
         this.menuConfigurationProvider = menuConfigurationProvider;
+        this.serviceFunctionExecutor = serviceFunctionExecutor;
 
     }
 
@@ -671,11 +675,31 @@ public class TelegramWebhookController {
                 case "/start":
                 default:
                     if (hasValidToken) {
-                        if (ensureAccountSelected(chatId)) {
-                            AccountSummary selected = userSessionService.getSelectedAccount(chatId);
+                        if (!ensureAccountSelected(chatId)) {
+                            break;
+                        }
+                        BusinessMenuItem matchedItem = menuConfigurationProvider.findMenuItemByCallback(text);
+                        AccountSummary selected = userSessionService.getSelectedAccount(chatId);
+                        ServiceSummary selectedService = userSessionService.getSelectedService(chatId);
+                        ServiceFunctionExecutor.ExecutionResult execResult = serviceFunctionExecutor
+                                .execute(text, existingToken, selected, selectedService,
+                                        matchedItem == null ? null : matchedItem.contextDirectives());
+                        if (matchedItem != null && matchedItem.isFunctionMenu() && matchedItem.submenuId() != null
+                                && !matchedItem.submenuId().isBlank()) {
+                            telegramService.goToBusinessMenu(chatId, matchedItem.submenuId());
+                        }
+                        if (execResult.handled()) {
+                            if (execResult.mode() == ServiceFunctionExecutor.ResponseMode.CARD) {
+                                telegramService.sendCardMessage(chatId, execResult.message(), execResult.buttons());
+                            } else {
+                                telegramService.sendMessage(chatId, execResult.message());
+                            }
                             telegramService.sendLoggedInMenu(chatId, selected,
                                     userSessionService.getAccounts(chatId).size() > 1);
+                            break;
                         }
+                        telegramService.sendLoggedInMenu(chatId, selected,
+                                userSessionService.getAccounts(chatId).size() > 1);
                     } else {
                         telegramService.sendLoginMenu(chatId, oauthSessionService.buildAuthUrl(chatId));
                     }

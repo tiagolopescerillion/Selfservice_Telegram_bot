@@ -32,14 +32,17 @@
             Connectors
           </button>
           <div class="side-menu-divider">Business Configuration</div>
-          <button id="navMenuConfig" class="sidebar__link" type="button">
-            IM Menus Configurator
+          <button id="navApiRegistration" class="sidebar__link" type="button">
+            API Registration
           </button>
           <button id="navWeblinks" class="sidebar__link" type="button">
-            Web Links Configuration
+            Web Links Registration
           </button>
-          <button id="navServiceFunctions" class="sidebar__link" type="button">
-            Service Functions
+          <button id="navServiceBuilder" class="sidebar__link" type="button">
+            Service Builder
+          </button>
+          <button id="navMenuConfig" class="sidebar__link" type="button">
+            User Menus
           </button>
           <div class="side-menu-divider">Operations</div>
           <button
@@ -57,103 +60,112 @@
 
       <div class="content">
         <main>
-          <section id="serviceFunctionsPanel" class="hidden">
+          <section id="apiRegistryPanel" class="hidden">
             <section class="panel panel--wide">
-              <h2>Service Functions</h2>
+              <h2>API Registration</h2>
               <p>
-                APIMAN endpoints pulled directly from
-                <code>CONFIGURATIONS/application*.yml</code>. Use this view to
-                confirm what URLs and query parameters are set without relying
-                on the running Java services.
+                Manage API endpoints loaded from <code>API-list-*.yml</code> files. Create new
+                entries, download a refreshed <code>API-list-local.yml</code>, and drop it into the
+                <code>CONFIGURATIONS</code> folder.
               </p>
               <div class="toolbar">
-                <button
-                  id="addServiceFunctionButton"
-                  class="secondary"
-                  type="button"
-                >
-                  Add Service Function
-                </button>
-                <button
-                  id="downloadQueryParamsButton"
-                  class="button"
-                  type="button"
-                >
-                  Download updated application-local.yml
+                <button id="addApiButton" class="secondary" type="button">Add API</button>
+                <button id="downloadApiListButton" class="secondary" type="button">
+                  Download API-list-local.yml
                 </button>
               </div>
-              <form
-                id="newServiceFunctionForm"
-                class="card hidden"
-                autocomplete="off"
-              >
+              <form id="apiForm" class="card hidden" autocomplete="off">
                 <div class="two-col-grid">
                   <label>
-                    Service function name
+                    API name
+                    <input id="apiNameInput" type="text" required placeholder="find-user" />
+                  </label>
+                  <label>
+                    API URL
                     <input
-                      id="newServiceFunctionName"
+                      id="apiUrlInput"
                       type="text"
                       required
-                      placeholder="e.g. Visible mobile lines"
+                      placeholder="https://example.com/api/v1/findUser"
                     />
                   </label>
-                  <label>
-                    Endpoint source
-                    <select id="newServiceFunctionEndpoint" required></select>
-                  </label>
-                </div>
-                <div class="two-col-grid">
-                  <label class="checkbox">
-                    <input
-                      type="checkbox"
-                      id="newServiceFunctionAccountContext"
-                    />
-                    <span>Account-level context</span>
-                  </label>
-                  <label class="checkbox">
-                    <input
-                      type="checkbox"
-                      id="newServiceFunctionServiceContext"
-                    />
-                    <span>Service-level context</span>
-                  </label>
-                </div>
-                <div>
-                  <label>
-                    Override query parameters
-                    <input
-                      id="newServiceFunctionQueryParams"
-                      type="text"
-                      placeholder="offset=0&limit=50"
-                    />
-                  </label>
-                  <p class="hint">
-                    Start from the endpoint defaults automatically. Toggle
-                    context checkboxes to append account or service identifiers
-                    to your overrides.
-                  </p>
                 </div>
                 <div class="toolbar toolbar--end">
-                  <button id="saveNewServiceFunction" type="submit">
-                    Save service function
-                  </button>
-                  <button
-                    id="cancelNewServiceFunction"
-                    type="button"
-                    class="secondary"
-                  >
+                  <button id="saveApiButton" type="submit">Publish API</button>
+                  <button id="cancelApiButton" type="button" class="secondary">Cancel</button>
+                </div>
+              </form>
+              <div id="apiList" class="config-tree"></div>
+              <p id="apiRegistryStatus" class="hint" aria-live="polite"></p>
+            </section>
+          </section>
+
+          <section id="serviceBuilderPanel" class="hidden">
+            <section class="panel panel--wide">
+              <h2>Service Builder</h2>
+              <p>
+                Configure services backed by registered APIs. Save updates to a downloadable
+                <code>services-local.yml</code> file and drop it into the <code>CONFIGURATIONS</code>
+                folder.
+              </p>
+              <div class="toolbar">
+                <button id="addServiceButton" class="secondary" type="button">
+                  Add Service
+                </button>
+                <button id="downloadServicesButton" class="secondary" type="button">
+                  Download services-local.yml
+                </button>
+              </div>
+              <form id="serviceForm" class="card hidden" autocomplete="off">
+                <div class="two-col-grid">
+                  <label>
+                    Service name
+                    <input
+                      id="serviceNameInput"
+                      type="text"
+                      required
+                      placeholder="Product"
+                    />
+                  </label>
+                  <label>
+                    API name
+                    <select id="serviceApiSelect" required></select>
+                  </label>
+                </div>
+                <label>
+                  Query parameters
+                  <textarea
+                    id="serviceQueryParamsInput"
+                    rows="3"
+                    placeholder="key=value&limit=10"
+                  ></textarea>
+                </label>
+                <label>
+                  Response template
+                  <select id="serviceResponseTemplate">
+                    <option value="EXISTING">Existing</option>
+                    <option value="JSON">JSON</option>
+                    <option value="MESSAGE">Message</option>
+                    <option value="CARD">Card</option>
+                  </select>
+                </label>
+                <label>
+                  Output (comma-separated JSON paths)
+                  <input
+                    id="serviceOutputInput"
+                    type="text"
+                    placeholder="items[0].id,items[0].status"
+                  />
+                </label>
+                <div class="toolbar toolbar--end">
+                  <button id="saveServiceButton" type="submit">Publish service</button>
+                  <button id="cancelServiceButton" class="secondary" type="button">
                     Cancel
                   </button>
                 </div>
               </form>
-              <div class="service-function-list" id="serviceFunctionsTableBody">
-                <div class="empty">Loading endpoints…</div>
-              </div>
-              <p
-                id="serviceFunctionsStatus"
-                class="hint"
-                aria-live="polite"
-              ></p>
+              <div id="serviceList" class="config-tree"></div>
+              <p id="serviceBuilderStatus" class="hint" aria-live="polite"></p>
             </section>
           </section>
 
@@ -254,6 +266,66 @@
                     Keeps the original multilingual text for this function. Turn
                     it off to always display the custom label.
                   </p>
+                  <div id="contextFields" class="context-fields">
+                    <div class="context-row">
+                      <label class="checkbox">
+                        <input type="checkbox" id="menuContextToggle" />
+                        <span>Menu context</span>
+                      </label>
+                      <div class="context-row__inputs">
+                        <input
+                          id="menuContextKeyInput"
+                          type="text"
+                          placeholder="Query key (e.g. menuContext)"
+                        />
+                        <input
+                          id="menuContextLabelInput"
+                          type="text"
+                          placeholder="Display label"
+                        />
+                      </div>
+                    </div>
+                    <div class="context-row">
+                      <label class="checkbox">
+                        <input type="checkbox" id="serviceContextToggle" />
+                        <span>Service context</span>
+                      </label>
+                      <div class="context-row__inputs">
+                        <input
+                          id="serviceContextKeyInput"
+                          type="text"
+                          placeholder="Query key (e.g. serviceId)"
+                        />
+                        <input
+                          id="serviceContextLabelInput"
+                          type="text"
+                          placeholder="Display label"
+                        />
+                      </div>
+                    </div>
+                    <div class="context-row">
+                      <label class="checkbox">
+                        <input type="checkbox" id="accountContextToggle" />
+                        <span>Account context</span>
+                      </label>
+                      <div class="context-row__inputs">
+                        <input
+                          id="accountContextKeyInput"
+                          type="text"
+                          placeholder="Query key (e.g. accountId)"
+                        />
+                        <input
+                          id="accountContextLabelInput"
+                          type="text"
+                          placeholder="Display label"
+                        />
+                      </div>
+                    </div>
+                    <p class="hint">
+                      When enabled, the provided label is prefixed to results and the key/value are added to
+                      the API call.
+                    </p>
+                  </div>
                 </div>
                 <div id="submenuFields" class="conditional-field hidden">
                   <label>
@@ -310,7 +382,7 @@
                     accept="application/json"
                   />
                 </label>
-                <button id="downloadButton" type="button">
+                <button id="downloadButton" class="secondary" type="button">
                   Download configuration
                 </button>
               </div>
@@ -631,7 +703,7 @@
                   <button
                     id="connectorsDownloadButton"
                     type="button"
-                    class="button"
+                    class="secondary"
                   >
                     Download connectors-local.yml
                   </button>
@@ -682,7 +754,7 @@
                   <button
                     id="telegramDownloadButton"
                     type="button"
-                    class="button"
+                    class="secondary"
                   >
                     Download telegram-local.yml
                   </button>
@@ -733,7 +805,7 @@
                   <button
                     id="whatsappDownloadButton"
                     type="button"
-                    class="button"
+                    class="secondary"
                   >
                     Download whatsapp-local.yml
                   </button>
@@ -784,7 +856,7 @@
                   <button
                     id="messengerDownloadButton"
                     type="button"
-                    class="button"
+                    class="secondary"
                   >
                     Download messenger-local.yml
                   </button>
@@ -797,7 +869,7 @@
             <section class="panel panel--wide">
               <div class="panel-heading">
                 <div>
-                  <h2>Web Links Configuration</h2>
+              <h2>Web Links Registration</h2>
                   <p>
                     Manage reusable links for menu items. Authenticated links
                     automatically append the user's <code>exchangeId</code> when
@@ -899,7 +971,7 @@
                 <button
                   id="weblinksDownloadButton"
                   type="button"
-                  class="button"
+                  class="secondary"
                 >
                   Download weblinks-local.yml
                 </button>
@@ -965,6 +1037,7 @@
         </main>
       </div>
     </div>
+    <button id="saveOverlayButton" class="floating-save hidden" type="button">Publish</button>
     <script src="app.js"></script>
   </body>
 </html>

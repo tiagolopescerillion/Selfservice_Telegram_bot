@@ -157,6 +157,41 @@ public class TelegramService {
         post(url, body, headers);
     }
 
+    public void sendCardMessage(long chatId, String text, List<String> buttonLabels) {
+        if (buttonLabels == null || buttonLabels.isEmpty()) {
+            sendMessage(chatId, text);
+            return;
+        }
+
+        String url = baseUrl + "/sendMessage";
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+
+        List<List<Map<String, Object>>> rows = new ArrayList<>();
+        for (String label : buttonLabels) {
+            if (!StringUtils.hasText(label)) {
+                continue;
+            }
+            rows.add(List.of(Map.of(
+                    "text", label,
+                    "callback_data", label)));
+        }
+
+        if (rows.isEmpty()) {
+            sendMessage(chatId, text);
+            return;
+        }
+
+        Map<String, Object> replyMarkup = Map.of("inline_keyboard", rows);
+
+        Map<String, Object> body = Map.of(
+                "chat_id", chatId,
+                "text", text == null || text.isBlank() ? "Select an option:" : text,
+                "reply_markup", replyMarkup);
+
+        post(url, body, headers);
+    }
+
     public List<LoginMenuItem> loginMenuOptions(long chatId) {
         String menuId = resolveCurrentLoginMenu(chatId);
         int menuDepth = userSessionService.getLoginMenuDepth(chatId, menuConfigurationProvider.getLoginRootMenuId());
@@ -880,14 +915,10 @@ public class TelegramService {
                 userSessionService.getInvoiceActionsMenu(chatId));
         if (actions.isEmpty()) {
             actions = List.of(
-                    new BusinessMenuItem(1, translate(chatId, "ButtonInvoiceViewPdf"), CALLBACK_INVOICE_VIEW_PDF_PREFIX,
-                            CALLBACK_INVOICE_VIEW_PDF_PREFIX, null, null, null, null, null, null),
-                    new BusinessMenuItem(2, translate(chatId, "ButtonInvoicePay"), CALLBACK_INVOICE_PAY_PREFIX,
-                            CALLBACK_INVOICE_PAY_PREFIX, null, null, null, null, null, null),
-                    new BusinessMenuItem(3, translate(chatId, "ButtonInvoiceCompare"), CALLBACK_INVOICE_COMPARE_PREFIX,
-                            CALLBACK_INVOICE_COMPARE_PREFIX, null, null, null, null, null, null),
-                    new BusinessMenuItem(4, translate(chatId, KEY_BUTTON_BACK_TO_MENU), CALLBACK_MENU,
-                            CALLBACK_MENU, null, null, null, null, null, null));
+                    fallbackAction(1, translate(chatId, "ButtonInvoiceViewPdf"), CALLBACK_INVOICE_VIEW_PDF_PREFIX),
+                    fallbackAction(2, translate(chatId, "ButtonInvoicePay"), CALLBACK_INVOICE_PAY_PREFIX),
+                    fallbackAction(3, translate(chatId, "ButtonInvoiceCompare"), CALLBACK_INVOICE_COMPARE_PREFIX),
+                    fallbackAction(4, translate(chatId, KEY_BUTTON_BACK_TO_MENU), CALLBACK_MENU));
         }
 
         for (BusinessMenuItem action : actions) {
@@ -916,6 +947,31 @@ public class TelegramService {
                 "reply_markup", replyMarkup);
 
         post(url, body, headers);
+    }
+
+    private BusinessMenuItem fallbackAction(int order, String label, String callback) {
+        return new BusinessMenuItem(
+                "function",
+                order,
+                label,
+                callback,
+                callback,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null);
     }
 
     public void sendTroubleTicketCards(long chatId, List<TroubleTicketSummary> tickets) {

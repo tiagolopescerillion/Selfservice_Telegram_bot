@@ -118,6 +118,29 @@ public class WhatsappService {
         postToWhatsapp(payload);
     }
 
+    public void sendCardMessage(String to, String message, List<String> buttonLabels) {
+        if (buttonLabels == null || buttonLabels.isEmpty()) {
+            sendText(to, message);
+            return;
+        }
+        List<Map<String, Object>> rows = new ArrayList<>();
+        int index = 1;
+        for (String label : buttonLabels) {
+            if (!StringUtils.hasText(label)) {
+                continue;
+            }
+            rows.add(buildListRow("CARD:" + index++, label));
+        }
+
+        if (rows.isEmpty()) {
+            sendText(to, message);
+            return;
+        }
+
+        String title = (message == null || message.isBlank()) ? "Select an option" : message;
+        sendInteractiveList(to, title, title, rows);
+    }
+
     public List<LoginMenuItem> loginSettingsMenuOptions(String userId) {
         int depth = sessionService.getLoginMenuDepth(userId, menuConfigurationProvider.getLoginRootMenuId());
         return loginSettingsMenuOptions(userId, depth);
@@ -702,20 +725,41 @@ public class WhatsappService {
                 .getMenuItems(sessionService.getInvoiceActionsMenu(userId));
         if (actions.isEmpty()) {
             return List.of(
-                    new BusinessMenuItem(1, translate(userId, "ButtonInvoiceViewPdf"),
-                            TelegramService.CALLBACK_INVOICE_VIEW_PDF_PREFIX,
-                            TelegramService.CALLBACK_INVOICE_VIEW_PDF_PREFIX, null, null, null, null, null, null),
-                    new BusinessMenuItem(2, translate(userId, "ButtonInvoicePay"),
-                            TelegramService.CALLBACK_INVOICE_PAY_PREFIX,
-                            TelegramService.CALLBACK_INVOICE_PAY_PREFIX, null, null, null, null, null, null),
-                    new BusinessMenuItem(3, translate(userId, "ButtonInvoiceCompare"),
-                            TelegramService.CALLBACK_INVOICE_COMPARE_PREFIX,
-                            TelegramService.CALLBACK_INVOICE_COMPARE_PREFIX, null, null, null, null, null, null),
-                    new BusinessMenuItem(4, translate(userId, TelegramService.KEY_BUTTON_BACK_TO_MENU),
-                            TelegramService.CALLBACK_MENU,
-                            TelegramService.CALLBACK_MENU, null, null, null, null, null, null));
+                    fallbackAction(1, translate(userId, "ButtonInvoiceViewPdf"),
+                            TelegramService.CALLBACK_INVOICE_VIEW_PDF_PREFIX),
+                    fallbackAction(2, translate(userId, "ButtonInvoicePay"),
+                            TelegramService.CALLBACK_INVOICE_PAY_PREFIX),
+                    fallbackAction(3, translate(userId, "ButtonInvoiceCompare"),
+                            TelegramService.CALLBACK_INVOICE_COMPARE_PREFIX),
+                    fallbackAction(4, translate(userId, TelegramService.KEY_BUTTON_BACK_TO_MENU),
+                            TelegramService.CALLBACK_MENU));
         }
         return actions;
+    }
+
+    private BusinessMenuItem fallbackAction(int order, String label, String callback) {
+        return new BusinessMenuItem(
+                "function",
+                order,
+                label,
+                callback,
+                callback,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null);
     }
 
     public String invoiceActionCallback(String userId, BusinessMenuItem action, InvoiceSummary invoice) {

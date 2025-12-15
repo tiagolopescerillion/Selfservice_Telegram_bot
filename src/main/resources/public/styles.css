@@ -696,6 +696,24 @@ button:disabled {
     margin-left: calc(var(--depth, 0) * 16px);
 }
 
+.config-entry--inline,
+.config-entry--services {
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    align-items: start;
+    gap: 0.75rem;
+}
+
+.config-entry--services textarea {
+    min-height: 64px;
+}
+
+.config-entry__actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.5rem;
+}
+
 .config-group {
     grid-template-columns: 1fr;
     font-weight: 700;
@@ -754,6 +772,21 @@ button:disabled {
     align-items: center;
     justify-content: space-between;
     padding: 0.75rem 1rem 0 1rem;
+}
+
+.floating-save {
+    position: fixed;
+    left: 50%;
+    bottom: 16px;
+    transform: translateX(-50%);
+    z-index: 1200;
+    padding: 12px 28px;
+    border-radius: 999px;
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.16);
+}
+
+.floating-save.hidden {
+    display: none;
 }
 
 .connector-tab {
@@ -1163,4 +1196,23 @@ button:disabled {
     border: 1px solid var(--border);
     border-radius: 10px;
     background: #f8fafc;
+}
+
+.context-fields {
+    display: grid;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+}
+
+.context-row {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 0.75rem;
+    align-items: center;
+}
+
+.context-row__inputs {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 0.5rem;
 }

@@ -1,0 +1,45 @@
+services:
+  - Service Name: Find User
+    API-Name: find-user
+    Query Parameters:
+      offset: 0
+      limit: 1
+    Response Template: EXISTING
+    Output: ""
+
+  - Service Name: Product
+    API-Name: product
+    Query Parameters:
+      offset: 0
+      limit: 50
+      isMainService: true
+      isVisible: true
+      subStatus: "CU,FA,TA,RP,TP"
+      completePackages: true
+      fields: "id,isBundle,description,subStatus,isMainService,serviceType,productRelationship,productCharacteristic,billingAccount"
+    Response Template: EXISTING
+    Output: ""
+
+  - Service Name: Trouble Ticket
+    API-Name: trouble-ticket
+    Query Parameters:
+      relatedEntity.billingAccount.id: ""
+    Response Template: EXISTING
+    Output: ""
+
+  - Service Name: Bill History
+    API-Name: bill
+    Query Parameters:
+      offset: 0
+      limit: 6
+      billingAccount.id: ""
+      sort: -billDate
+    Response Template: EXISTING
+    Output: ""
+
+  - Service Name: Sample Trouble Ticket
+    API-Name: trouble-ticket-openapi
+    Query Parameters:
+      id: 28667
+    Response Template: JSON
+    Output: ""
