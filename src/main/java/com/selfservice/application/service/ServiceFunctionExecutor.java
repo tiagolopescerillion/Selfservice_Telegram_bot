@@ -86,11 +86,23 @@ public class ServiceFunctionExecutor {
         }
 
         if (response.body() == null || response.body().isBlank()) {
-            return ExecutionResult.handled("Service call succeeded but returned an empty response.");
+            return ExecutionResult.handled("Service call succeeded but returned an empty response.", ResponseMode.TEXT,
+                    null);
         }
 
-        String formatted = formatBody(response.body(), response.headers().getContentType());
-        return ExecutionResult.handled(formatted);
+        JsonBody jsonBody = parseBody(response.body(), response.headers().getContentType());
+
+        if (definition.responseTemplate() == ServiceCatalog.ResponseTemplate.JSON) {
+            log.info("Service '{}' response: {}", callbackId, jsonBody.prettyBody);
+            return ExecutionResult.handled("Service response recorded in logs.", ResponseMode.SILENT, null);
+        }
+
+        String rendered = renderOutput(definition.output(), jsonBody);
+        if (definition.responseTemplate() == ServiceCatalog.ResponseTemplate.CARD) {
+            return ExecutionResult.handled(rendered, ResponseMode.CARD, rendered);
+        }
+
+        return ExecutionResult.handled(rendered, ResponseMode.TEXT, null);
     }
 
     private Map<String, String> buildQuery(ServiceCatalog.ServiceDefinition definition, AccountSummary account,
@@ -140,26 +152,97 @@ public class ServiceFunctionExecutor {
         }
     }
 
-    private String formatBody(String body, MediaType contentType) {
+    private JsonBody parseBody(String body, MediaType contentType) {
         if (contentType != null && MediaType.APPLICATION_JSON.isCompatibleWith(contentType)) {
             try {
                 JsonNode node = objectMapper.readTree(body);
-                return objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(node);
+                String pretty = objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(node);
+                return new JsonBody(node, pretty);
             } catch (Exception e) {
-                log.debug("Failed to pretty-print JSON response", e);
-                return body;
+                log.debug("Failed to parse JSON response", e);
             }
         }
-        return body;
+        return new JsonBody(null, body);
     }
 
-    public record ExecutionResult(boolean handled, String message) {
+    private String renderOutput(String outputSpec, JsonBody body) {
+        if (body == null) {
+            return "";
+        }
+
+        if (outputSpec == null || outputSpec.isBlank()) {
+            return body.prettyBody;
+        }
+
+        if (body.node == null) {
+            return outputSpec;
+        }
+
+        String[] paths = outputSpec.split(",");
+        StringBuilder builder = new StringBuilder();
+        for (String rawPath : paths) {
+            String path = rawPath.trim();
+            if (path.isEmpty()) {
+                continue;
+            }
+            JsonNode value = resolvePath(body.node, path);
+            if (value != null && !value.isMissingNode()) {
+                if (!builder.isEmpty()) {
+                    builder.append('\n');
+                }
+                builder.append(path).append(": ");
+                builder.append(value.isTextual() ? value.asText() : value.toString());
+            }
+        }
+
+        if (builder.length() == 0) {
+            return body.prettyBody;
+        }
+        return builder.toString();
+    }
+
+    private JsonNode resolvePath(JsonNode root, String path) {
+        JsonNode current = root;
+        for (String part : path.split("\\.")) {
+            if (current == null) {
+                return null;
+            }
+            String segment = part.trim();
+            if (segment.isEmpty()) {
+                continue;
+            }
+            if (segment.matches(".+\\[\\d+\\]$")) {
+                int bracket = segment.lastIndexOf('[');
+                String field = segment.substring(0, bracket);
+                int index = Integer.parseInt(segment.substring(bracket + 1, segment.length() - 1));
+                current = current.path(field);
+                if (current.isArray() && current.size() > index) {
+                    current = current.get(index);
+                } else {
+                    return null;
+                }
+            } else {
+                current = current.path(segment);
+            }
+        }
+        return current;
+    }
+
+    public enum ResponseMode { TEXT, CARD, SILENT }
+
+    public record ExecutionResult(boolean handled, String message, ResponseMode mode, String buttonLabel) {
         public static ExecutionResult handled(String message) {
-            return new ExecutionResult(true, message);
+            return new ExecutionResult(true, message, ResponseMode.TEXT, null);
+        }
+
+        public static ExecutionResult handled(String message, ResponseMode mode, String buttonLabel) {
+            return new ExecutionResult(true, message, mode, buttonLabel);
         }
 
         public static ExecutionResult notHandled() {
-            return new ExecutionResult(false, null);
+            return new ExecutionResult(false, null, ResponseMode.TEXT, null);
         }
     }
+
+    private record JsonBody(JsonNode node, String prettyBody) { }
 }

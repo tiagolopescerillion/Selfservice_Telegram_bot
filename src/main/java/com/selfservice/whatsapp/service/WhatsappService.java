@@ -118,6 +118,15 @@ public class WhatsappService {
         postToWhatsapp(payload);
     }
 
+    public void sendCardMessage(String to, String message, String buttonLabel) {
+        if (!StringUtils.hasText(buttonLabel)) {
+            sendText(to, message);
+            return;
+        }
+        String title = (message == null || message.isBlank()) ? buttonLabel : message;
+        sendInteractiveList(to, title, title, List.of(buildListRow("CARD:" + buttonLabel, buttonLabel)));
+    }
+
     public List<LoginMenuItem> loginSettingsMenuOptions(String userId) {
         int depth = sessionService.getLoginMenuDepth(userId, menuConfigurationProvider.getLoginRootMenuId());
         return loginSettingsMenuOptions(userId, depth);

@@ -148,7 +148,17 @@
                   <select id="serviceResponseTemplate">
                     <option value="EXISTING">Existing</option>
                     <option value="JSON">JSON</option>
+                    <option value="MESSAGE">Message</option>
+                    <option value="CARD">Card</option>
                   </select>
+                </label>
+                <label>
+                  Output (comma-separated JSON paths)
+                  <input
+                    id="serviceOutputInput"
+                    type="text"
+                    placeholder="items[0].id,items[0].status"
+                  />
                 </label>
                 <div class="toolbar toolbar--end">
                   <button id="saveServiceButton" type="submit">Save service</button>

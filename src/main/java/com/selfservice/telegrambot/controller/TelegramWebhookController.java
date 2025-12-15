@@ -683,7 +683,11 @@ public class TelegramWebhookController {
                         ServiceFunctionExecutor.ExecutionResult execResult = serviceFunctionExecutor
                                 .execute(text, existingToken, selected, selectedService);
                         if (execResult.handled()) {
-                            telegramService.sendMessage(chatId, execResult.message());
+                            if (execResult.mode() == ServiceFunctionExecutor.ResponseMode.CARD) {
+                                telegramService.sendCardMessage(chatId, execResult.message(), execResult.buttonLabel());
+                            } else {
+                                telegramService.sendMessage(chatId, execResult.message());
+                            }
                             telegramService.sendLoggedInMenu(chatId, selected,
                                     userSessionService.getAccounts(chatId).size() > 1);
                             break;

@@ -157,6 +157,30 @@ public class TelegramService {
         post(url, body, headers);
     }
 
+    public void sendCardMessage(long chatId, String text, String buttonLabel) {
+        if (!StringUtils.hasText(buttonLabel)) {
+            sendMessage(chatId, text);
+            return;
+        }
+
+        String url = baseUrl + "/sendMessage";
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+
+        Map<String, Object> replyMarkup = Map.of(
+                "inline_keyboard",
+                List.of(List.of(Map.of(
+                        "text", buttonLabel,
+                        "callback_data", buttonLabel))));
+
+        Map<String, Object> body = Map.of(
+                "chat_id", chatId,
+                "text", text == null || text.isBlank() ? buttonLabel : text,
+                "reply_markup", replyMarkup);
+
+        post(url, body, headers);
+    }
+
     public List<LoginMenuItem> loginMenuOptions(long chatId) {
         String menuId = resolveCurrentLoginMenu(chatId);
         int menuDepth = userSessionService.getLoginMenuDepth(chatId, menuConfigurationProvider.getLoginRootMenuId());

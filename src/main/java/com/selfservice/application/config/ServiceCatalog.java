@@ -97,6 +97,7 @@ public class ServiceCatalog {
             String apiName = normalize(values.get("API-Name"));
             Object queryParams = values.getOrDefault("Query Parameters", Map.of());
             String responseTemplate = normalize(values.get("Response Template"));
+            String output = normalize(values.get("Output"));
 
             if (!StringUtils.hasText(name) || !StringUtils.hasText(apiName)) {
                 return Optional.empty();
@@ -106,7 +107,7 @@ public class ServiceCatalog {
                 queryMap.forEach((key, value) -> params.put(String.valueOf(key), value == null ? "" : String.valueOf(value)));
             }
             ResponseTemplate template = ResponseTemplate.fromLabel(responseTemplate);
-            return Optional.of(new ServiceDefinition(slugify(name), slugify(apiName), params, template));
+            return Optional.of(new ServiceDefinition(slugify(name), slugify(apiName), params, template, output));
         }
         return Optional.empty();
     }
@@ -140,7 +141,9 @@ public class ServiceCatalog {
 
     public enum ResponseTemplate {
         EXISTING,
-        JSON;
+        JSON,
+        MESSAGE,
+        CARD;
 
         public static ResponseTemplate fromLabel(String label) {
             if (!StringUtils.hasText(label)) {
@@ -149,11 +152,14 @@ public class ServiceCatalog {
             String normalized = label.trim().toUpperCase(Locale.ROOT);
             return switch (normalized) {
                 case "EXISTING", "LEGACY" -> EXISTING;
+                case "MESSAGE" -> MESSAGE;
+                case "CARD" -> CARD;
+                case "JSON" -> JSON;
                 default -> JSON;
             };
         }
     }
 
     public record ServiceDefinition(String name, String apiName, Map<String, String> queryParameters,
-                                    ResponseTemplate responseTemplate) { }
+                                    ResponseTemplate responseTemplate, String output) { }
 }

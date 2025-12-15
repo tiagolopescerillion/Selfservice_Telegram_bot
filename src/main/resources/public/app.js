@@ -329,6 +329,7 @@ const serviceNameInput = document.getElementById("serviceNameInput");
 const serviceApiSelect = document.getElementById("serviceApiSelect");
 const serviceQueryParamsInput = document.getElementById("serviceQueryParamsInput");
 const serviceResponseTemplate = document.getElementById("serviceResponseTemplate");
+const serviceOutputInput = document.getElementById("serviceOutputInput");
 const cancelServiceButton = document.getElementById("cancelServiceButton");
 const serviceList = document.getElementById("serviceList");
 const serviceBuilderStatus = document.getElementById("serviceBuilderStatus");
@@ -2644,17 +2645,117 @@ function renderServiceList() {
     serviceList.innerHTML = '<div class="empty">No services configured.</div>';
     return;
   }
-  serviceBuilderEntries.forEach((service) => {
+
+  serviceBuilderEntries.forEach((service, index) => {
     const row = document.createElement("div");
-    row.className = "config-entry";
-    const header = document.createElement("div");
-    header.className = "config-entry__key";
-    header.textContent = `${service.name} → ${service.apiName}`;
-    const body = document.createElement("div");
-    body.className = "config-entry__value";
-    const qp = formatQueryParams(service.queryParameters || {});
-    body.textContent = `${qp || "<no params>"} | Response: ${service.responseTemplate}`;
-    row.append(header, body);
+    row.className = "menu-item";
+
+    const fields = document.createElement("div");
+    fields.className = "menu-item-fields";
+
+    const nameLabel = document.createElement("label");
+    nameLabel.textContent = "Service name";
+    const nameInput = document.createElement("input");
+    nameInput.type = "text";
+    nameInput.value = service.name || "";
+    nameInput.addEventListener("input", (event) => {
+      const existing = serviceBuilderEntries[index] || {};
+      const updated = { ...existing, name: slugify(event.target.value) };
+      serviceBuilderEntries[index] = updated;
+      syncServiceFunctionOptions(serviceBuilderEntries);
+      event.target.value = updated.name;
+    });
+    nameLabel.append(nameInput);
+
+    const apiLabel = document.createElement("label");
+    apiLabel.textContent = "API name";
+    const apiSelect = document.createElement("select");
+    apiRegistryEntries.forEach((api) => {
+      const option = document.createElement("option");
+      option.value = api.name;
+      option.textContent = api.name;
+      apiSelect.append(option);
+    });
+    if (service.apiName && !apiRegistryEntries.find((api) => api.name === service.apiName)) {
+      const missingOption = document.createElement("option");
+      missingOption.value = service.apiName;
+      missingOption.textContent = `${service.apiName} (missing)`;
+      apiSelect.append(missingOption);
+    }
+    apiSelect.value = service.apiName || apiSelect.options[0]?.value || "";
+    apiSelect.addEventListener("change", (event) => {
+      const existing = serviceBuilderEntries[index] || {};
+      serviceBuilderEntries[index] = { ...existing, apiName: event.target.value };
+    });
+    apiLabel.append(apiSelect);
+
+    const queryLabel = document.createElement("label");
+    queryLabel.textContent = "Query parameters";
+    const queryInput = document.createElement("textarea");
+    queryInput.rows = 2;
+    queryInput.value = formatQueryParams(service.queryParameters || {});
+    queryInput.placeholder = "key=value&limit=10";
+    queryInput.addEventListener("input", (event) => {
+      const existing = serviceBuilderEntries[index] || {};
+      serviceBuilderEntries[index] = { ...existing, queryParameters: parseQueryParamString(event.target.value) };
+    });
+    queryLabel.append(queryInput);
+
+    const responseLabel = document.createElement("label");
+    responseLabel.textContent = "Response template";
+    const responseSelect = document.createElement("select");
+    ["EXISTING", "JSON", "MESSAGE", "CARD"].forEach((value) => {
+      const option = document.createElement("option");
+      option.value = value;
+      option.textContent = value.charAt(0) + value.slice(1).toLowerCase();
+      responseSelect.append(option);
+    });
+    responseSelect.value = (service.responseTemplate || "JSON").toUpperCase();
+    responseSelect.addEventListener("change", (event) => {
+      const existing = serviceBuilderEntries[index] || {};
+      serviceBuilderEntries[index] = { ...existing, responseTemplate: event.target.value };
+    });
+    responseLabel.append(responseSelect);
+
+    const outputLabel = document.createElement("label");
+    outputLabel.textContent = "Output";
+    const outputInput = document.createElement("input");
+    outputInput.type = "text";
+    outputInput.placeholder = "items[0].id,items[0].status";
+    outputInput.value = service.output || "";
+    outputInput.addEventListener("input", (event) => {
+      const existing = serviceBuilderEntries[index] || {};
+      serviceBuilderEntries[index] = { ...existing, output: event.target.value };
+    });
+    outputLabel.append(outputInput);
+
+    fields.append(nameLabel, apiLabel, queryLabel, responseLabel, outputLabel);
+
+    const actions = document.createElement("div");
+    actions.className = "menu-item-actions";
+    const upButton = document.createElement("button");
+    upButton.type = "button";
+    upButton.textContent = "↑";
+    upButton.title = "Move up";
+    upButton.disabled = index === 0;
+    upButton.addEventListener("click", () => moveService(index, index - 1));
+
+    const downButton = document.createElement("button");
+    downButton.type = "button";
+    downButton.textContent = "↓";
+    downButton.title = "Move down";
+    downButton.disabled = index === serviceBuilderEntries.length - 1;
+    downButton.addEventListener("click", () => moveService(index, index + 1));
+
+    const deleteButton = document.createElement("button");
+    deleteButton.type = "button";
+    deleteButton.textContent = "✕";
+    deleteButton.title = "Remove";
+    deleteButton.addEventListener("click", () => deleteService(index));
+
+    actions.append(upButton, downButton, deleteButton);
+
+    row.append(fields, actions);
     serviceList.append(row);
   });
 }
@@ -2679,8 +2780,27 @@ function toggleServiceForm(show) {
     serviceApiSelect.value = serviceApiSelect.options[0]?.value || "";
     serviceQueryParamsInput.value = "";
     serviceResponseTemplate.value = "JSON";
+    if (serviceOutputInput) {
+      serviceOutputInput.value = "";
+    }
     serviceNameInput.focus();
   }
+}
+
+function moveService(fromIndex, toIndex) {
+  if (toIndex < 0 || toIndex >= serviceBuilderEntries.length) return;
+  const entries = serviceBuilderEntries.slice();
+  const [moved] = entries.splice(fromIndex, 1);
+  entries.splice(toIndex, 0, moved);
+  serviceBuilderEntries = entries;
+  syncServiceFunctionOptions(serviceBuilderEntries);
+  renderServiceList();
+}
+
+function deleteService(index) {
+  serviceBuilderEntries.splice(index, 1);
+  syncServiceFunctionOptions(serviceBuilderEntries);
+  renderServiceList();
 }
 
 function hydrateServiceApiOptions() {
@@ -2740,7 +2860,13 @@ async function loadServiceBuilder() {
     }
     const payload = await response.json();
     apiRegistryEntries = Array.isArray(payload?.apis) ? payload.apis : apiRegistryEntries;
-    serviceBuilderEntries = Array.isArray(payload?.services) ? payload.services : [];
+    serviceBuilderEntries = (Array.isArray(payload?.services) ? payload.services : []).map((svc) => ({
+      name: svc.name || svc["Service Name"] || "",
+      apiName: svc.apiName || svc["API-Name"] || "",
+      queryParameters: svc.queryParameters || svc["Query Parameters"] || {},
+      responseTemplate: (svc.responseTemplate || svc["Response Template"] || "JSON").toUpperCase(),
+      output: svc.output || svc.Output || ""
+    }));
     syncServiceFunctionOptions(serviceBuilderEntries);
     hydrateServiceApiOptions();
     renderApiList();
@@ -3670,13 +3796,15 @@ if (serviceForm) {
     const slug = slugify(name);
     const parsedParams = parseQueryParamString(serviceQueryParamsInput.value);
     const responseTemplate = serviceResponseTemplate.value || "JSON";
+    const output = (serviceOutputInput?.value || "").trim();
     serviceBuilderEntries = [
       ...serviceBuilderEntries.filter((svc) => svc.name !== slug),
       {
         name: slug,
         apiName,
         queryParameters: parsedParams,
-        responseTemplate
+        responseTemplate,
+        output
       }
     ];
     syncServiceFunctionOptions(serviceBuilderEntries);
