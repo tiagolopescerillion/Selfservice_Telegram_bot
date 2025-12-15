@@ -725,20 +725,41 @@ public class WhatsappService {
                 .getMenuItems(sessionService.getInvoiceActionsMenu(userId));
         if (actions.isEmpty()) {
             return List.of(
-                    new BusinessMenuItem(null, 1, translate(userId, "ButtonInvoiceViewPdf"),
-                            TelegramService.CALLBACK_INVOICE_VIEW_PDF_PREFIX,
-                            TelegramService.CALLBACK_INVOICE_VIEW_PDF_PREFIX, null, null, null, null, null, null, null),
-                    new BusinessMenuItem(null, 2, translate(userId, "ButtonInvoicePay"),
-                            TelegramService.CALLBACK_INVOICE_PAY_PREFIX,
-                            TelegramService.CALLBACK_INVOICE_PAY_PREFIX, null, null, null, null, null, null, null),
-                    new BusinessMenuItem(null, 3, translate(userId, "ButtonInvoiceCompare"),
-                            TelegramService.CALLBACK_INVOICE_COMPARE_PREFIX,
-                            TelegramService.CALLBACK_INVOICE_COMPARE_PREFIX, null, null, null, null, null, null, null),
-                    new BusinessMenuItem(null, 4, translate(userId, TelegramService.KEY_BUTTON_BACK_TO_MENU),
-                            TelegramService.CALLBACK_MENU,
-                            TelegramService.CALLBACK_MENU, null, null, null, null, null, null, null));
+                    fallbackAction(1, translate(userId, "ButtonInvoiceViewPdf"),
+                            TelegramService.CALLBACK_INVOICE_VIEW_PDF_PREFIX),
+                    fallbackAction(2, translate(userId, "ButtonInvoicePay"),
+                            TelegramService.CALLBACK_INVOICE_PAY_PREFIX),
+                    fallbackAction(3, translate(userId, "ButtonInvoiceCompare"),
+                            TelegramService.CALLBACK_INVOICE_COMPARE_PREFIX),
+                    fallbackAction(4, translate(userId, TelegramService.KEY_BUTTON_BACK_TO_MENU),
+                            TelegramService.CALLBACK_MENU));
         }
         return actions;
+    }
+
+    private BusinessMenuItem fallbackAction(int order, String label, String callback) {
+        return new BusinessMenuItem(
+                "function",
+                order,
+                label,
+                callback,
+                callback,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null);
     }
 
     public String invoiceActionCallback(String userId, BusinessMenuItem action, InvoiceSummary invoice) {

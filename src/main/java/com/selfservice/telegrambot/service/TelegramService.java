@@ -915,14 +915,10 @@ public class TelegramService {
                 userSessionService.getInvoiceActionsMenu(chatId));
         if (actions.isEmpty()) {
             actions = List.of(
-                    new BusinessMenuItem(null, 1, translate(chatId, "ButtonInvoiceViewPdf"), CALLBACK_INVOICE_VIEW_PDF_PREFIX,
-                            CALLBACK_INVOICE_VIEW_PDF_PREFIX, null, null, null, null, null, null, null),
-                    new BusinessMenuItem(null, 2, translate(chatId, "ButtonInvoicePay"), CALLBACK_INVOICE_PAY_PREFIX,
-                            CALLBACK_INVOICE_PAY_PREFIX, null, null, null, null, null, null, null),
-                    new BusinessMenuItem(null, 3, translate(chatId, "ButtonInvoiceCompare"), CALLBACK_INVOICE_COMPARE_PREFIX,
-                            CALLBACK_INVOICE_COMPARE_PREFIX, null, null, null, null, null, null, null),
-                    new BusinessMenuItem(null, 4, translate(chatId, KEY_BUTTON_BACK_TO_MENU), CALLBACK_MENU,
-                            CALLBACK_MENU, null, null, null, null, null, null, null));
+                    fallbackAction(1, translate(chatId, "ButtonInvoiceViewPdf"), CALLBACK_INVOICE_VIEW_PDF_PREFIX),
+                    fallbackAction(2, translate(chatId, "ButtonInvoicePay"), CALLBACK_INVOICE_PAY_PREFIX),
+                    fallbackAction(3, translate(chatId, "ButtonInvoiceCompare"), CALLBACK_INVOICE_COMPARE_PREFIX),
+                    fallbackAction(4, translate(chatId, KEY_BUTTON_BACK_TO_MENU), CALLBACK_MENU));
         }
 
         for (BusinessMenuItem action : actions) {
@@ -951,6 +947,31 @@ public class TelegramService {
                 "reply_markup", replyMarkup);
 
         post(url, body, headers);
+    }
+
+    private BusinessMenuItem fallbackAction(int order, String label, String callback) {
+        return new BusinessMenuItem(
+                "function",
+                order,
+                label,
+                callback,
+                callback,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null);
     }
 
     public void sendTroubleTicketCards(long chatId, List<TroubleTicketSummary> tickets) {
