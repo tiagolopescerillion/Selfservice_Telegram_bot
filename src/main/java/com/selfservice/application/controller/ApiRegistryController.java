@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.yaml.snakeyaml.DumperOptions;
 import org.yaml.snakeyaml.Yaml;
 
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -57,5 +58,14 @@ public class ApiRegistryController {
         headers.setContentLength(bytes.length);
         headers.setContentDispositionFormData("attachment", "API-list-local.yml");
         return ResponseEntity.ok().headers(headers).body(bytes);
+    }
+
+    @PostMapping("/save")
+    public ResponseEntity<Map<String, Object>> saveApis(@RequestBody List<ApiRegistry.ApiDefinition> apis) throws IOException {
+        List<ApiRegistry.ApiDefinition> saved = apiRegistry.saveApis(apis);
+        return ResponseEntity.ok(Map.of(
+                "apis", saved,
+                "file", "API-list-local.yml"
+        ));
     }
 }

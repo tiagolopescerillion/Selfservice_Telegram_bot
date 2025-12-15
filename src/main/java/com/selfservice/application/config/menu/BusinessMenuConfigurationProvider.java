@@ -23,22 +23,29 @@ public class BusinessMenuConfigurationProvider {
     private static final Path DEFAULT_FILE = CONFIG_DIR.resolve("IM-menus.default.json");
     private static final Path OVERRIDE_FILE = CONFIG_DIR.resolve("IM-menus.override.json");
 
-    private final Map<String, BusinessMenuDefinition> menusById;
-    private final Map<String, BusinessMenuDefinition> loginMenusById;
-    private final LoginMenuDefinition loginMenuDefinition;
-    private final BusinessMenuConfiguration effectiveConfiguration;
-    private final BusinessMenuConfiguration defaultConfiguration;
-    private final String loginRootMenuId;
-    private final String loginSettingsMenuId;
+    private final ObjectMapper objectMapper;
+    private final ResourceLoader resourceLoader;
+
+    private Map<String, BusinessMenuDefinition> menusById;
+    private Map<String, BusinessMenuDefinition> loginMenusById;
+    private LoginMenuDefinition loginMenuDefinition;
+    private BusinessMenuConfiguration effectiveConfiguration;
+    private BusinessMenuConfiguration defaultConfiguration;
+    private String loginRootMenuId;
+    private String loginSettingsMenuId;
 
     public BusinessMenuConfigurationProvider(
             ObjectMapper objectMapper,
             ResourceLoader resourceLoader) {
 
-        BusinessMenuConfiguration overrideConfig = tryLoadConfiguration(
-                toFileResource(OVERRIDE_FILE), objectMapper, resourceLoader);
-        BusinessMenuConfiguration defaultConfig = tryLoadConfiguration(
-                toFileResource(DEFAULT_FILE), objectMapper, resourceLoader);
+        this.objectMapper = objectMapper;
+        this.resourceLoader = resourceLoader;
+        reload();
+    }
+
+    public synchronized void reload() {
+        BusinessMenuConfiguration overrideConfig = tryLoadConfiguration(toFileResource(OVERRIDE_FILE));
+        BusinessMenuConfiguration defaultConfig = tryLoadConfiguration(toFileResource(DEFAULT_FILE));
 
         BusinessMenuConfiguration selectedConfiguration = firstWithAnyMenu(overrideConfig, defaultConfig);
         BusinessMenuConfiguration preferredDefault = firstWithAnyMenu(defaultConfig, overrideConfig);
@@ -171,10 +178,7 @@ public class BusinessMenuConfigurationProvider {
         return copyConfiguration(defaultConfiguration);
     }
 
-    private BusinessMenuConfiguration tryLoadConfiguration(
-            String configPath,
-            ObjectMapper objectMapper,
-            ResourceLoader resourceLoader) {
+    private BusinessMenuConfiguration tryLoadConfiguration(String configPath) {
         Resource resource = resourceLoader.getResource(configPath);
         if (!resource.exists()) {
             log.warn("Business menu configuration not found at {}", configPath);

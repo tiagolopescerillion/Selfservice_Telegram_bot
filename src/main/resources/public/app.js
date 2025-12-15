@@ -293,6 +293,7 @@ const navServiceBuilder = document.getElementById("navServiceBuilder");
 const navConnectors = document.getElementById("navConnectors");
 const navWeblinks = document.getElementById("navWeblinks");
 const navServiceFunctions = document.getElementById("navServiceFunctions");
+const saveOverlayButton = document.getElementById("saveOverlayButton");
 const menuConfigurationPanel = document.getElementById("menuConfigurationPanel");
 const operationsMonitoringPanel = document.getElementById("operationsMonitoringPanel");
 const sendMessagesPanel = document.getElementById("sendMessagesPanel");
@@ -448,6 +449,9 @@ let weblinks = [];
 let weblinksContent = "";
 let weblinksOriginalContent = "";
 let weblinksFile = "weblinks-local.yml";
+
+let activeApp = "menu";
+let activeConnectorsTab = "general";
 
 function normalizeApiBase(base) {
   return (base || "").trim();
@@ -1619,6 +1623,7 @@ function addMenuItem(event) {
 }
 
 function setActiveApp(target) {
+  activeApp = target;
   const showMenuConfig = target === "menu";
   const showOperations = target === "operations";
   const showSendMessages = target === "notifications";
@@ -1679,6 +1684,178 @@ function setActiveApp(target) {
   if (showServiceFunctions) {
     loadServiceFunctions();
   }
+  updateSaveButtonVisibility();
+}
+
+function updateSaveButtonVisibility() {
+  if (!saveOverlayButton) return;
+  const saveableSections = ["menu", "api-registry", "service-builder", "weblinks", "connectors", "admin"];
+  const shouldShow = saveableSections.includes(activeApp);
+  saveOverlayButton.classList.toggle("hidden", !shouldShow);
+}
+
+async function persistContent(endpoint, content, statusEl) {
+  if (!endpoint) {
+    if (statusEl) {
+      statusEl.textContent = "Set the monitoring API base URL so the Java server can be reached.";
+      statusEl.className = "hint error-state";
+    }
+    return false;
+  }
+
+  try {
+    const response = await fetch(endpoint, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ content })
+    });
+    if (!response.ok) {
+      const payload = await response.json().catch(() => ({}));
+      const reason = payload?.reason || response.statusText || `HTTP ${response.status}`;
+      throw new Error(reason);
+    }
+    if (statusEl) {
+      statusEl.textContent = "Saved. Reloading UI...";
+      statusEl.className = "hint";
+    }
+    setTimeout(() => window.location.reload(), 300);
+    return true;
+  } catch (error) {
+    if (statusEl) {
+      statusEl.textContent = `Unable to save configuration: ${error?.message || error}`;
+      statusEl.className = "hint error-state";
+    }
+    return false;
+  }
+}
+
+async function saveMenuConfigurationFile() {
+  const config = buildConfig();
+  if (!config?.menus || !config.menus.length) {
+    alert("Please configure at least one menu item before saving.");
+    return;
+  }
+  const endpoint = buildAdminEndpoint("/menu-config/save");
+  if (!endpoint) {
+    configStatus.textContent = "Set the monitoring API base URL so the Java server can be reached.";
+    configStatus.className = "hint error-state";
+    return;
+  }
+  try {
+    const response = await fetch(endpoint, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(config)
+    });
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+    setTimeout(() => window.location.reload(), 300);
+  } catch (error) {
+    configStatus.textContent = `Unable to save menu configuration: ${error?.message || error}`;
+    configStatus.className = "hint error-state";
+  }
+}
+
+async function saveApiRegistryFile() {
+  const endpoint = buildAdminEndpoint("/admin/apis/save");
+  if (!endpoint) {
+    apiRegistryStatus.textContent = "Set the monitoring API base URL to save APIs.";
+    apiRegistryStatus.className = "hint error-state";
+    return;
+  }
+  try {
+    const response = await fetch(endpoint, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(apiRegistryEntries)
+    });
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+    apiRegistryStatus.textContent = "APIs saved. Reloading UI...";
+    apiRegistryStatus.className = "hint";
+    setTimeout(() => window.location.reload(), 300);
+  } catch (error) {
+    apiRegistryStatus.textContent = `Unable to save API list: ${error?.message || error}`;
+    apiRegistryStatus.className = "hint error-state";
+  }
+}
+
+async function saveServiceBuilderFile() {
+  const endpoint = buildAdminEndpoint("/admin/services/save");
+  if (!endpoint) {
+    serviceBuilderStatus.textContent = "Set the monitoring API base URL to save services.";
+    serviceBuilderStatus.className = "hint error-state";
+    return;
+  }
+  try {
+    const response = await fetch(endpoint, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(serviceBuilderEntries)
+    });
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+    serviceBuilderStatus.textContent = "Services saved. Reloading UI...";
+    serviceBuilderStatus.className = "hint";
+    setTimeout(() => window.location.reload(), 300);
+  } catch (error) {
+    serviceBuilderStatus.textContent = `Unable to save services: ${error?.message || error}`;
+    serviceBuilderStatus.className = "hint error-state";
+  }
+}
+
+async function saveWeblinksFile() {
+  const endpoint = buildAdminEndpoint("/admin/config/weblinks");
+  const content = weblinksContent || buildWeblinksYaml();
+  await persistContent(endpoint, content, weblinksStatus);
+}
+
+async function saveConnectorsFile() {
+  const tab = activeConnectorsTab || "general";
+  const targetEndpoint = tab === "general" ? "/admin/config/connectors" : `/admin/config/${tab}`;
+  const endpoint = buildAdminEndpoint(targetEndpoint);
+  const statusEl = tab === "general" ? connectorsStatus : connectorStatuses[tab];
+  const content = tab === "general"
+    ? connectorsContent || buildConnectorsYaml()
+    : connectorContents[tab] || stringifySimpleYaml(connectorYamlObjects[tab]) || defaultConnectorTemplate(tab);
+  await persistContent(endpoint, content, statusEl);
+}
+
+async function saveImServerConfigFile() {
+  const endpoint = buildAdminEndpoint("/admin/config/application");
+  const content = imConfigContent?.textContent || "";
+  await persistContent(endpoint, content, configStatus);
+}
+
+async function handleSaveClick() {
+  if (!saveOverlayButton) return;
+  saveOverlayButton.disabled = true;
+  switch (activeApp) {
+    case "menu":
+      await saveMenuConfigurationFile();
+      break;
+    case "api-registry":
+      await saveApiRegistryFile();
+      break;
+    case "service-builder":
+      await saveServiceBuilderFile();
+      break;
+    case "weblinks":
+      await saveWeblinksFile();
+      break;
+    case "connectors":
+      await saveConnectorsFile();
+      break;
+    case "admin":
+      await saveImServerConfigFile();
+      break;
+    default:
+      break;
+  }
+  saveOverlayButton.disabled = false;
 }
 
 function formatConnectorLabel(key) {
@@ -1967,6 +2144,7 @@ function renderConnectorTab(key) {
 
 function setActiveConnectorsTab(target) {
   const selected = target || "general";
+  activeConnectorsTab = selected;
   connectorsTabButtons.forEach((button) => {
     const isActive = button?.dataset?.connectorsTab === selected;
     button?.classList.toggle("active", isActive);
@@ -3776,6 +3954,10 @@ if (downloadApiListButton) {
       apiRegistryStatus.className = "hint error-state";
     }
   });
+}
+
+if (saveOverlayButton) {
+  saveOverlayButton.addEventListener("click", handleSaveClick);
 }
 
 if (addServiceButton) {

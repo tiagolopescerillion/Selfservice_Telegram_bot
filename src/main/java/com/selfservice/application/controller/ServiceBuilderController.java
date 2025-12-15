@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.yaml.snakeyaml.DumperOptions;
 import org.yaml.snakeyaml.Yaml;
 
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -70,5 +71,14 @@ public class ServiceBuilderController {
         headers.setContentLength(bytes.length);
         headers.setContentDispositionFormData("attachment", "services-local.yml");
         return ResponseEntity.ok().headers(headers).body(bytes);
+    }
+
+    @PostMapping("/save")
+    public ResponseEntity<Map<String, Object>> saveServices(@RequestBody List<ServiceCatalog.ServiceDefinition> services) throws IOException {
+        List<ServiceCatalog.ServiceDefinition> saved = serviceCatalog.saveServices(services);
+        return ResponseEntity.ok(Map.of(
+                "services", saved,
+                "file", "services-local.yml"
+        ));
     }
 }

@@ -4,10 +4,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
+import org.yaml.snakeyaml.DumperOptions;
 import org.yaml.snakeyaml.Yaml;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -17,6 +19,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
@@ -29,14 +32,14 @@ public class ServiceCatalog {
     private static final String LOCAL_FILE = "services-local.yml";
     private static final String DEFAULT_FILE = "services-default.yml";
 
-    private final List<ServiceDefinition> services;
+    private final AtomicReference<List<ServiceDefinition>> services = new AtomicReference<>(List.of());
 
     public ServiceCatalog() {
-        this.services = Collections.unmodifiableList(loadServices());
+        reload();
     }
 
     public List<ServiceDefinition> getServices() {
-        return services;
+        return services.get();
     }
 
     public Optional<ServiceDefinition> findByName(String name) {
@@ -44,13 +47,43 @@ public class ServiceCatalog {
             return Optional.empty();
         }
         String normalized = slugify(name);
-        return services.stream()
+        return getServices().stream()
                 .filter(service -> service.name().equalsIgnoreCase(normalized))
                 .findFirst();
     }
 
     public Map<String, ServiceDefinition> getServiceByName() {
-        return services.stream().collect(Collectors.toMap(ServiceDefinition::name, service -> service));
+        return getServices().stream().collect(Collectors.toMap(ServiceDefinition::name, service -> service));
+    }
+
+    public synchronized List<ServiceDefinition> reload() {
+        List<ServiceDefinition> loaded = Collections.unmodifiableList(loadServices());
+        services.set(loaded);
+        return loaded;
+    }
+
+    public synchronized List<ServiceDefinition> saveServices(List<ServiceDefinition> definitions) throws IOException {
+        List<ServiceDefinition> payload = definitions == null ? List.of() : definitions;
+        Map<String, Object> document = new LinkedHashMap<>();
+        document.put("services", payload.stream()
+                .map(service -> Map.of(
+                        "Service Name", service.name(),
+                        "API-Name", service.apiName(),
+                        "Query Parameters", service.queryParameters(),
+                        "Response Template", service.responseTemplate().name(),
+                        "Output", service.output()
+                ))
+                .toList());
+
+        DumperOptions options = new DumperOptions();
+        options.setDefaultFlowStyle(DumperOptions.FlowStyle.BLOCK);
+        options.setPrettyFlow(true);
+        Yaml yaml = new Yaml(options);
+        String serialized = yaml.dump(document);
+
+        Files.createDirectories(CONFIG_DIR);
+        Files.writeString(CONFIG_DIR.resolve(LOCAL_FILE), serialized, StandardCharsets.UTF_8);
+        return reload();
     }
 
     private List<ServiceDefinition> loadServices() {

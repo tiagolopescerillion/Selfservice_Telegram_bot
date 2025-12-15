@@ -756,6 +756,21 @@ button:disabled {
     padding: 0.75rem 1rem 0 1rem;
 }
 
+.floating-save {
+    position: fixed;
+    left: 50%;
+    bottom: 16px;
+    transform: translateX(-50%);
+    z-index: 1200;
+    padding: 12px 28px;
+    border-radius: 999px;
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.16);
+}
+
+.floating-save.hidden {
+    display: none;
+}
+
 .connector-tab {
     display: none;
     flex-direction: column;

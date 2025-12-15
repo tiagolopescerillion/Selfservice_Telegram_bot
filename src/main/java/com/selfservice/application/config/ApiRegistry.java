@@ -4,10 +4,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
+import org.yaml.snakeyaml.DumperOptions;
 import org.yaml.snakeyaml.Yaml;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -16,6 +18,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
@@ -28,14 +31,14 @@ public class ApiRegistry {
     private static final String LOCAL_FILE = "API-list-local.yml";
     private static final String DEFAULT_FILE = "API-list-default.yml";
 
-    private final List<ApiDefinition> apis;
+    private final AtomicReference<List<ApiDefinition>> apis = new AtomicReference<>(List.of());
 
     public ApiRegistry() {
-        this.apis = Collections.unmodifiableList(loadApis());
+        reload();
     }
 
     public List<ApiDefinition> getApis() {
-        return apis;
+        return apis.get();
     }
 
     public Map<String, ApiDefinition> getApisByName() {
@@ -47,9 +50,36 @@ public class ApiRegistry {
             return Optional.empty();
         }
         String normalized = slugify(name);
-        return apis.stream()
+        return getApis().stream()
                 .filter(api -> api.name().equalsIgnoreCase(normalized))
                 .findFirst();
+    }
+
+    public synchronized List<ApiDefinition> reload() {
+        List<ApiDefinition> loaded = Collections.unmodifiableList(loadApis());
+        apis.set(loaded);
+        return loaded;
+    }
+
+    public synchronized List<ApiDefinition> saveApis(List<ApiDefinition> definitions) throws IOException {
+        List<ApiDefinition> payload = definitions == null ? List.of() : definitions;
+        Map<String, Object> document = new LinkedHashMap<>();
+        document.put("apis", payload.stream()
+                .map(api -> Map.of(
+                        "API-name", api.name(),
+                        "API-URL", api.url()
+                ))
+                .toList());
+
+        DumperOptions options = new DumperOptions();
+        options.setDefaultFlowStyle(DumperOptions.FlowStyle.BLOCK);
+        options.setPrettyFlow(true);
+        Yaml yaml = new Yaml(options);
+        String serialized = yaml.dump(document);
+
+        Files.createDirectories(CONFIG_DIR);
+        Files.writeString(CONFIG_DIR.resolve(LOCAL_FILE), serialized, StandardCharsets.UTF_8);
+        return reload();
     }
 
     private List<ApiDefinition> loadApis() {

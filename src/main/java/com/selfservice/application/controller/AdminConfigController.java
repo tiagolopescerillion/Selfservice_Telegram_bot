@@ -7,6 +7,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.yaml.snakeyaml.Yaml;
@@ -43,6 +45,29 @@ public class AdminConfigController {
     @GetMapping("/config/{configId}")
     public ResponseEntity<ApplicationConfigView> getNamedConfig(@PathVariable String configId) {
         return loadConfig(configId == null ? "" : configId.trim().toLowerCase());
+    }
+
+    @PostMapping("/config/{configId}")
+    public ResponseEntity<ApplicationConfigView> saveNamedConfig(@PathVariable String configId, @RequestBody SaveRequest request) {
+        if (request == null || request.content == null) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+        }
+
+        List<String> candidates = CONFIG_FILES.get(configId);
+        if (candidates == null || candidates.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+        }
+
+        Path target = CONFIG_DIR.resolve(candidates.get(0));
+        try {
+            Files.createDirectories(CONFIG_DIR);
+            Files.writeString(target, request.content, StandardCharsets.UTF_8);
+        } catch (IOException e) {
+            log.error("Unable to save configuration {}: {}", target, e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+
+        return loadConfig(configId);
     }
 
     private ResponseEntity<ApplicationConfigView> loadConfig(String configId) {
@@ -194,4 +219,6 @@ public class AdminConfigController {
     public record ConfigEntry(String key, String value, String type) { }
 
     public record ConfigNode(String key, String path, String type, String value, List<ConfigNode> children) { }
+
+    public record SaveRequest(String content) { }
 }
