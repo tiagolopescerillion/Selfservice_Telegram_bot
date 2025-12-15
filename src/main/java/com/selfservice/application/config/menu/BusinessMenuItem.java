@@ -16,7 +16,16 @@ public record BusinessMenuItem(
         String url,
         Boolean authenticated,
         String context,
-        Boolean useTranslation) {
+        Boolean useTranslation,
+        Boolean accountContextEnabled,
+        String accountContextKey,
+        String accountContextLabel,
+        Boolean serviceContextEnabled,
+        String serviceContextKey,
+        String serviceContextLabel,
+        Boolean menuContextEnabled,
+        String menuContextKey,
+        String menuContextLabel) {
 
     @JsonIgnore
     public boolean isSubMenu() {
@@ -59,5 +68,48 @@ public record BusinessMenuItem(
     @JsonIgnore
     public boolean requiresServiceContext() {
         return "service".equalsIgnoreCase(linkContext());
+    }
+
+    @JsonIgnore
+    public ContextDirectives contextDirectives() {
+        return new ContextDirectives(
+                Boolean.TRUE.equals(menuContextEnabled),
+                sanitize(menuContextKey),
+                sanitize(menuContextLabel),
+                Boolean.TRUE.equals(serviceContextEnabled),
+                sanitize(serviceContextKey),
+                sanitize(serviceContextLabel),
+                Boolean.TRUE.equals(accountContextEnabled),
+                sanitize(accountContextKey),
+                sanitize(accountContextLabel));
+    }
+
+    private String sanitize(String value) {
+        return value == null || value.isBlank() ? null : value.trim();
+    }
+
+    public record ContextDirectives(
+            boolean menuContextEnabled,
+            String menuContextKey,
+            String menuContextLabel,
+            boolean serviceContextEnabled,
+            String serviceContextKey,
+            String serviceContextLabel,
+            boolean accountContextEnabled,
+            String accountContextKey,
+            String accountContextLabel) {
+
+        public String resolvedLabel() {
+            if (menuContextEnabled && menuContextLabel != null && !menuContextLabel.isBlank()) {
+                return menuContextLabel;
+            }
+            if (serviceContextEnabled && serviceContextLabel != null && !serviceContextLabel.isBlank()) {
+                return serviceContextLabel;
+            }
+            if (accountContextEnabled && accountContextLabel != null && !accountContextLabel.isBlank()) {
+                return accountContextLabel;
+            }
+            return null;
+        }
     }
 }

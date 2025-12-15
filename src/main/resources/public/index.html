@@ -32,20 +32,17 @@
             Connectors
           </button>
           <div class="side-menu-divider">Business Configuration</div>
-          <button id="navMenuConfig" class="sidebar__link" type="button">
-            IM Menus Configurator
-          </button>
           <button id="navApiRegistration" class="sidebar__link" type="button">
             API Registration
+          </button>
+          <button id="navWeblinks" class="sidebar__link" type="button">
+            Web Links Registration
           </button>
           <button id="navServiceBuilder" class="sidebar__link" type="button">
             Service Builder
           </button>
-          <button id="navWeblinks" class="sidebar__link" type="button">
-            Web Links Configuration
-          </button>
-          <button id="navServiceFunctions" class="sidebar__link" type="button">
-            Service Functions
+          <button id="navMenuConfig" class="sidebar__link" type="button">
+            User Menus
           </button>
           <div class="side-menu-divider">Operations</div>
           <button
@@ -172,106 +169,6 @@
             </section>
           </section>
 
-          <section id="serviceFunctionsPanel" class="hidden">
-            <section class="panel panel--wide">
-              <h2>Service Functions</h2>
-              <p>
-                APIMAN endpoints pulled directly from
-                <code>CONFIGURATIONS/application*.yml</code>. Use this view to
-                confirm what URLs and query parameters are set without relying
-                on the running Java services.
-              </p>
-              <div class="toolbar">
-                <button
-                  id="addServiceFunctionButton"
-                  class="secondary"
-                  type="button"
-                >
-                  Add Service Function
-                </button>
-                <button
-                  id="downloadQueryParamsButton"
-                  class="secondary"
-                  type="button"
-                >
-                  Download updated application-local.yml
-                </button>
-              </div>
-              <form
-                id="newServiceFunctionForm"
-                class="card hidden"
-                autocomplete="off"
-              >
-                <div class="two-col-grid">
-                  <label>
-                    Service function name
-                    <input
-                      id="newServiceFunctionName"
-                      type="text"
-                      required
-                      placeholder="e.g. Visible mobile lines"
-                    />
-                  </label>
-                  <label>
-                    Endpoint source
-                    <select id="newServiceFunctionEndpoint" required></select>
-                  </label>
-                </div>
-                <div class="two-col-grid">
-                  <label class="checkbox">
-                    <input
-                      type="checkbox"
-                      id="newServiceFunctionAccountContext"
-                    />
-                    <span>Account-level context</span>
-                  </label>
-                  <label class="checkbox">
-                    <input
-                      type="checkbox"
-                      id="newServiceFunctionServiceContext"
-                    />
-                    <span>Service-level context</span>
-                  </label>
-                </div>
-                <div>
-                  <label>
-                    Override query parameters
-                    <input
-                      id="newServiceFunctionQueryParams"
-                      type="text"
-                      placeholder="offset=0&limit=50"
-                    />
-                  </label>
-                  <p class="hint">
-                    Start from the endpoint defaults automatically. Toggle
-                    context checkboxes to append account or service identifiers
-                    to your overrides.
-                  </p>
-                </div>
-                <div class="toolbar toolbar--end">
-                  <button id="saveNewServiceFunction" type="submit">
-                    Publish service function
-                  </button>
-                  <button
-                    id="cancelNewServiceFunction"
-                    type="button"
-                    class="secondary"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </form>
-              <div class="service-function-list" id="serviceFunctionsTableBody">
-                <div class="empty">Loading endpoints…</div>
-              </div>
-              <p
-                id="serviceFunctionsStatus"
-                class="hint"
-                aria-live="polite"
-              ></p>
-            </section>
-          </section>
-
           <section id="menuConfigurationPanel">
             <section class="panel">
               <h2>Menu explorer</h2>
@@ -369,6 +266,66 @@
                     Keeps the original multilingual text for this function. Turn
                     it off to always display the custom label.
                   </p>
+                  <div id="contextFields" class="context-fields">
+                    <div class="context-row">
+                      <label class="checkbox">
+                        <input type="checkbox" id="menuContextToggle" />
+                        <span>Menu context</span>
+                      </label>
+                      <div class="context-row__inputs">
+                        <input
+                          id="menuContextKeyInput"
+                          type="text"
+                          placeholder="Query key (e.g. menuContext)"
+                        />
+                        <input
+                          id="menuContextLabelInput"
+                          type="text"
+                          placeholder="Display label"
+                        />
+                      </div>
+                    </div>
+                    <div class="context-row">
+                      <label class="checkbox">
+                        <input type="checkbox" id="serviceContextToggle" />
+                        <span>Service context</span>
+                      </label>
+                      <div class="context-row__inputs">
+                        <input
+                          id="serviceContextKeyInput"
+                          type="text"
+                          placeholder="Query key (e.g. serviceId)"
+                        />
+                        <input
+                          id="serviceContextLabelInput"
+                          type="text"
+                          placeholder="Display label"
+                        />
+                      </div>
+                    </div>
+                    <div class="context-row">
+                      <label class="checkbox">
+                        <input type="checkbox" id="accountContextToggle" />
+                        <span>Account context</span>
+                      </label>
+                      <div class="context-row__inputs">
+                        <input
+                          id="accountContextKeyInput"
+                          type="text"
+                          placeholder="Query key (e.g. accountId)"
+                        />
+                        <input
+                          id="accountContextLabelInput"
+                          type="text"
+                          placeholder="Display label"
+                        />
+                      </div>
+                    </div>
+                    <p class="hint">
+                      When enabled, the provided label is prefixed to results and the key/value are added to
+                      the API call.
+                    </p>
+                  </div>
                 </div>
                 <div id="submenuFields" class="conditional-field hidden">
                   <label>
@@ -912,7 +869,7 @@
             <section class="panel panel--wide">
               <div class="panel-heading">
                 <div>
-                  <h2>Web Links Configuration</h2>
+              <h2>Web Links Registration</h2>
                   <p>
                     Manage reusable links for menu items. Authenticated links
                     automatically append the user's <code>exchangeId</code> when

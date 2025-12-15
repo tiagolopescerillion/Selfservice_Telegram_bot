@@ -275,6 +275,16 @@ const menuFunctionSelect = document.getElementById("menuFunctionSelect");
 const itemTypeSelect = document.getElementById("itemTypeSelect");
 const useTranslationInput = document.getElementById("useTranslationInput");
 const functionFields = document.getElementById("functionFields");
+const contextFields = document.getElementById("contextFields");
+const menuContextToggle = document.getElementById("menuContextToggle");
+const menuContextKeyInput = document.getElementById("menuContextKeyInput");
+const menuContextLabelInput = document.getElementById("menuContextLabelInput");
+const serviceContextToggle = document.getElementById("serviceContextToggle");
+const serviceContextKeyInput = document.getElementById("serviceContextKeyInput");
+const serviceContextLabelInput = document.getElementById("serviceContextLabelInput");
+const accountContextToggle = document.getElementById("accountContextToggle");
+const accountContextKeyInput = document.getElementById("accountContextKeyInput");
+const accountContextLabelInput = document.getElementById("accountContextLabelInput");
 const submenuFields = document.getElementById("submenuFields");
 const submenuSelect = document.getElementById("submenuSelect");
 const weblinkFields = document.getElementById("weblinkFields");
@@ -292,7 +302,6 @@ const navApiRegistration = document.getElementById("navApiRegistration");
 const navServiceBuilder = document.getElementById("navServiceBuilder");
 const navConnectors = document.getElementById("navConnectors");
 const navWeblinks = document.getElementById("navWeblinks");
-const navServiceFunctions = document.getElementById("navServiceFunctions");
 const saveOverlayButton = document.getElementById("saveOverlayButton");
 const menuConfigurationPanel = document.getElementById("menuConfigurationPanel");
 const operationsMonitoringPanel = document.getElementById("operationsMonitoringPanel");
@@ -302,19 +311,6 @@ const apiRegistryPanel = document.getElementById("apiRegistryPanel");
 const serviceBuilderPanel = document.getElementById("serviceBuilderPanel");
 const connectorsPanel = document.getElementById("connectorsPanel");
 const weblinksPanel = document.getElementById("weblinksPanel");
-const serviceFunctionsPanel = document.getElementById("serviceFunctionsPanel");
-const serviceFunctionsTableBody = document.getElementById("serviceFunctionsTableBody");
-const serviceFunctionsStatus = document.getElementById("serviceFunctionsStatus");
-const addServiceFunctionButton = document.getElementById("addServiceFunctionButton");
-const newServiceFunctionForm = document.getElementById("newServiceFunctionForm");
-const newServiceFunctionName = document.getElementById("newServiceFunctionName");
-const newServiceFunctionEndpoint = document.getElementById("newServiceFunctionEndpoint");
-const newServiceFunctionAccountContext = document.getElementById("newServiceFunctionAccountContext");
-const newServiceFunctionServiceContext = document.getElementById("newServiceFunctionServiceContext");
-const newServiceFunctionQueryParams = document.getElementById("newServiceFunctionQueryParams");
-const saveNewServiceFunction = document.getElementById("saveNewServiceFunction");
-const cancelNewServiceFunction = document.getElementById("cancelNewServiceFunction");
-const downloadQueryParamsButton = document.getElementById("downloadQueryParamsButton");
 const addApiButton = document.getElementById("addApiButton");
 const downloadApiListButton = document.getElementById("downloadApiListButton");
 const apiForm = document.getElementById("apiForm");
@@ -518,25 +514,35 @@ let monitoringEndpointCache = "";
 let monitoringConfigLoaded = false;
 let notificationEndpointCache = "";
 let configEndpointCache = "";
-let serviceFunctionEntries = [];
-let availableServiceFunctionEndpoints = [];
-const serviceFunctionOverrides = new Map();
 let apiRegistryEntries = [];
 let serviceBuilderEntries = [];
 
-function getServiceFunctionOverride(key) {
-  const existing = serviceFunctionOverrides.get(key);
+function extractContextFields(item = {}) {
   return {
-    queryParams: "",
-    accountContext: false,
-    serviceContext: false,
-    ...existing
+    accountContextEnabled: Boolean(item.accountContextEnabled),
+    accountContextKey: item.accountContextKey || "",
+    accountContextLabel: item.accountContextLabel || "",
+    serviceContextEnabled: Boolean(item.serviceContextEnabled),
+    serviceContextKey: item.serviceContextKey || "",
+    serviceContextLabel: item.serviceContextLabel || "",
+    menuContextEnabled: Boolean(item.menuContextEnabled),
+    menuContextKey: item.menuContextKey || "",
+    menuContextLabel: item.menuContextLabel || ""
   };
 }
 
-function setServiceFunctionOverride(key, updates) {
-  const current = getServiceFunctionOverride(key);
-  serviceFunctionOverrides.set(key, { ...current, ...updates });
+function serializeContextFields(item = {}) {
+  return {
+    accountContextEnabled: Boolean(item.accountContextEnabled),
+    accountContextKey: item.accountContextKey || null,
+    accountContextLabel: item.accountContextLabel || null,
+    serviceContextEnabled: Boolean(item.serviceContextEnabled),
+    serviceContextKey: item.serviceContextKey || null,
+    serviceContextLabel: item.serviceContextLabel || null,
+    menuContextEnabled: Boolean(item.menuContextEnabled),
+    menuContextKey: item.menuContextKey || null,
+    menuContextLabel: item.menuContextLabel || null
+  };
 }
 
 applyConfiguredApiBase(getConfiguredPublicBaseFromMeta());
@@ -711,13 +717,15 @@ function applyMenusToStore(menuType, menus) {
         const submenu = store.menusById.get(item.submenuId);
         submenu.parentId = target.id;
         const meta = functionDictionary[functionId] || { id: functionId, label: functionId };
+        const context = extractContextFields(item);
         target.items.push({
           id: item.id || nextItemId(),
           label: item.label ?? meta.label,
           type: ITEM_TYPES.FUNCTION_MENU,
           function: functionId,
           submenuId: submenu.id,
-          useTranslation: item.useTranslation ?? Boolean(item.translationKey)
+          useTranslation: item.useTranslation ?? Boolean(item.translationKey),
+          ...context
         });
         return;
       }
@@ -753,13 +761,15 @@ function applyMenusToStore(menuType, menus) {
       }
       if (functionId) {
         const meta = functionDictionary[functionId] || { id: functionId, label: functionId };
+        const context = extractContextFields(item);
         target.items.push({
           id: item.id || nextItemId(),
           label: item.label ?? meta.label,
           type: "function",
           function: functionId,
           useTranslation: item.useTranslation ?? Boolean(item.translationKey),
-          submenuId: null
+          submenuId: null,
+          ...context
         });
       }
     });
@@ -1014,6 +1024,70 @@ function renderMenuItems() {
   });
 }
 
+function appendContextEditors(container, menuId, index, item) {
+  const contextWrapper = document.createElement("div");
+  contextWrapper.className = "context-fields";
+  const contexts = [
+    { label: "Menu context", flag: "menuContextEnabled", key: "menuContextKey", text: "menuContextLabel" },
+    { label: "Service context", flag: "serviceContextEnabled", key: "serviceContextKey", text: "serviceContextLabel" },
+    { label: "Account context", flag: "accountContextEnabled", key: "accountContextKey", text: "accountContextLabel" }
+  ];
+
+  contexts.forEach((ctx) => {
+    const row = document.createElement("div");
+    row.className = "context-row";
+
+    const checkboxLabel = document.createElement("label");
+    checkboxLabel.className = "checkbox";
+    const checkbox = document.createElement("input");
+    checkbox.type = "checkbox";
+    checkbox.checked = Boolean(item[ctx.flag]);
+    const checkboxText = document.createElement("span");
+    checkboxText.textContent = ctx.label;
+    checkboxLabel.append(checkbox, checkboxText);
+
+    const inputs = document.createElement("div");
+    inputs.className = "context-row__inputs";
+    const keyInput = document.createElement("input");
+    keyInput.type = "text";
+    keyInput.placeholder = "Query key";
+    keyInput.value = item[ctx.key] || "";
+    keyInput.disabled = !checkbox.checked;
+    keyInput.addEventListener("input", (event) => {
+      menusById.get(menuId).items[index][ctx.key] = event.target.value;
+      updatePreview();
+    });
+
+    const labelInput = document.createElement("input");
+    labelInput.type = "text";
+    labelInput.placeholder = "Display label";
+    labelInput.value = item[ctx.text] || "";
+    labelInput.disabled = !checkbox.checked;
+    labelInput.addEventListener("input", (event) => {
+      menusById.get(menuId).items[index][ctx.text] = event.target.value;
+      updatePreview();
+    });
+
+    checkbox.addEventListener("change", (event) => {
+      menusById.get(menuId).items[index][ctx.flag] = event.target.checked;
+      keyInput.disabled = !event.target.checked;
+      labelInput.disabled = !event.target.checked;
+      updatePreview();
+    });
+
+    inputs.append(keyInput, labelInput);
+    row.append(checkboxLabel, inputs);
+    contextWrapper.append(row);
+  });
+
+  const hint = document.createElement("p");
+  hint.className = "hint";
+  hint.textContent = "Enabled contexts add their key/value to the API call and prefix the response.";
+  contextWrapper.append(hint);
+
+  container.append(contextWrapper);
+}
+
 function renderItemDetails(container, menuId, item, index) {
   container.innerHTML = "";
   if (item.type === ITEM_TYPES.FUNCTION || item.type === ITEM_TYPES.FUNCTION_MENU) {
@@ -1052,7 +1126,11 @@ function renderItemDetails(container, menuId, item, index) {
     translationHint.className = "hint";
     translationHint.textContent = "Keeps the original multilingual text for this function.";
 
-    container.append(functionWrapper, translationToggle, translationHint, functionRuleNotice);
+    container.append(functionWrapper, translationToggle, translationHint);
+
+    appendContextEditors(container, menuId, index, menusById.get(menuId).items[index]);
+
+    container.append(functionRuleNotice);
 
     if (item.type === ITEM_TYPES.FUNCTION_MENU) {
       const submenuWrapper = document.createElement("label");
@@ -1298,27 +1376,75 @@ function updateAddFormSubmenuOptions() {
   }
 }
 
+function getContextFormState() {
+  return {
+    menuContextEnabled: Boolean(menuContextToggle?.checked),
+    menuContextKey: (menuContextKeyInput?.value || "").trim(),
+    menuContextLabel: (menuContextLabelInput?.value || "").trim(),
+    serviceContextEnabled: Boolean(serviceContextToggle?.checked),
+    serviceContextKey: (serviceContextKeyInput?.value || "").trim(),
+    serviceContextLabel: (serviceContextLabelInput?.value || "").trim(),
+    accountContextEnabled: Boolean(accountContextToggle?.checked),
+    accountContextKey: (accountContextKeyInput?.value || "").trim(),
+    accountContextLabel: (accountContextLabelInput?.value || "").trim()
+  };
+}
+
+function resetContextForm() {
+  [menuContextToggle, serviceContextToggle, accountContextToggle].forEach((toggle) => {
+    if (toggle) toggle.checked = false;
+  });
+  [menuContextKeyInput, menuContextLabelInput, serviceContextKeyInput, serviceContextLabelInput,
+    accountContextKeyInput, accountContextLabelInput].forEach((input) => {
+    if (input) input.value = "";
+  });
+  syncContextInputStates();
+}
+
+function syncContextInputStates() {
+  const pairs = [
+    [menuContextToggle, menuContextKeyInput, menuContextLabelInput],
+    [serviceContextToggle, serviceContextKeyInput, serviceContextLabelInput],
+    [accountContextToggle, accountContextKeyInput, accountContextLabelInput]
+  ];
+  pairs.forEach(([toggle, keyInput, labelInput]) => {
+    const enabled = Boolean(toggle?.checked);
+    if (keyInput) keyInput.disabled = !enabled;
+    if (labelInput) labelInput.disabled = !enabled;
+  });
+}
+
+function toggleContextFormVisibility(enabled) {
+  if (!contextFields) return;
+  contextFields.classList.toggle("hidden", !enabled);
+  syncContextInputStates();
+}
+
 function toggleAddFormFields() {
   const type = itemTypeSelect.value;
   if (type === ITEM_TYPES.FUNCTION) {
     functionFields.classList.remove("hidden");
     submenuFields.classList.add("hidden");
     weblinkFields.classList.add("hidden");
+    toggleContextFormVisibility(true);
   } else if (type === ITEM_TYPES.SUBMENU) {
     functionFields.classList.add("hidden");
     submenuFields.classList.remove("hidden");
     updateAddFormSubmenuOptions();
     weblinkFields.classList.add("hidden");
+    toggleContextFormVisibility(false);
   } else if (type === ITEM_TYPES.FUNCTION_MENU) {
     functionFields.classList.remove("hidden");
     submenuFields.classList.remove("hidden");
     updateAddFormSubmenuOptions();
     weblinkFields.classList.add("hidden");
+    toggleContextFormVisibility(true);
   } else {
     functionFields.classList.add("hidden");
     submenuFields.classList.add("hidden");
     weblinkFields.classList.remove("hidden");
     renderWeblinkOptions(menuWeblinkSelect);
+    toggleContextFormVisibility(false);
   }
 }
 
@@ -1353,16 +1479,17 @@ function serializeStore(store) {
         items: menu.items.map((item, index) => {
           if (item.type === ITEM_TYPES.FUNCTION_MENU) {
             const meta = functionDictionary[item.function] || {};
-            return {
-              order: index + 1,
-              type: ITEM_TYPES.FUNCTION_MENU,
-              label: item.label,
-              function: item.function,
-              callbackData: meta.callbackData || item.function,
-              translationKey: item.useTranslation && meta.translationKey ? meta.translationKey : null,
-              submenuId: item.submenuId
-            };
-          }
+          return {
+            order: index + 1,
+            type: ITEM_TYPES.FUNCTION_MENU,
+            label: item.label,
+            function: item.function,
+            callbackData: meta.callbackData || item.function,
+            translationKey: item.useTranslation && meta.translationKey ? meta.translationKey : null,
+            submenuId: item.submenuId,
+            ...serializeContextFields(item)
+          };
+        }
 
           if (item.type === ITEM_TYPES.SUBMENU) {
             return {
@@ -1401,7 +1528,8 @@ function serializeStore(store) {
             function: item.function,
             callbackData: meta.callbackData || item.function,
             translationKey: item.useTranslation && meta.translationKey ? meta.translationKey : null,
-            submenuId: null
+            submenuId: null,
+            ...serializeContextFields(item)
           };
         })
       };
@@ -1565,13 +1693,15 @@ function addMenuItem(event) {
       alert("Please choose a valid function.");
       return;
     }
+    const contextState = getContextFormState();
     parentMenu.items.push({
       id: nextItemId(),
       label,
       type: "function",
       function: functionId,
       useTranslation: useTranslationInput.checked,
-      submenuId: null
+      submenuId: null,
+      ...contextState
     });
   } else if (itemTypeSelect.value === ITEM_TYPES.SUBMENU) {
     if (submenuSelect.disabled || !submenuSelect.value) {
@@ -1600,13 +1730,15 @@ function addMenuItem(event) {
     if (!linkSubmenu(parentId, submenuSelect.value)) {
       return;
     }
+    const contextState = getContextFormState();
     parentMenu.items.push({
       id: nextItemId(),
       label,
       type: ITEM_TYPES.FUNCTION_MENU,
       function: functionId,
       submenuId: submenuSelect.value,
-      useTranslation: useTranslationInput.checked
+      useTranslation: useTranslationInput.checked,
+      ...contextState
     });
   } else {
     if (!menuWeblinkSelect.value) {
@@ -1622,6 +1754,7 @@ function addMenuItem(event) {
   }
   selectedMenuId = parentId;
   addItemForm.reset();
+  resetContextForm();
   itemTypeSelect.value = "function";
   useTranslationInput.checked = false;
   toggleAddFormFields();
@@ -1636,7 +1769,6 @@ function setActiveApp(target) {
   const showImServerAdmin = target === "admin";
   const showApiRegistry = target === "api-registry";
   const showServiceBuilder = target === "service-builder";
-  const showServiceFunctions = target === "service-functions";
   const showConnectors = target === "connectors";
   const showWeblinks = target === "weblinks";
   menuConfigurationPanel.classList.toggle("hidden", !showMenuConfig);
@@ -1651,7 +1783,6 @@ function setActiveApp(target) {
   if (weblinksPanel) {
     weblinksPanel.classList.toggle("hidden", !showWeblinks);
   }
-  serviceFunctionsPanel.classList.toggle("hidden", !showServiceFunctions);
   navMenuConfig.classList.toggle("active", showMenuConfig);
   navOperationsMonitoring.classList.toggle("active", showOperations);
   navSendMessages.classList.toggle("active", showSendMessages);
@@ -1668,7 +1799,6 @@ function setActiveApp(target) {
   if (navWeblinks) {
     navWeblinks.classList.toggle("active", showWeblinks);
   }
-  navServiceFunctions.classList.toggle("active", showServiceFunctions);
   if (showOperations) {
     refreshMonitoringData();
   }
@@ -1686,9 +1816,6 @@ function setActiveApp(target) {
   }
   if (showConnectors) {
     loadConnectorsPanel();
-  }
-  if (showServiceFunctions) {
-    loadServiceFunctions();
   }
   updateSaveButtonVisibility();
 }
@@ -2644,725 +2771,6 @@ function parseQueryParamString(input) {
   return result;
 }
 
-function renderServiceFunctionEndpointOptions() {
-  if (!newServiceFunctionEndpoint) return;
-  newServiceFunctionEndpoint.innerHTML = "";
-  availableServiceFunctionEndpoints.forEach((endpoint) => {
-    const option = document.createElement("option");
-    option.value = endpoint.endpointKey || endpoint.key || endpoint.name;
-    option.textContent = endpoint.name || endpoint.endpointKey || endpoint.key;
-    option.disabled = !endpoint.configured;
-    newServiceFunctionEndpoint.append(option);
-  });
-}
-
-function getServiceFunctionBase(key) {
-  return availableServiceFunctionEndpoints.find(
-    (endpoint) => endpoint.endpointKey === key || endpoint.key === key || endpoint.name === key
-  );
-}
-
-function resetNewServiceFunctionForm() {
-  if (!newServiceFunctionForm) return;
-  newServiceFunctionForm.reset();
-  renderServiceFunctionEndpointOptions();
-  if (newServiceFunctionEndpoint && newServiceFunctionEndpoint.options.length > 0) {
-    newServiceFunctionEndpoint.value = newServiceFunctionEndpoint.options[0].value;
-    prefillQueryParamsFromEndpoint(newServiceFunctionEndpoint.value);
-  }
-}
-
-function toggleNewServiceFunctionForm(show) {
-  if (!newServiceFunctionForm) return;
-  const shouldShow = Boolean(show);
-  newServiceFunctionForm.classList.toggle("hidden", !shouldShow);
-  if (shouldShow) {
-    resetNewServiceFunctionForm();
-    newServiceFunctionName?.focus();
-  }
-}
-
-function prefillQueryParamsFromEndpoint(endpointKey) {
-  if (!newServiceFunctionQueryParams) return;
-  const base = getServiceFunctionBase(endpointKey);
-  if (!base) return;
-  const defaultValue =
-    formatQueryParams(base.configuredQueryParams) || formatQueryParams(base.defaultQueryParams) || "";
-  newServiceFunctionQueryParams.value = defaultValue;
-  newServiceFunctionAccountContext.checked = Boolean(base.accountContextEnabled);
-  newServiceFunctionServiceContext.checked = Boolean(base.serviceContextEnabled);
-}
-
-function createCustomServiceFunction() {
-  if (!newServiceFunctionName || !newServiceFunctionEndpoint) return;
-
-  const name = (newServiceFunctionName.value || "").trim();
-  const endpointKey = newServiceFunctionEndpoint.value;
-  const base = getServiceFunctionBase(endpointKey);
-  if (!name || !base) {
-    alert("Provide a name and endpoint for the new service function.");
-    return;
-  }
-
-  const slug = slugify(name) || `service-function-${serviceFunctionEntries.length + 1}`;
-  const baseQueryParamKey = `service-functions.${slug}.query-params`;
-  let queryParamKey = baseQueryParamKey;
-  let suffix = 1;
-  while (serviceFunctionEntries.some((entry) => entry.queryParamKey === queryParamKey)) {
-    queryParamKey = `${baseQueryParamKey}-${suffix++}`;
-  }
-
-  const contextConfig = {
-    accountContext: Boolean(newServiceFunctionAccountContext?.checked),
-    serviceContext: Boolean(newServiceFunctionServiceContext?.checked)
-  };
-
-  const newEntry = {
-    key: `service-functions.${slug}`,
-    name,
-    url: base.url,
-    configured: base.configured,
-    services: base.services,
-    method: base.method,
-    defaultQueryParams: base.defaultQueryParams,
-    configuredQueryParams: base.configuredQueryParams,
-    queryParamKey,
-    accountContextParam: base.accountContextParam,
-    accountContextEnabled: contextConfig.accountContext,
-    serviceContextParam: base.serviceContextParam,
-    serviceContextEnabled: contextConfig.serviceContext,
-    endpointKey,
-    custom: true
-  };
-
-  const overrideValue = (newServiceFunctionQueryParams?.value || "").trim();
-  setServiceFunctionOverride(queryParamKey, {
-    queryParams:
-      overrideValue || formatQueryParams(base.configuredQueryParams) || formatQueryParams(base.defaultQueryParams) || "",
-    ...contextConfig
-  });
-
-  serviceFunctionEntries = [...serviceFunctionEntries, newEntry];
-  renderServiceFunctionTable(serviceFunctionEntries);
-  toggleNewServiceFunctionForm(false);
-  serviceFunctionsStatus.textContent = `Added custom service function "${name}".`;
-  serviceFunctionsStatus.className = "hint";
-}
-
-async function loadServiceFunctions() {
-  if (!serviceFunctionsTableBody || !serviceFunctionsStatus) {
-    return;
-  }
-  const endpoint = buildAdminEndpoint("/admin/service-functions");
-  if (!endpoint) {
-    serviceFunctionsStatus.textContent = "Set the monitoring API base URL so the Java server can be reached.";
-    serviceFunctionsStatus.className = "hint error-state";
-    renderServiceFunctionTable([]);
-    return;
-  }
-
-  serviceFunctionsStatus.textContent = `Loading endpoints from ${endpoint}...`;
-  serviceFunctionsStatus.className = "hint";
-
-  serviceFunctionsTableBody.innerHTML = "";
-
-  try {
-    const response = await fetch(endpoint, { cache: "no-cache" });
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}`);
-    }
-    const payload = await response.json();
-    const endpoints = Array.isArray(payload?.endpoints) ? payload.endpoints : [];
-    const availableEndpoints = Array.isArray(payload?.availableEndpoints)
-      ? payload.availableEndpoints
-      : endpoints.filter((entry) => !entry.custom);
-    availableServiceFunctionEndpoints = availableEndpoints;
-    serviceFunctionEntries = endpoints;
-    serviceFunctionOverrides.clear();
-    serviceFunctionEntries.forEach((endpoint) => {
-      setServiceFunctionOverride(endpoint.queryParamKey, {
-        queryParams:
-          formatQueryParams(endpoint.configuredQueryParams) || formatQueryParams(endpoint.defaultQueryParams) || "",
-        accountContext: Boolean(endpoint.accountContextEnabled),
-        serviceContext: Boolean(endpoint.serviceContextEnabled)
-      });
-    });
-    renderServiceFunctionEndpointOptions();
-    renderServiceFunctionTable(serviceFunctionEntries);
-    serviceFunctionsStatus.textContent = endpoints.length
-      ? `Found ${endpoints.length} APIMAN endpoints.`
-      : "No APIMAN endpoint URLs were found.";
-    serviceFunctionsStatus.className = "hint";
-  } catch (error) {
-    console.error("Unable to load service function list", error);
-    renderServiceFunctionTable([]);
-    serviceFunctionsStatus.textContent = `Unable to load endpoints: ${error.message}`;
-    serviceFunctionsStatus.className = "hint error-state";
-  }
-}
-
-function renderApiList() {
-  if (!apiList) return;
-  apiList.innerHTML = "";
-  if (!apiRegistryEntries.length) {
-    apiList.innerHTML = '<div class="empty">No APIs configured.</div>';
-    return;
-  }
-  apiRegistryEntries.forEach((api, index) => {
-    const row = document.createElement("div");
-    row.className = "menu-item";
-
-    const fields = document.createElement("div");
-    fields.className = "menu-item-fields";
-
-    const nameLabel = document.createElement("label");
-    nameLabel.textContent = "API name";
-    const nameInput = document.createElement("input");
-    nameInput.type = "text";
-    nameInput.value = api.name || "";
-    nameInput.addEventListener("input", (event) => {
-      const previous = apiRegistryEntries[index]?.name;
-      const slug = slugify(event.target.value);
-      if (!slug) {
-        event.target.value = previous || "";
-        return;
-      }
-      apiRegistryEntries[index] = { ...apiRegistryEntries[index], name: slug };
-      event.target.value = slug;
-      updateServiceApiReferences(previous, slug);
-      hydrateServiceApiOptions();
-      renderServiceList();
-      apiRegistryStatus.textContent = `Updated API ${slug}.`;
-      apiRegistryStatus.className = "hint";
-    });
-    nameLabel.append(nameInput);
-
-    const urlLabel = document.createElement("label");
-    urlLabel.textContent = "API URL";
-    const urlInput = document.createElement("input");
-    urlInput.type = "text";
-    urlInput.value = api.url || "";
-    urlInput.addEventListener("input", (event) => {
-      apiRegistryEntries[index] = { ...apiRegistryEntries[index], url: event.target.value };
-      apiRegistryStatus.textContent = `Updated API ${apiRegistryEntries[index].name}.`;
-      apiRegistryStatus.className = "hint";
-    });
-    urlLabel.append(urlInput);
-
-    fields.append(nameLabel, urlLabel);
-
-    const actions = document.createElement("div");
-    actions.className = "menu-item-actions";
-    const deleteButton = document.createElement("button");
-    deleteButton.type = "button";
-    deleteButton.textContent = "✕";
-    deleteButton.title = "Delete API";
-    deleteButton.className = "danger";
-    deleteButton.addEventListener("click", () => {
-      apiRegistryEntries.splice(index, 1);
-      hydrateServiceApiOptions();
-      renderApiList();
-      renderServiceList();
-      apiRegistryStatus.textContent = "API removed.";
-      apiRegistryStatus.className = "hint";
-    });
-
-    actions.append(deleteButton);
-    row.append(fields, actions);
-    apiList.append(row);
-  });
-}
-
-function renderServiceList() {
-  if (!serviceList) return;
-  serviceList.innerHTML = "";
-  if (!serviceBuilderEntries.length) {
-    serviceList.innerHTML = '<div class="empty">No services configured.</div>';
-    return;
-  }
-
-  serviceBuilderEntries.forEach((service, index) => {
-    const row = document.createElement("div");
-    row.className = "menu-item";
-
-    const fields = document.createElement("div");
-    fields.className = "menu-item-fields";
-
-    const nameLabel = document.createElement("label");
-    nameLabel.textContent = "Service name";
-    const nameInput = document.createElement("input");
-    nameInput.type = "text";
-    nameInput.value = service.name || "";
-    nameInput.addEventListener("input", (event) => {
-      const existing = serviceBuilderEntries[index] || {};
-      const updated = { ...existing, name: slugify(event.target.value) };
-      serviceBuilderEntries[index] = updated;
-      syncServiceFunctionOptions(serviceBuilderEntries);
-      event.target.value = updated.name;
-    });
-    nameLabel.append(nameInput);
-
-    const apiLabel = document.createElement("label");
-    apiLabel.textContent = "API name";
-    const apiSelect = document.createElement("select");
-    apiRegistryEntries.forEach((api) => {
-      const option = document.createElement("option");
-      option.value = api.name;
-      option.textContent = api.name;
-      apiSelect.append(option);
-    });
-    if (service.apiName && !apiRegistryEntries.find((api) => api.name === service.apiName)) {
-      const missingOption = document.createElement("option");
-      missingOption.value = service.apiName;
-      missingOption.textContent = `${service.apiName} (missing)`;
-      apiSelect.append(missingOption);
-    }
-    apiSelect.value = service.apiName || apiSelect.options[0]?.value || "";
-    apiSelect.addEventListener("change", (event) => {
-      const existing = serviceBuilderEntries[index] || {};
-      serviceBuilderEntries[index] = { ...existing, apiName: event.target.value };
-    });
-    apiLabel.append(apiSelect);
-
-    const queryLabel = document.createElement("label");
-    queryLabel.textContent = "Query parameters";
-    const queryInput = document.createElement("textarea");
-    queryInput.rows = 2;
-    queryInput.value = formatQueryParams(service.queryParameters || {});
-    queryInput.placeholder = "key=value&limit=10";
-    queryInput.addEventListener("input", (event) => {
-      const existing = serviceBuilderEntries[index] || {};
-      serviceBuilderEntries[index] = { ...existing, queryParameters: parseQueryParamString(event.target.value) };
-    });
-    queryLabel.append(queryInput);
-
-    const responseLabel = document.createElement("label");
-    responseLabel.textContent = "Response template";
-    const responseSelect = document.createElement("select");
-    ["EXISTING", "JSON", "MESSAGE", "CARD"].forEach((value) => {
-      const option = document.createElement("option");
-      option.value = value;
-      option.textContent = value.charAt(0) + value.slice(1).toLowerCase();
-      responseSelect.append(option);
-    });
-    responseSelect.value = (service.responseTemplate || "JSON").toUpperCase();
-    responseSelect.addEventListener("change", (event) => {
-      const existing = serviceBuilderEntries[index] || {};
-      serviceBuilderEntries[index] = { ...existing, responseTemplate: event.target.value };
-    });
-    responseLabel.append(responseSelect);
-
-    const outputLabel = document.createElement("label");
-    outputLabel.textContent = "Output";
-    const outputInput = document.createElement("input");
-    outputInput.type = "text";
-    outputInput.placeholder = "items[0].id,items[0].status";
-    outputInput.value = service.output || "";
-    outputInput.addEventListener("input", (event) => {
-      const existing = serviceBuilderEntries[index] || {};
-      serviceBuilderEntries[index] = { ...existing, output: event.target.value };
-    });
-    outputLabel.append(outputInput);
-
-    fields.append(nameLabel, apiLabel, queryLabel, responseLabel, outputLabel);
-
-    const actions = document.createElement("div");
-    actions.className = "menu-item-actions";
-    const upButton = document.createElement("button");
-    upButton.type = "button";
-    upButton.textContent = "↑";
-    upButton.title = "Move up";
-    upButton.disabled = index === 0;
-    upButton.addEventListener("click", () => moveService(index, index - 1));
-
-    const downButton = document.createElement("button");
-    downButton.type = "button";
-    downButton.textContent = "↓";
-    downButton.title = "Move down";
-    downButton.disabled = index === serviceBuilderEntries.length - 1;
-    downButton.addEventListener("click", () => moveService(index, index + 1));
-
-    const deleteButton = document.createElement("button");
-    deleteButton.type = "button";
-    deleteButton.textContent = "✕";
-    deleteButton.title = "Remove";
-    deleteButton.addEventListener("click", () => deleteService(index));
-
-    actions.append(upButton, downButton, deleteButton);
-
-    row.append(fields, actions);
-    serviceList.append(row);
-  });
-}
-
-function toggleApiForm(show) {
-  if (!apiForm) return;
-  const shouldShow = Boolean(show);
-  apiForm.classList.toggle("hidden", !shouldShow);
-  if (shouldShow) {
-    apiNameInput.value = "";
-    apiUrlInput.value = "";
-    apiNameInput.focus();
-  }
-}
-
-function toggleServiceForm(show) {
-  if (!serviceForm) return;
-  const shouldShow = Boolean(show);
-  serviceForm.classList.toggle("hidden", !shouldShow);
-  if (shouldShow) {
-    serviceNameInput.value = "";
-    serviceApiSelect.value = serviceApiSelect.options[0]?.value || "";
-    serviceQueryParamsInput.value = "";
-    serviceResponseTemplate.value = "JSON";
-    if (serviceOutputInput) {
-      serviceOutputInput.value = "";
-    }
-    serviceNameInput.focus();
-  }
-}
-
-function moveService(fromIndex, toIndex) {
-  if (toIndex < 0 || toIndex >= serviceBuilderEntries.length) return;
-  const entries = serviceBuilderEntries.slice();
-  const [moved] = entries.splice(fromIndex, 1);
-  entries.splice(toIndex, 0, moved);
-  serviceBuilderEntries = entries;
-  syncServiceFunctionOptions(serviceBuilderEntries);
-  renderServiceList();
-}
-
-function deleteService(index) {
-  serviceBuilderEntries.splice(index, 1);
-  syncServiceFunctionOptions(serviceBuilderEntries);
-  renderServiceList();
-}
-
-function updateServiceApiReferences(previousName, nextName) {
-  if (!previousName || !nextName || previousName === nextName) return;
-  let updated = false;
-  serviceBuilderEntries = serviceBuilderEntries.map((service) => {
-    if (service.apiName === previousName) {
-      updated = true;
-      return { ...service, apiName: nextName };
-    }
-    return service;
-  });
-  if (updated) {
-    syncServiceFunctionOptions(serviceBuilderEntries);
-  }
-}
-
-function hydrateServiceApiOptions() {
-  if (!serviceApiSelect) return;
-  serviceApiSelect.innerHTML = "";
-  apiRegistryEntries.forEach((api) => {
-    const option = document.createElement("option");
-    option.value = api.name;
-    option.textContent = api.name;
-    serviceApiSelect.append(option);
-  });
-}
-
-async function loadApiRegistry() {
-  if (!apiRegistryStatus || !apiList) return;
-  const endpoint = buildAdminEndpoint("/admin/apis");
-  if (!endpoint) {
-    apiRegistryStatus.textContent = "Set the monitoring API base URL to load APIs.";
-    apiRegistryStatus.className = "hint error-state";
-    return;
-  }
-  apiRegistryStatus.textContent = `Loading APIs from ${endpoint}...`;
-  apiRegistryStatus.className = "hint";
-  try {
-    const response = await fetch(endpoint, { cache: "no-cache" });
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}`);
-    }
-    const payload = await response.json();
-    apiRegistryEntries = Array.isArray(payload?.apis) ? payload.apis : [];
-    renderApiList();
-    hydrateServiceApiOptions();
-    apiRegistryStatus.textContent = apiRegistryEntries.length
-      ? `Loaded ${apiRegistryEntries.length} APIs.`
-      : "No API entries found.";
-    apiRegistryStatus.className = "hint";
-  } catch (error) {
-    apiRegistryStatus.textContent = `Unable to load API list: ${error.message}`;
-    apiRegistryStatus.className = "hint error-state";
-  }
-}
-
-async function loadServiceBuilder() {
-  if (!serviceBuilderStatus || !serviceList) return;
-  const endpoint = buildAdminEndpoint("/admin/services");
-  if (!endpoint) {
-    serviceBuilderStatus.textContent = "Set the monitoring API base URL to load services.";
-    serviceBuilderStatus.className = "hint error-state";
-    return;
-  }
-  serviceBuilderStatus.textContent = `Loading services from ${endpoint}...`;
-  serviceBuilderStatus.className = "hint";
-  try {
-    const response = await fetch(endpoint, { cache: "no-cache" });
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}`);
-    }
-    const payload = await response.json();
-    apiRegistryEntries = Array.isArray(payload?.apis) ? payload.apis : apiRegistryEntries;
-    serviceBuilderEntries = (Array.isArray(payload?.services) ? payload.services : []).map((svc) => ({
-      name: svc.name || svc["Service Name"] || "",
-      apiName: svc.apiName || svc["API-Name"] || "",
-      queryParameters: svc.queryParameters || svc["Query Parameters"] || {},
-      responseTemplate: (svc.responseTemplate || svc["Response Template"] || "JSON").toUpperCase(),
-      output: svc.output || svc.Output || ""
-    }));
-    syncServiceFunctionOptions(serviceBuilderEntries);
-    hydrateServiceApiOptions();
-    renderApiList();
-    renderServiceList();
-    serviceBuilderStatus.textContent = serviceBuilderEntries.length
-      ? `Loaded ${serviceBuilderEntries.length} services.`
-      : "No service entries found.";
-    serviceBuilderStatus.className = "hint";
-  } catch (error) {
-    serviceBuilderStatus.textContent = `Unable to load services: ${error.message}`;
-    serviceBuilderStatus.className = "hint error-state";
-  }
-}
-
-function extractApiPath(value) {
-  if (!value) {
-    return "";
-  }
-
-  const stringValue = value.toString().trim();
-  if (!stringValue) {
-    return "";
-  }
-
-  const placeholderBases = ["${apiman.base-url}", "${endpoints.apiman-base-url}", "${endpoints.rest-server-base-url}"];
-  for (const base of placeholderBases) {
-    if (stringValue.startsWith(base)) {
-      const remainder = stringValue.slice(base.length);
-      return remainder || "/";
-    }
-  }
-
-  try {
-    const parsed = new URL(stringValue);
-    const path = `${parsed.pathname}${parsed.search}`;
-    return path || "/";
-  } catch (_error) {
-    // Fall through to heuristic parsing for non-URL strings.
-  }
-
-  const withoutProtocol = stringValue.replace(/^https?:\/\/[^/]+/i, "");
-  if (withoutProtocol !== stringValue) {
-    return withoutProtocol || "/";
-  }
-
-  return stringValue;
-}
-
-function renderServiceFunctionTable(endpoints) {
-  serviceFunctionsTableBody.innerHTML = "";
-  if (!endpoints.length) {
-    const empty = document.createElement("div");
-    empty.className = "empty";
-    empty.textContent = "No endpoints available.";
-    serviceFunctionsTableBody.append(empty);
-    return;
-  }
-
-  endpoints.forEach((endpoint) => {
-    const card = document.createElement("div");
-    card.className = "service-function-card";
-
-    const summary = document.createElement("div");
-    summary.className = "service-function__line service-function__summary";
-
-    const title = document.createElement("div");
-    title.className = "service-function__title";
-    const name = document.createElement("div");
-    name.className = "service-function__name";
-    name.textContent = endpoint.name || endpoint.key || "–";
-    if (endpoint.custom) {
-      const badge = document.createElement("span");
-      badge.className = "tag";
-      badge.textContent = "Custom";
-      name.append(" ", badge);
-    }
-    const services = document.createElement("div");
-    services.className = "service-function__path service-function__services";
-    services.textContent = endpoint.services?.length
-      ? `Java services: ${endpoint.services.join(", ")}`
-      : "Java services: None";
-    title.append(name, services);
-
-    const path = document.createElement("div");
-    path.className = "service-function__path";
-    const apiPath = extractApiPath(endpoint.value);
-    path.textContent = apiPath || "";
-    const method = document.createElement("span");
-    method.className = "pill pill--method";
-    method.textContent = endpoint.method || "GET";
-    path.append(method);
-
-    summary.append(title, path);
-
-    const defaultParams = formatQueryParams(endpoint.defaultQueryParams) || "None";
-    const overrideState = getServiceFunctionOverride(endpoint.queryParamKey);
-
-    const defaultRow = document.createElement("div");
-    defaultRow.className = "service-function__line service-function__default";
-    const defaultLabel = document.createElement("div");
-    defaultLabel.className = "service-function__label";
-    defaultLabel.textContent = "Default query params";
-    const defaultValue = document.createElement("div");
-    defaultValue.className = "service-function__value";
-    defaultValue.textContent = defaultParams;
-    defaultRow.append(defaultLabel, defaultValue);
-
-    const overrideRow = document.createElement("div");
-    overrideRow.className = "service-function__line service-function__override";
-    const overrideLabel = document.createElement("div");
-    overrideLabel.className = "service-function__label";
-    overrideLabel.textContent = "Override query params";
-    const overrideInput = document.createElement("input");
-    overrideInput.type = "text";
-    overrideInput.className = "query-param-input";
-    overrideInput.value = overrideState.queryParams || "";
-    overrideInput.placeholder = defaultParams || "key=value";
-    overrideInput.addEventListener("input", (event) => {
-      setServiceFunctionOverride(endpoint.queryParamKey, { queryParams: event.target.value });
-    });
-    overrideRow.append(overrideLabel, overrideInput);
-
-    const contextRows = [];
-    if (endpoint.accountContextParam) {
-      const accountRow = document.createElement("div");
-      accountRow.className = "service-function__line service-function__context";
-      const accountLabel = document.createElement("div");
-      accountLabel.className = "service-function__label";
-      accountLabel.textContent = "Account context";
-      const accountValue = document.createElement("label");
-      accountValue.className = "service-function__value checkbox";
-      const accountCheckbox = document.createElement("input");
-      accountCheckbox.type = "checkbox";
-      accountCheckbox.checked = Boolean(overrideState.accountContext);
-      accountCheckbox.addEventListener("change", (event) => {
-        setServiceFunctionOverride(endpoint.queryParamKey, { accountContext: event.target.checked });
-      });
-      const accountText = document.createElement("span");
-      accountText.textContent = `Add ${endpoint.accountContextParam} using Account Context`;
-      accountValue.append(accountCheckbox, accountText);
-      accountRow.append(accountLabel, accountValue);
-      contextRows.push(accountRow);
-    }
-
-    if (endpoint.serviceContextParam) {
-      const serviceRow = document.createElement("div");
-      serviceRow.className = "service-function__line service-function__context";
-      const serviceLabel = document.createElement("div");
-      serviceLabel.className = "service-function__label";
-      serviceLabel.textContent = "Service context";
-      const serviceValue = document.createElement("label");
-      serviceValue.className = "service-function__value checkbox";
-      const serviceCheckbox = document.createElement("input");
-      serviceCheckbox.type = "checkbox";
-      serviceCheckbox.checked = Boolean(overrideState.serviceContext);
-      serviceCheckbox.addEventListener("change", (event) => {
-        setServiceFunctionOverride(endpoint.queryParamKey, { serviceContext: event.target.checked });
-      });
-      const serviceText = document.createElement("span");
-      serviceText.textContent = `Add ${endpoint.serviceContextParam} using Service Context`;
-      serviceValue.append(serviceCheckbox, serviceText);
-      serviceRow.append(serviceLabel, serviceValue);
-      contextRows.push(serviceRow);
-    }
-
-    card.append(summary, defaultRow, overrideRow, ...contextRows);
-
-    serviceFunctionsTableBody.append(card);
-  });
-}
-
-async function downloadQueryParamConfig() {
-  if (!serviceFunctionEntries.length) {
-    alert("Load service functions before downloading.");
-    return;
-  }
-
-  const endpoint = buildAdminEndpoint("/admin/service-functions/export");
-  if (!endpoint) {
-    serviceFunctionsStatus.textContent = "Set the monitoring API base URL so the Java server can be reached.";
-    serviceFunctionsStatus.className = "hint error-state";
-    return;
-  }
-
-  const updates = {};
-  const customFunctions = [];
-  serviceFunctionEntries.forEach((entry) => {
-    const overrideState = getServiceFunctionOverride(entry.queryParamKey);
-    const rawValue = (overrideState.queryParams || "").trim();
-    const fallbackValue =
-      formatQueryParams(entry.configuredQueryParams) || formatQueryParams(entry.defaultQueryParams) || "";
-    const parsed = parseQueryParamString(rawValue || fallbackValue);
-    if (entry.accountContextParam) {
-      if (overrideState.accountContext) {
-        parsed[entry.accountContextParam] = "";
-      } else {
-        delete parsed[entry.accountContextParam];
-      }
-    }
-    if (entry.serviceContextParam) {
-      if (overrideState.serviceContext) {
-        parsed[entry.serviceContextParam] = "";
-      } else {
-        delete parsed[entry.serviceContextParam];
-      }
-    }
-    if (entry.custom) {
-      customFunctions.push({
-        name: entry.name,
-        endpointKey: entry.endpointKey || entry.key,
-        queryParams: parsed,
-        accountContext: Boolean(overrideState.accountContext),
-        serviceContext: Boolean(overrideState.serviceContext)
-      });
-    } else {
-      updates[entry.queryParamKey] = parsed;
-    }
-  });
-
-  try {
-    serviceFunctionsStatus.textContent = "Preparing application-local.yml for download...";
-    serviceFunctionsStatus.className = "hint";
-    const response = await fetch(endpoint, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ updates, serviceFunctions: customFunctions })
-    });
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}`);
-    }
-    const blob = await response.blob();
-    const url = URL.createObjectURL(blob);
-    const anchor = document.createElement("a");
-    anchor.href = url;
-    anchor.download = "application-local.yml";
-    anchor.click();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
-    serviceFunctionsStatus.textContent = "application-local.yml downloaded with updated query parameters.";
-    serviceFunctionsStatus.className = "hint";
-  } catch (error) {
-    console.error("Unable to export application-local.yml", error);
-    serviceFunctionsStatus.textContent = `Unable to export application-local.yml: ${error.message}`;
-    serviceFunctionsStatus.className = "hint error-state";
-  }
-}
-
 function getStoredMonitoringApiBase() {
   const stored = normalizeApiBase(localStorage.getItem(MONITORING_API_STORAGE_KEY));
   return stored && stored !== PUBLIC_BASE_URL_PLACEHOLDER ? stored : "";
@@ -3923,16 +3331,18 @@ if (navWeblinks) {
     loadWeblinksConfig();
   });
 }
-navServiceFunctions.addEventListener("click", () => setActiveApp("service-functions"));
 if (navApiRegistration) {
   navApiRegistration.addEventListener("click", () => setActiveApp("api-registry"));
 }
 if (navServiceBuilder) {
   navServiceBuilder.addEventListener("click", () => setActiveApp("service-builder"));
 }
-if (downloadQueryParamsButton) {
-  downloadQueryParamsButton.addEventListener("click", downloadQueryParamConfig);
-}
+
+[menuContextToggle, serviceContextToggle, accountContextToggle].forEach((toggle) => {
+  if (toggle) {
+    toggle.addEventListener("change", syncContextInputStates);
+  }
+});
 
 connectorsTabButtons.forEach((button) => {
   button.addEventListener("click", () => setActiveConnectorsTab(button?.dataset?.connectorsTab));

@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.selfservice.application.config.ApiRegistry;
 import com.selfservice.application.config.ServiceCatalog;
+import com.selfservice.application.config.menu.BusinessMenuItem;
 import com.selfservice.application.dto.AccountSummary;
 import com.selfservice.application.dto.ServiceSummary;
 import org.slf4j.Logger;
@@ -55,7 +56,7 @@ public class ServiceFunctionExecutor {
      * @return result indicating if the callback was handled and the formatted response text
      */
     public ExecutionResult execute(String callbackId, String accessToken, AccountSummary account,
-            ServiceSummary service) {
+            ServiceSummary service, BusinessMenuItem.ContextDirectives contextDirectives) {
         Optional<ServiceCatalog.ServiceDefinition> maybeDefinition = serviceCatalog.findByName(callbackId);
         if (maybeDefinition.isEmpty()) {
             return ExecutionResult.notHandled();
@@ -73,7 +74,7 @@ public class ServiceFunctionExecutor {
         }
 
         String url = resolvePlaceholders(maybeApi.get().url());
-        Map<String, String> query = buildQuery(definition, account, service);
+        Map<String, String> query = buildQuery(definition, account, service, contextDirectives);
 
         CommonApiService.ApiResponse response = commonApiService.execute(
                 new CommonApiService.ApiRequest(url, HttpMethod.GET, accessToken, query, new HttpHeaders(), null));
@@ -99,18 +100,23 @@ public class ServiceFunctionExecutor {
 
         RenderResult rendered = renderOutput(definition.output(), jsonBody,
                 definition.responseTemplate() == ServiceCatalog.ResponseTemplate.CARD);
+        String contextLabel = contextDirectives == null ? null : contextDirectives.resolvedLabel();
+        String messageText = rendered.text();
+        if (contextLabel != null && !contextLabel.isBlank()) {
+            messageText = contextLabel + " select: " + messageText;
+        }
         if (definition.responseTemplate() == ServiceCatalog.ResponseTemplate.CARD) {
             if (rendered.buttons().isEmpty()) {
-                return ExecutionResult.handled(rendered.text());
+                return ExecutionResult.handled(messageText);
             }
-            return ExecutionResult.handled(rendered.text(), ResponseMode.CARD, rendered.buttons());
+            return ExecutionResult.handled(messageText, ResponseMode.CARD, rendered.buttons());
         }
 
-        return ExecutionResult.handled(rendered.text(), ResponseMode.TEXT, null);
+        return ExecutionResult.handled(messageText, ResponseMode.TEXT, null);
     }
 
     private Map<String, String> buildQuery(ServiceCatalog.ServiceDefinition definition, AccountSummary account,
-            ServiceSummary service) {
+            ServiceSummary service, BusinessMenuItem.ContextDirectives contextDirectives) {
         Map<String, String> params = new LinkedHashMap<>();
         if (definition.queryParameters() != null) {
             definition.queryParameters().forEach((key, value) -> params.put(key, resolvePlaceholders(value)));
@@ -121,6 +127,20 @@ public class ServiceFunctionExecutor {
         }
         if (service != null) {
             params.replaceAll((k, v) -> v == null || v.isBlank() ? substituteService(k, v, service) : v);
+        }
+        if (contextDirectives != null) {
+            if (contextDirectives.accountContextEnabled() && account != null
+                    && account.accountId() != null && contextDirectives.accountContextKey() != null) {
+                params.put(contextDirectives.accountContextKey(), account.accountId());
+            }
+            if (contextDirectives.serviceContextEnabled() && service != null
+                    && service.productId() != null && contextDirectives.serviceContextKey() != null) {
+                params.put(contextDirectives.serviceContextKey(), service.productId());
+            }
+            if (contextDirectives.menuContextEnabled() && contextDirectives.menuContextKey() != null
+                    && contextDirectives.menuContextLabel() != null) {
+                params.put(contextDirectives.menuContextKey(), contextDirectives.menuContextLabel());
+            }
         }
         return params;
     }

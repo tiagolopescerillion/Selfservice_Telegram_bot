@@ -682,7 +682,8 @@ public class TelegramWebhookController {
                         AccountSummary selected = userSessionService.getSelectedAccount(chatId);
                         ServiceSummary selectedService = userSessionService.getSelectedService(chatId);
                         ServiceFunctionExecutor.ExecutionResult execResult = serviceFunctionExecutor
-                                .execute(text, existingToken, selected, selectedService);
+                                .execute(text, existingToken, selected, selectedService,
+                                        matchedItem == null ? null : matchedItem.contextDirectives());
                         if (matchedItem != null && matchedItem.isFunctionMenu() && matchedItem.submenuId() != null
                                 && !matchedItem.submenuId().isBlank()) {
                             telegramService.goToBusinessMenu(chatId, matchedItem.submenuId());

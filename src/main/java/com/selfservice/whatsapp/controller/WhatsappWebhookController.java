@@ -634,7 +634,7 @@ public class WhatsappWebhookController {
                     AccountSummary selected = sessionService.getSelectedAccount(userId);
                     ServiceSummary selectedService = sessionService.getSelectedService(userId);
                     ServiceFunctionExecutor.ExecutionResult result = serviceFunctionExecutor
-                            .execute(item.function(), token, selected, selectedService);
+                            .execute(item.function(), token, selected, selectedService, item.contextDirectives());
                     if (item.isFunctionMenu() && item.submenuId() != null && !item.submenuId().isBlank()) {
                         whatsappService.goToBusinessMenu(userId, item.submenuId());
                     }
