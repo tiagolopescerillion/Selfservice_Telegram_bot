@@ -179,13 +179,43 @@ public class ServiceFunctionExecutor {
         }
 
         String[] paths = outputSpec.split(",");
+        if (body.node.isArray()) {
+            StringBuilder aggregated = new StringBuilder();
+            int idx = 1;
+            for (JsonNode element : body.node) {
+                String rendered = renderFields(paths, element);
+                if (rendered.isEmpty()) {
+                    continue;
+                }
+                if (!aggregated.isEmpty()) {
+                    aggregated.append("\n\n");
+                }
+                if (body.node.size() > 1) {
+                    aggregated.append("Item ").append(idx++).append(':').append('\n');
+                }
+                aggregated.append(rendered);
+            }
+            if (aggregated.length() == 0) {
+                return "No data available.";
+            }
+            return aggregated.toString();
+        }
+
+        String rendered = renderFields(paths, body.node);
+        if (rendered.isEmpty()) {
+            return "No data available.";
+        }
+        return rendered;
+    }
+
+    private String renderFields(String[] paths, JsonNode root) {
         StringBuilder builder = new StringBuilder();
         for (String rawPath : paths) {
             String path = rawPath.trim();
             if (path.isEmpty()) {
                 continue;
             }
-            JsonNode value = resolvePath(body.node, path);
+            JsonNode value = resolvePath(root, path);
             if (value != null && !value.isMissingNode()) {
                 if (!builder.isEmpty()) {
                     builder.append('\n');
@@ -193,10 +223,6 @@ public class ServiceFunctionExecutor {
                 builder.append(path).append(": ");
                 builder.append(value.isTextual() ? value.asText() : value.toString());
             }
-        }
-
-        if (builder.length() == 0) {
-            return body.prettyBody;
         }
         return builder.toString();
     }
