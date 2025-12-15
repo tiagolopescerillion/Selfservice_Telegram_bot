@@ -97,12 +97,16 @@ public class ServiceFunctionExecutor {
             return ExecutionResult.handled("Service response recorded in logs.", ResponseMode.SILENT, null);
         }
 
-        String rendered = renderOutput(definition.output(), jsonBody);
+        RenderResult rendered = renderOutput(definition.output(), jsonBody,
+                definition.responseTemplate() == ServiceCatalog.ResponseTemplate.CARD);
         if (definition.responseTemplate() == ServiceCatalog.ResponseTemplate.CARD) {
-            return ExecutionResult.handled(rendered, ResponseMode.CARD, rendered);
+            if (rendered.buttons().isEmpty()) {
+                return ExecutionResult.handled(rendered.text());
+            }
+            return ExecutionResult.handled(rendered.text(), ResponseMode.CARD, rendered.buttons());
         }
 
-        return ExecutionResult.handled(rendered, ResponseMode.TEXT, null);
+        return ExecutionResult.handled(rendered.text(), ResponseMode.TEXT, null);
     }
 
     private Map<String, String> buildQuery(ServiceCatalog.ServiceDefinition definition, AccountSummary account,
@@ -165,20 +169,53 @@ public class ServiceFunctionExecutor {
         return new JsonBody(null, body);
     }
 
-    private String renderOutput(String outputSpec, JsonBody body) {
+    private RenderResult renderOutput(String outputSpec, JsonBody body, boolean cardMode) {
         if (body == null) {
-            return "";
+            return new RenderResult("", java.util.Collections.emptyList());
         }
 
-        if (outputSpec == null || outputSpec.isBlank()) {
-            return body.prettyBody;
+        String cleanedSpec = outputSpec == null ? "" : outputSpec.strip();
+        String[] paths = cleanedSpec.isEmpty() ? null : cleanedSpec.split(",");
+
+        if (cardMode) {
+            return renderForCard(paths, cleanedSpec, body);
         }
 
+        return renderForText(paths, cleanedSpec, body);
+    }
+
+    private RenderResult renderForCard(String[] paths, String outputSpec, JsonBody body) {
+        if (body.node != null && body.node.isArray()) {
+            java.util.List<String> labels = new java.util.ArrayList<>();
+            for (JsonNode element : body.node) {
+                String rendered = resolveRenderedValue(paths, outputSpec, element, body.prettyBody);
+                if (!rendered.isBlank()) {
+                    labels.add(rendered);
+                }
+            }
+            if (labels.isEmpty()) {
+                return new RenderResult("No data available.", java.util.Collections.emptyList());
+            }
+            if (labels.size() == 1) {
+                return new RenderResult(labels.get(0), java.util.Collections.emptyList());
+            }
+            return new RenderResult("Select an option:", labels);
+        }
+
+        String rendered = resolveRenderedValue(paths, outputSpec, body.node, body.prettyBody);
+        if (rendered.isBlank()) {
+            rendered = "No data available.";
+        }
+        return new RenderResult(rendered, java.util.Collections.emptyList());
+    }
+
+    private RenderResult renderForText(String[] paths, String outputSpec, JsonBody body) {
+        if (outputSpec.isEmpty()) {
+            return new RenderResult(body.prettyBody, java.util.Collections.emptyList());
+        }
         if (body.node == null) {
-            return outputSpec;
+            return new RenderResult(outputSpec, java.util.Collections.emptyList());
         }
-
-        String[] paths = outputSpec.split(",");
         if (body.node.isArray()) {
             StringBuilder aggregated = new StringBuilder();
             int idx = 1;
@@ -196,16 +233,29 @@ public class ServiceFunctionExecutor {
                 aggregated.append(rendered);
             }
             if (aggregated.length() == 0) {
-                return "No data available.";
+                return new RenderResult("No data available.", java.util.Collections.emptyList());
             }
-            return aggregated.toString();
+            return new RenderResult(aggregated.toString(), java.util.Collections.emptyList());
         }
 
         String rendered = renderFields(paths, body.node);
         if (rendered.isEmpty()) {
-            return "No data available.";
+            rendered = "No data available.";
         }
-        return rendered;
+        return new RenderResult(rendered, java.util.Collections.emptyList());
+    }
+
+    private String resolveRenderedValue(String[] paths, String outputSpec, JsonNode node, String prettyBody) {
+        if (node == null) {
+            return outputSpec.isEmpty() ? prettyBody : outputSpec;
+        }
+        if (paths == null) {
+            if (node.isValueNode()) {
+                return node.asText();
+            }
+            return node.toString();
+        }
+        return renderFields(paths, node);
     }
 
     private String renderFields(String[] paths, JsonNode root) {
@@ -256,19 +306,21 @@ public class ServiceFunctionExecutor {
 
     public enum ResponseMode { TEXT, CARD, SILENT }
 
-    public record ExecutionResult(boolean handled, String message, ResponseMode mode, String buttonLabel) {
+    public record ExecutionResult(boolean handled, String message, ResponseMode mode, java.util.List<String> buttons) {
         public static ExecutionResult handled(String message) {
-            return new ExecutionResult(true, message, ResponseMode.TEXT, null);
+            return new ExecutionResult(true, message, ResponseMode.TEXT, java.util.Collections.emptyList());
         }
 
-        public static ExecutionResult handled(String message, ResponseMode mode, String buttonLabel) {
-            return new ExecutionResult(true, message, mode, buttonLabel);
+        public static ExecutionResult handled(String message, ResponseMode mode, java.util.List<String> buttons) {
+            return new ExecutionResult(true, message, mode, buttons == null ? java.util.Collections.emptyList() : buttons);
         }
 
         public static ExecutionResult notHandled() {
-            return new ExecutionResult(false, null, ResponseMode.TEXT, null);
+            return new ExecutionResult(false, null, ResponseMode.TEXT, java.util.Collections.emptyList());
         }
     }
 
     private record JsonBody(JsonNode node, String prettyBody) { }
+
+    private record RenderResult(String text, java.util.List<String> buttons) { }
 }

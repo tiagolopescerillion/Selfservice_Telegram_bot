@@ -157,8 +157,8 @@ public class TelegramService {
         post(url, body, headers);
     }
 
-    public void sendCardMessage(long chatId, String text, String buttonLabel) {
-        if (!StringUtils.hasText(buttonLabel)) {
+    public void sendCardMessage(long chatId, String text, List<String> buttonLabels) {
+        if (buttonLabels == null || buttonLabels.isEmpty()) {
             sendMessage(chatId, text);
             return;
         }
@@ -167,15 +167,26 @@ public class TelegramService {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
 
-        Map<String, Object> replyMarkup = Map.of(
-                "inline_keyboard",
-                List.of(List.of(Map.of(
-                        "text", buttonLabel,
-                        "callback_data", buttonLabel))));
+        List<List<Map<String, Object>>> rows = new ArrayList<>();
+        for (String label : buttonLabels) {
+            if (!StringUtils.hasText(label)) {
+                continue;
+            }
+            rows.add(List.of(Map.of(
+                    "text", label,
+                    "callback_data", label)));
+        }
+
+        if (rows.isEmpty()) {
+            sendMessage(chatId, text);
+            return;
+        }
+
+        Map<String, Object> replyMarkup = Map.of("inline_keyboard", rows);
 
         Map<String, Object> body = Map.of(
                 "chat_id", chatId,
-                "text", text == null || text.isBlank() ? buttonLabel : text,
+                "text", text == null || text.isBlank() ? "Select an option:" : text,
                 "reply_markup", replyMarkup);
 
         post(url, body, headers);

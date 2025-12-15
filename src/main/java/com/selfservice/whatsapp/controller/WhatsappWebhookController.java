@@ -637,7 +637,7 @@ public class WhatsappWebhookController {
                             .execute(item.function(), token, selected, selectedService);
                     if (result.handled()) {
                         if (result.mode() == ServiceFunctionExecutor.ResponseMode.CARD) {
-                            whatsappService.sendCardMessage(from, result.message(), result.buttonLabel());
+                            whatsappService.sendCardMessage(from, result.message(), result.buttons());
                         } else {
                             whatsappService.sendText(from, result.message());
                         }

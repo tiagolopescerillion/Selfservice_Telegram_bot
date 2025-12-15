@@ -684,7 +684,7 @@ public class TelegramWebhookController {
                                 .execute(text, existingToken, selected, selectedService);
                         if (execResult.handled()) {
                             if (execResult.mode() == ServiceFunctionExecutor.ResponseMode.CARD) {
-                                telegramService.sendCardMessage(chatId, execResult.message(), execResult.buttonLabel());
+                                telegramService.sendCardMessage(chatId, execResult.message(), execResult.buttons());
                             } else {
                                 telegramService.sendMessage(chatId, execResult.message());
                             }

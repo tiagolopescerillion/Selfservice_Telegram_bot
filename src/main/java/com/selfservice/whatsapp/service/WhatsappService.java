@@ -118,13 +118,27 @@ public class WhatsappService {
         postToWhatsapp(payload);
     }
 
-    public void sendCardMessage(String to, String message, String buttonLabel) {
-        if (!StringUtils.hasText(buttonLabel)) {
+    public void sendCardMessage(String to, String message, List<String> buttonLabels) {
+        if (buttonLabels == null || buttonLabels.isEmpty()) {
             sendText(to, message);
             return;
         }
-        String title = (message == null || message.isBlank()) ? buttonLabel : message;
-        sendInteractiveList(to, title, title, List.of(buildListRow("CARD:" + buttonLabel, buttonLabel)));
+        List<Map<String, Object>> rows = new ArrayList<>();
+        int index = 1;
+        for (String label : buttonLabels) {
+            if (!StringUtils.hasText(label)) {
+                continue;
+            }
+            rows.add(buildListRow("CARD:" + index++, label));
+        }
+
+        if (rows.isEmpty()) {
+            sendText(to, message);
+            return;
+        }
+
+        String title = (message == null || message.isBlank()) ? "Select an option" : message;
+        sendInteractiveList(to, title, title, rows);
     }
 
     public List<LoginMenuItem> loginSettingsMenuOptions(String userId) {
