@@ -330,6 +330,10 @@ const serviceOutputInput = document.getElementById("serviceOutputInput");
 const cancelServiceButton = document.getElementById("cancelServiceButton");
 const serviceList = document.getElementById("serviceList");
 const serviceBuilderStatus = document.getElementById("serviceBuilderStatus");
+const addServiceFunctionButton = document.getElementById("addServiceFunctionButton");
+const cancelNewServiceFunction = document.getElementById("cancelNewServiceFunction");
+const newServiceFunctionEndpoint = document.getElementById("newServiceFunctionEndpoint");
+const newServiceFunctionForm = document.getElementById("newServiceFunctionForm");
 const liveSessionsContainer = document.getElementById("liveSessions");
 const sessionHistoryContainer = document.getElementById("sessionHistory");
 const monitoringApiBaseInput = document.getElementById("monitoringApiBase");
@@ -516,6 +520,8 @@ let notificationEndpointCache = "";
 let configEndpointCache = "";
 let apiRegistryEntries = [];
 let serviceBuilderEntries = [];
+let editingApiName = null;
+let editingServiceName = null;
 
 function extractContextFields(item = {}) {
   return {
@@ -1826,6 +1832,223 @@ function updateSaveButtonVisibility() {
   const shouldShow = saveableSections.includes(activeApp);
   saveOverlayButton.classList.toggle("hidden", !shouldShow);
 }
+
+async function loadApiRegistry() {
+  const endpoint = buildAdminEndpoint("/admin/apis");
+  if (!endpoint) {
+    apiRegistryStatus.textContent = "Set the monitoring API base URL to load APIs.";
+    apiRegistryStatus.className = "hint error-state";
+    return;
+  }
+
+  try {
+    const response = await fetch(endpoint, { cache: "no-cache" });
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+    const payload = await response.json();
+    apiRegistryEntries = Array.isArray(payload?.apis) ? payload.apis : [];
+    renderApiList();
+    hydrateServiceApiOptions();
+    apiRegistryStatus.textContent = "";
+    apiRegistryStatus.className = "hint";
+  } catch (error) {
+    apiRegistryStatus.textContent = `Unable to load API list: ${error?.message || error}`;
+    apiRegistryStatus.className = "hint error-state";
+  }
+}
+
+function toggleApiForm(show, api = null) {
+  if (!apiForm) return;
+  apiForm.classList.toggle("hidden", !show);
+  if (show && api) {
+    apiNameInput.value = api.name || "";
+    apiUrlInput.value = api.url || "";
+    editingApiName = api.name;
+  } else if (show) {
+    apiForm.reset();
+    editingApiName = null;
+  } else {
+    apiForm.reset();
+    editingApiName = null;
+  }
+}
+
+function renderApiList() {
+  if (!apiList) return;
+  apiList.innerHTML = "";
+
+  if (!apiRegistryEntries.length) {
+    apiList.textContent = "No APIs configured yet.";
+    return;
+  }
+
+  const list = document.createElement("ul");
+  list.className = "config-list";
+
+  apiRegistryEntries.forEach((api) => {
+    const item = document.createElement("li");
+    const title = document.createElement("div");
+    title.className = "config-list__title";
+    title.textContent = api?.name || "(unnamed)";
+
+    const subtitle = document.createElement("div");
+    subtitle.className = "config-list__subtitle";
+    subtitle.textContent = api?.url || "";
+
+    const actions = document.createElement("div");
+    actions.className = "config-list__actions";
+
+    const editBtn = document.createElement("button");
+    editBtn.type = "button";
+    editBtn.textContent = "Edit";
+    editBtn.className = "secondary";
+    editBtn.addEventListener("click", () => toggleApiForm(true, api));
+
+    const deleteBtn = document.createElement("button");
+    deleteBtn.type = "button";
+    deleteBtn.textContent = "Delete";
+    deleteBtn.className = "danger";
+    deleteBtn.addEventListener("click", () => {
+      apiRegistryEntries = apiRegistryEntries.filter((entry) => entry.name !== api.name);
+      serviceBuilderEntries = serviceBuilderEntries.map((svc) =>
+        svc.apiName === api.name ? { ...svc, apiName: "" } : svc
+      );
+      hydrateServiceApiOptions();
+      renderServiceList();
+      renderApiList();
+    });
+
+    actions.append(editBtn, deleteBtn);
+    item.append(title, subtitle, actions);
+    list.appendChild(item);
+  });
+
+  apiList.appendChild(list);
+}
+
+async function loadServiceBuilder() {
+  const endpoint = buildAdminEndpoint("/admin/services");
+  if (!endpoint) {
+    serviceBuilderStatus.textContent = "Set the monitoring API base URL to load services.";
+    serviceBuilderStatus.className = "hint error-state";
+    return;
+  }
+
+  try {
+    const response = await fetch(endpoint, { cache: "no-cache" });
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+    const payload = await response.json();
+    apiRegistryEntries = Array.isArray(payload?.apis) ? payload.apis : apiRegistryEntries;
+    serviceBuilderEntries = Array.isArray(payload?.services) ? payload.services : [];
+    hydrateServiceApiOptions();
+    renderApiList();
+    renderServiceList();
+    syncServiceFunctionOptions(serviceBuilderEntries);
+    serviceBuilderStatus.textContent = "";
+    serviceBuilderStatus.className = "hint";
+  } catch (error) {
+    serviceBuilderStatus.textContent = `Unable to load services: ${error?.message || error}`;
+    serviceBuilderStatus.className = "hint error-state";
+  }
+}
+
+function toggleServiceForm(show, service = null) {
+  if (!serviceForm) return;
+  serviceForm.classList.toggle("hidden", !show);
+  if (show && service) {
+    serviceNameInput.value = service.name || "";
+    serviceApiSelect.value = service.apiName || "";
+    serviceQueryParamsInput.value = formatQueryParams(service.queryParameters);
+    serviceResponseTemplate.value = service.responseTemplate || "JSON";
+    if (serviceOutputInput) {
+      serviceOutputInput.value = service.output || "";
+    }
+    editingServiceName = service.name;
+  } else if (show) {
+    serviceForm.reset();
+    editingServiceName = null;
+  } else {
+    serviceForm.reset();
+    editingServiceName = null;
+  }
+}
+
+function hydrateServiceApiOptions() {
+  if (!serviceApiSelect) return;
+  const currentValue = serviceApiSelect.value;
+  serviceApiSelect.innerHTML = "";
+  apiRegistryEntries
+    .slice()
+    .sort((a, b) => (a.name || "").localeCompare(b.name || ""))
+    .forEach((api) => {
+      const option = document.createElement("option");
+      option.value = api.name;
+      option.textContent = api.name;
+      serviceApiSelect.appendChild(option);
+    });
+  if (currentValue) {
+    serviceApiSelect.value = currentValue;
+  }
+}
+
+function renderServiceList() {
+  if (!serviceList) return;
+  serviceList.innerHTML = "";
+
+  if (!serviceBuilderEntries.length) {
+    serviceList.textContent = "No services configured yet.";
+    return;
+  }
+
+  const list = document.createElement("ul");
+  list.className = "config-list";
+
+  serviceBuilderEntries.forEach((service) => {
+    const item = document.createElement("li");
+    const title = document.createElement("div");
+    title.className = "config-list__title";
+    title.textContent = service?.name || "(unnamed service)";
+
+    const subtitle = document.createElement("div");
+    subtitle.className = "config-list__subtitle";
+    const params = formatQueryParams(service?.queryParameters);
+    subtitle.textContent = `${service?.apiName || ""} — ${params}`;
+
+    const actions = document.createElement("div");
+    actions.className = "config-list__actions";
+
+    const editBtn = document.createElement("button");
+    editBtn.type = "button";
+    editBtn.textContent = "Edit";
+    editBtn.className = "secondary";
+    editBtn.addEventListener("click", () => toggleServiceForm(true, service));
+
+    const deleteBtn = document.createElement("button");
+    deleteBtn.type = "button";
+    deleteBtn.textContent = "Delete";
+    deleteBtn.className = "danger";
+    deleteBtn.addEventListener("click", () => {
+      serviceBuilderEntries = serviceBuilderEntries.filter((svc) => svc.name !== service.name);
+      syncServiceFunctionOptions(serviceBuilderEntries);
+      renderServiceList();
+    });
+
+    actions.append(editBtn, deleteBtn);
+    item.append(title, subtitle, actions);
+    list.appendChild(item);
+  });
+
+  serviceList.appendChild(list);
+}
+
+function toggleNewServiceFunctionForm() {}
+
+function prefillQueryParamsFromEndpoint() {}
+
+function createCustomServiceFunction() {}
 
 async function persistContent(endpoint, content, statusEl) {
   if (!endpoint) {
@@ -3397,7 +3620,15 @@ if (apiForm) {
       return;
     }
     const slug = slugify(name);
-    apiRegistryEntries = [...apiRegistryEntries.filter((api) => api.name !== slug), { name: slug, url }];
+    const previousName = editingApiName;
+    const renamed = previousName && previousName !== slug;
+    const filteredApis = apiRegistryEntries.filter((api) => api.name !== slug && api.name !== previousName);
+    apiRegistryEntries = [...filteredApis, { name: slug, url }];
+    if (renamed) {
+      serviceBuilderEntries = serviceBuilderEntries.map((svc) =>
+        svc.apiName === previousName ? { ...svc, apiName: slug } : svc
+      );
+    }
     apiRegistryStatus.textContent = `Saved API ${slug}.`;
     apiRegistryStatus.className = "hint";
     hydrateServiceApiOptions();
@@ -3458,11 +3689,15 @@ if (serviceForm) {
       return;
     }
     const slug = slugify(name);
+    const previousName = editingServiceName;
     const parsedParams = parseQueryParamString(serviceQueryParamsInput.value);
     const responseTemplate = serviceResponseTemplate.value || "JSON";
     const output = (serviceOutputInput?.value || "").trim();
+    const filteredServices = serviceBuilderEntries.filter(
+      (svc) => svc.name !== slug && svc.name !== previousName
+    );
     serviceBuilderEntries = [
-      ...serviceBuilderEntries.filter((svc) => svc.name !== slug),
+      ...filteredServices,
       {
         name: slug,
         apiName,
@@ -3576,6 +3811,8 @@ bootstrapMenuConfig();
 initMonitoring();
 restoreNotificationApiBase();
 loadWeblinksConfig();
+loadApiRegistry();
+loadServiceBuilder();
 setActiveApp("admin");
 
 
