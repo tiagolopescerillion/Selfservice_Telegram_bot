@@ -2808,16 +2808,67 @@ function renderApiList() {
     apiList.innerHTML = '<div class="empty">No APIs configured.</div>';
     return;
   }
-  apiRegistryEntries.forEach((api) => {
+  apiRegistryEntries.forEach((api, index) => {
     const row = document.createElement("div");
-    row.className = "config-entry";
-    const name = document.createElement("div");
-    name.className = "config-entry__key";
-    name.textContent = api.name;
-    const url = document.createElement("div");
-    url.className = "config-entry__value";
-    url.textContent = api.url;
-    row.append(name, url);
+    row.className = "menu-item";
+
+    const fields = document.createElement("div");
+    fields.className = "menu-item-fields";
+
+    const nameLabel = document.createElement("label");
+    nameLabel.textContent = "API name";
+    const nameInput = document.createElement("input");
+    nameInput.type = "text";
+    nameInput.value = api.name || "";
+    nameInput.addEventListener("input", (event) => {
+      const previous = apiRegistryEntries[index]?.name;
+      const slug = slugify(event.target.value);
+      if (!slug) {
+        event.target.value = previous || "";
+        return;
+      }
+      apiRegistryEntries[index] = { ...apiRegistryEntries[index], name: slug };
+      event.target.value = slug;
+      updateServiceApiReferences(previous, slug);
+      hydrateServiceApiOptions();
+      renderServiceList();
+      apiRegistryStatus.textContent = `Updated API ${slug}.`;
+      apiRegistryStatus.className = "hint";
+    });
+    nameLabel.append(nameInput);
+
+    const urlLabel = document.createElement("label");
+    urlLabel.textContent = "API URL";
+    const urlInput = document.createElement("input");
+    urlInput.type = "text";
+    urlInput.value = api.url || "";
+    urlInput.addEventListener("input", (event) => {
+      apiRegistryEntries[index] = { ...apiRegistryEntries[index], url: event.target.value };
+      apiRegistryStatus.textContent = `Updated API ${apiRegistryEntries[index].name}.`;
+      apiRegistryStatus.className = "hint";
+    });
+    urlLabel.append(urlInput);
+
+    fields.append(nameLabel, urlLabel);
+
+    const actions = document.createElement("div");
+    actions.className = "menu-item-actions";
+    const deleteButton = document.createElement("button");
+    deleteButton.type = "button";
+    deleteButton.textContent = "✕";
+    deleteButton.title = "Delete API";
+    deleteButton.className = "danger";
+    deleteButton.addEventListener("click", () => {
+      apiRegistryEntries.splice(index, 1);
+      hydrateServiceApiOptions();
+      renderApiList();
+      renderServiceList();
+      apiRegistryStatus.textContent = "API removed.";
+      apiRegistryStatus.className = "hint";
+    });
+
+    actions.append(deleteButton);
+    row.append(fields, actions);
     apiList.append(row);
   });
 }
@@ -2985,6 +3036,21 @@ function deleteService(index) {
   serviceBuilderEntries.splice(index, 1);
   syncServiceFunctionOptions(serviceBuilderEntries);
   renderServiceList();
+}
+
+function updateServiceApiReferences(previousName, nextName) {
+  if (!previousName || !nextName || previousName === nextName) return;
+  let updated = false;
+  serviceBuilderEntries = serviceBuilderEntries.map((service) => {
+    if (service.apiName === previousName) {
+      updated = true;
+      return { ...service, apiName: nextName };
+    }
+    return service;
+  });
+  if (updated) {
+    syncServiceFunctionOptions(serviceBuilderEntries);
+  }
 }
 
 function hydrateServiceApiOptions() {
