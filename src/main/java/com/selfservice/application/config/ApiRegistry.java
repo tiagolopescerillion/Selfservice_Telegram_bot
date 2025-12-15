@@ -42,7 +42,7 @@ public class ApiRegistry {
     }
 
     public Map<String, ApiDefinition> getApisByName() {
-        return apis.stream().collect(Collectors.toMap(ApiDefinition::name, api -> api));
+        return apis.get().stream().collect(Collectors.toMap(ApiDefinition::name, api -> api));
     }
 
     public Optional<ApiDefinition> findByName(String name) {
