@@ -1883,48 +1883,61 @@ function renderApiList() {
     return;
   }
 
-  const list = document.createElement("ul");
-  list.className = "config-list";
+  apiRegistryEntries.forEach((api, index) => {
+    const row = document.createElement("div");
+    row.className = "config-entry config-entry--inline";
 
-  apiRegistryEntries.forEach((api) => {
-    const item = document.createElement("li");
-    const title = document.createElement("div");
-    title.className = "config-list__title";
-    title.textContent = api?.name || "(unnamed)";
+    const nameField = document.createElement("input");
+    nameField.type = "text";
+    nameField.value = api?.name || "";
+    nameField.placeholder = "API name";
+    nameField.dataset.previousName = api?.name || "";
+    nameField.addEventListener("input", (event) => {
+      const previous = nameField.dataset.previousName || apiRegistryEntries[index].name;
+      const nextName = event.target.value;
+      apiRegistryEntries[index].name = nextName;
+      if (previous && previous !== nextName) {
+        serviceBuilderEntries = serviceBuilderEntries.map((svc) =>
+          svc.apiName === previous ? { ...svc, apiName: nextName } : svc
+        );
+        nameField.dataset.previousName = nextName;
+        hydrateServiceApiOptions();
+        renderServiceList();
+      }
+    });
 
-    const subtitle = document.createElement("div");
-    subtitle.className = "config-list__subtitle";
-    subtitle.textContent = api?.url || "";
+    const urlField = document.createElement("input");
+    urlField.type = "url";
+    urlField.value = api?.url || "";
+    urlField.placeholder = "https://example.com/api";
+    urlField.addEventListener("input", (event) => {
+      apiRegistryEntries[index].url = event.target.value;
+    });
 
     const actions = document.createElement("div");
-    actions.className = "config-list__actions";
-
-    const editBtn = document.createElement("button");
-    editBtn.type = "button";
-    editBtn.textContent = "Edit";
-    editBtn.className = "secondary";
-    editBtn.addEventListener("click", () => toggleApiForm(true, api));
+    actions.className = "config-entry__actions";
 
     const deleteBtn = document.createElement("button");
     deleteBtn.type = "button";
-    deleteBtn.textContent = "Delete";
-    deleteBtn.className = "danger";
+    deleteBtn.textContent = "✕";
+    deleteBtn.title = "Remove";
     deleteBtn.addEventListener("click", () => {
-      apiRegistryEntries = apiRegistryEntries.filter((entry) => entry.name !== api.name);
-      serviceBuilderEntries = serviceBuilderEntries.map((svc) =>
-        svc.apiName === api.name ? { ...svc, apiName: "" } : svc
-      );
+      const name = apiRegistryEntries[index]?.name;
+      apiRegistryEntries.splice(index, 1);
+      if (name) {
+        serviceBuilderEntries = serviceBuilderEntries.map((svc) =>
+          svc.apiName === name ? { ...svc, apiName: "" } : svc
+        );
+      }
       hydrateServiceApiOptions();
       renderServiceList();
       renderApiList();
     });
 
-    actions.append(editBtn, deleteBtn);
-    item.append(title, subtitle, actions);
-    list.appendChild(item);
+    actions.append(deleteBtn);
+    row.append(nameField, urlField, actions);
+    apiList.append(row);
   });
-
-  apiList.appendChild(list);
 }
 
 async function loadServiceBuilder() {
@@ -2003,45 +2016,77 @@ function renderServiceList() {
     return;
   }
 
-  const list = document.createElement("ul");
-  list.className = "config-list";
+  serviceBuilderEntries.forEach((service, index) => {
+    const row = document.createElement("div");
+    row.className = "config-entry config-entry--services";
 
-  serviceBuilderEntries.forEach((service) => {
-    const item = document.createElement("li");
-    const title = document.createElement("div");
-    title.className = "config-list__title";
-    title.textContent = service?.name || "(unnamed service)";
+    const nameInput = document.createElement("input");
+    nameInput.type = "text";
+    nameInput.placeholder = "Service name";
+    nameInput.value = service?.name || "";
+    nameInput.addEventListener("input", (event) => {
+      serviceBuilderEntries[index].name = event.target.value;
+      syncServiceFunctionOptions(serviceBuilderEntries);
+    });
 
-    const subtitle = document.createElement("div");
-    subtitle.className = "config-list__subtitle";
-    const params = formatQueryParams(service?.queryParameters);
-    subtitle.textContent = `${service?.apiName || ""} — ${params}`;
+    const apiSelect = document.createElement("select");
+    apiRegistryEntries
+      .slice()
+      .sort((a, b) => (a.name || "").localeCompare(b.name || ""))
+      .forEach((api) => {
+        apiSelect.append(new Option(api.name, api.name, false, api.name === service.apiName));
+      });
+    apiSelect.addEventListener("change", (event) => {
+      serviceBuilderEntries[index].apiName = event.target.value;
+    });
+
+    const paramsField = document.createElement("textarea");
+    paramsField.rows = 2;
+    paramsField.placeholder = "key=value&limit=10";
+    paramsField.value = formatQueryParams(service?.queryParameters);
+    paramsField.addEventListener("input", (event) => {
+      serviceBuilderEntries[index].queryParameters = parseQueryParams(event.target.value);
+    });
+
+    const templateSelect = document.createElement("select");
+    [
+      { value: "EXISTING", label: "Existing" },
+      { value: "JSON", label: "JSON" },
+      { value: "MESSAGE", label: "Message" },
+      { value: "CARD", label: "Card" }
+    ].forEach((opt) => {
+      templateSelect.append(
+        new Option(opt.label, opt.value, false, opt.value === (service.responseTemplate || "JSON"))
+      );
+    });
+    templateSelect.addEventListener("change", (event) => {
+      serviceBuilderEntries[index].responseTemplate = event.target.value;
+    });
+
+    const outputField = document.createElement("input");
+    outputField.type = "text";
+    outputField.placeholder = "Output fields";
+    outputField.value = service?.output || "";
+    outputField.addEventListener("input", (event) => {
+      serviceBuilderEntries[index].output = event.target.value;
+    });
 
     const actions = document.createElement("div");
-    actions.className = "config-list__actions";
-
-    const editBtn = document.createElement("button");
-    editBtn.type = "button";
-    editBtn.textContent = "Edit";
-    editBtn.className = "secondary";
-    editBtn.addEventListener("click", () => toggleServiceForm(true, service));
-
+    actions.className = "config-entry__actions";
     const deleteBtn = document.createElement("button");
     deleteBtn.type = "button";
-    deleteBtn.textContent = "Delete";
-    deleteBtn.className = "danger";
+    deleteBtn.textContent = "✕";
+    deleteBtn.title = "Remove";
     deleteBtn.addEventListener("click", () => {
-      serviceBuilderEntries = serviceBuilderEntries.filter((svc) => svc.name !== service.name);
+      serviceBuilderEntries.splice(index, 1);
       syncServiceFunctionOptions(serviceBuilderEntries);
       renderServiceList();
     });
+    actions.append(deleteBtn);
 
-    actions.append(editBtn, deleteBtn);
-    item.append(title, subtitle, actions);
-    list.appendChild(item);
+    row.append(nameInput, apiSelect, paramsField, templateSelect, outputField, actions);
+    serviceList.append(row);
   });
-
-  serviceList.appendChild(list);
 }
 
 function toggleNewServiceFunctionForm() {}

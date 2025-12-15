@@ -696,6 +696,24 @@ button:disabled {
     margin-left: calc(var(--depth, 0) * 16px);
 }
 
+.config-entry--inline,
+.config-entry--services {
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    align-items: start;
+    gap: 0.75rem;
+}
+
+.config-entry--services textarea {
+    min-height: 64px;
+}
+
+.config-entry__actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.5rem;
+}
+
 .config-group {
     grid-template-columns: 1fr;
     font-weight: 700;
