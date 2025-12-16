@@ -1,6 +1,9 @@
 package com.selfservice.application.config.menu;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.selfservice.application.config.menu.LoginMenuFunction;
+
+import static com.selfservice.application.config.menu.LoginMenuFunction.SETTINGS;
 
 import java.util.Comparator;
 import java.util.List;
@@ -153,6 +156,17 @@ public class LoginMenuDefinition {
     public static LoginMenuItem toLoginMenuItem(BusinessMenuItem source) {
         LoginMenuItem item = new LoginMenuItem();
         item.setOrder(source.order());
+        if (source.isSubMenu()) {
+            item.setLabel(source.label() == null || source.label().isBlank() ? "Settings" : source.label());
+            item.setFunction(SETTINGS.name());
+            item.setTranslationKey(source.translationKey() == null || source.translationKey().isBlank()
+                    ? "ButtonSettings"
+                    : source.translationKey());
+            item.setCallbackData(source.callbackData() == null || source.callbackData().isBlank()
+                    ? "SETTINGS_MENU"
+                    : source.callbackData());
+            return item;
+        }
         item.setLabel(source.label());
         item.setFunction(source.function());
         item.setTranslationKey(source.translationKey());
