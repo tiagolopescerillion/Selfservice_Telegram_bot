@@ -417,13 +417,12 @@ public class WhatsappWebhookController {
             return;
         }
 
-        if (selectionContext == WhatsappSessionService.SelectionContext.ACCOUNT && parseIndex(lower) >= 1) {
+        if (selectionContext == WhatsappSessionService.SelectionContext.ACCOUNT && parseIndex(lower) >= 0) {
             int selection = parseIndex(lower);
             List<AccountSummary> accounts = sessionService.getAccounts(userId);
             int start = sessionService.getSelectionPageStart(userId);
             int end = Math.min(accounts.size(), start + 5);
-            int moreIndex = end + 1;
-            if (selection == moreIndex && end < accounts.size()) {
+            if (selection == 0 && end < accounts.size()) {
                 whatsappService.sendAccountPage(from, accounts, end);
                 return;
             }
@@ -445,13 +444,12 @@ public class WhatsappWebhookController {
             return;
         }
 
-        if (selectionContext == WhatsappSessionService.SelectionContext.SERVICE && parseIndex(lower) >= 1) {
+        if (selectionContext == WhatsappSessionService.SelectionContext.SERVICE && parseIndex(lower) >= 0) {
             int selection = parseIndex(lower);
             List<ServiceSummary> services = sessionService.getServices(userId);
             int start = sessionService.getSelectionPageStart(userId);
             int end = Math.min(services.size(), start + 5);
-            int moreIndex = end + 1;
-            if (selection == moreIndex && end < services.size()) {
+            if (selection == 0 && end < services.size()) {
                 whatsappService.sendServicePage(from, services, end);
                 return;
             }
@@ -473,13 +471,12 @@ public class WhatsappWebhookController {
             return;
         }
 
-        if (selectionContext == WhatsappSessionService.SelectionContext.INVOICE && parseIndex(lower) >= 1) {
+        if (selectionContext == WhatsappSessionService.SelectionContext.INVOICE && parseIndex(lower) >= 0) {
             int selection = parseIndex(lower);
             List<InvoiceSummary> invoices = sessionService.getInvoices(userId);
             int start = sessionService.getSelectionPageStart(userId);
             int end = Math.min(invoices.size(), start + 5);
-            int moreIndex = end + 1;
-            if (selection == moreIndex && end < invoices.size()) {
+            if (selection == 0 && end < invoices.size()) {
                 whatsappService.sendInvoicePage(from, invoices, end);
                 return;
             }
@@ -513,13 +510,12 @@ public class WhatsappWebhookController {
             return;
         }
 
-        if (selectionContext == WhatsappSessionService.SelectionContext.TICKET && parseIndex(lower) >= 1) {
+        if (selectionContext == WhatsappSessionService.SelectionContext.TICKET && parseIndex(lower) >= 0) {
             int selection = parseIndex(lower);
             List<TroubleTicketSummary> tickets = sessionService.getTroubleTickets(userId);
             int start = sessionService.getSelectionPageStart(userId);
             int end = Math.min(tickets.size(), start + 5);
-            int moreIndex = end + 1;
-            if (selection == moreIndex && end < tickets.size()) {
+            if (selection == 0 && end < tickets.size()) {
                 whatsappService.sendTroubleTicketPage(from, tickets, end);
                 return;
             }
@@ -583,6 +579,20 @@ public class WhatsappWebhookController {
         int depth = whatsappService.currentMenuDepth(userId);
         boolean showChangeAccountOption = sessionService.getAccounts(userId).size() > 1;
         int numeric = parseIndex(lower);
+        WhatsappSessionService.PendingFunctionSelection pendingMenuSelection =
+                sessionService.consumePendingFunctionMenu(userId, body);
+        if (pendingMenuSelection != null) {
+            String contextMessage = buildFunctionMenuSelectionMessage(
+                    pendingMenuSelection.menu().contextLabel(), pendingMenuSelection.selection());
+            sessionService.setMenuContext(userId, contextMessage);
+            if (pendingMenuSelection.menu().submenuId() != null
+                    && !pendingMenuSelection.menu().submenuId().isBlank()) {
+                whatsappService.goToBusinessMenu(userId, pendingMenuSelection.menu().submenuId());
+            }
+            AccountSummary selected = sessionService.getSelectedAccount(userId);
+            whatsappService.sendLoggedInMenu(from, selected, sessionService.getAccounts(userId).size() > 1, contextMessage);
+            return;
+        }
         if (numeric >= 1 && numeric <= menuItems.size()) {
             BusinessMenuItem item = menuItems.get(numeric - 1);
             if (item.isWeblink()) {
@@ -641,8 +651,11 @@ public class WhatsappWebhookController {
                     ServiceSummary selectedService = sessionService.getSelectedService(userId);
                     ServiceFunctionExecutor.ExecutionResult result = serviceFunctionExecutor
                             .execute(item.function(), token, selected, selectedService, item.contextDirectives());
-                    if (item.isFunctionMenu() && item.submenuId() != null && !item.submenuId().isBlank()) {
-                        whatsappService.goToBusinessMenu(userId, item.submenuId());
+                    if (item.isFunctionMenu()) {
+                        boolean handled = handleFunctionMenuResponse(userId, from, item, result);
+                        if (handled) {
+                            return;
+                        }
                     }
                     if (result.handled()) {
                         if (result.mode() == ServiceFunctionExecutor.ResponseMode.CARD) {
@@ -788,6 +801,7 @@ public class WhatsappWebhookController {
         AccountSummary selected = accounts.get(index);
         sessionService.selectAccount(userId, selected);
         whatsappService.sendText(userId, whatsappService.format(userId, "SelectedAccount", selected.displayLabel()));
+        whatsappService.goHomeBusinessMenu(userId);
         whatsappService.sendLoggedInMenu(userId, selected, accounts.size() > 1);
     }
 
@@ -1022,6 +1036,60 @@ public class WhatsappWebhookController {
             return "InvoiceCompare";
         }
         return null;
+    }
+
+    private boolean handleFunctionMenuResponse(String userId, String to, BusinessMenuItem matchedItem,
+            ServiceFunctionExecutor.ExecutionResult execResult) {
+        if (!execResult.handled()) {
+            return false;
+        }
+        List<String> options = execResult.options() == null ? List.of() : execResult.options();
+        String contextLabel = matchedItem.contextDirectives() == null
+                ? null
+                : matchedItem.contextDirectives().resolvedLabel();
+        String trimmedLabel = contextLabel == null || contextLabel.isBlank() ? null : contextLabel.trim();
+
+        if (options.isEmpty()) {
+            String message = trimmedLabel == null ? "No records found" : "No " + trimmedLabel + " found.";
+            whatsappService.sendText(to, message);
+            AccountSummary selected = sessionService.getSelectedAccount(userId);
+            whatsappService.sendLoggedInMenu(to, selected, sessionService.getAccounts(userId).size() > 1);
+            return true;
+        }
+
+        if (options.size() == 1) {
+            String contextMessage = buildFunctionMenuSelectionMessage(trimmedLabel, options.get(0));
+            sessionService.setMenuContext(userId, contextMessage);
+            sessionService.clearPendingFunctionMenu(userId);
+            if (matchedItem.submenuId() != null && !matchedItem.submenuId().isBlank()) {
+                whatsappService.goToBusinessMenu(userId, matchedItem.submenuId());
+            }
+            AccountSummary selected = sessionService.getSelectedAccount(userId);
+            whatsappService.sendLoggedInMenu(to, selected, sessionService.getAccounts(userId).size() > 1, contextMessage);
+            return true;
+        }
+
+        sessionService.clearMenuContext(userId);
+        sessionService.setPendingFunctionMenu(userId, matchedItem.submenuId(), trimmedLabel, options);
+        String header = trimmedLabel == null || trimmedLabel.isBlank() ? execResult.message() : trimmedLabel;
+        if (header == null || header.isBlank()) {
+            header = "Select an option.";
+        }
+        StringBuilder prompt = new StringBuilder(header.strip()).append("\n");
+        for (int i = 0; i < options.size(); i++) {
+            prompt.append(i + 1).append(") ").append(options.get(i)).append("\n");
+        }
+        whatsappService.sendText(to, prompt.toString());
+        whatsappService.sendCardMessage(to, header, options);
+        return true;
+    }
+
+    private String buildFunctionMenuSelectionMessage(String contextLabel, String selection) {
+        String resolvedSelection = selection == null ? "" : selection.trim();
+        if (contextLabel == null || contextLabel.isBlank()) {
+            return resolvedSelection + " Selected. Select an option.";
+        }
+        return contextLabel.trim() + " " + resolvedSelection + " Selected. Select an option.";
     }
 
     private LoginMenuItem parseLoginMenuSelection(String text, List<LoginMenuItem> options) {

@@ -63,6 +63,8 @@ public class WhatsappSessionService {
     private final Map<String, SelectionContext> selectionContextByUser = new ConcurrentHashMap<>();
     private final Map<String, Integer> selectionPageStartByUser = new ConcurrentHashMap<>();
     private final Map<String, Boolean> optInByUser = new ConcurrentHashMap<>();
+    private final Map<String, String> menuContextByUser = new ConcurrentHashMap<>();
+    private final Map<String, PendingFunctionMenu> pendingFunctionMenusByUser = new ConcurrentHashMap<>();
 
     public enum SelectionContext {
         NONE,
@@ -345,6 +347,8 @@ public class WhatsappSessionService {
         selectionContextByUser.remove(userId);
         selectionPageStartByUser.remove(userId);
         optInByUser.remove(userId);
+        menuContextByUser.remove(userId);
+        pendingFunctionMenusByUser.remove(userId);
     }
 
     public String getIdToken(String userId) {
@@ -380,6 +384,8 @@ public class WhatsappSessionService {
         awaitingLanguageSelectionByUser.remove(userId);
         selectionContextByUser.remove(userId);
         selectionPageStartByUser.remove(userId);
+        menuContextByUser.remove(userId);
+        pendingFunctionMenusByUser.remove(userId);
         return byUser.remove(userId) != null;
     }
 
@@ -491,6 +497,10 @@ public class WhatsappSessionService {
             }
             return path;
         });
+        if (moved[0]) {
+            clearMenuContext(userId);
+            clearPendingFunctionMenu(userId);
+        }
         return moved[0];
     }
 
@@ -518,6 +528,65 @@ public class WhatsappSessionService {
         List<String> path = ensureLoginMenuPath(userId, rootMenuId);
         return Math.max(0, path.size() - 1);
     }
+
+    public void setMenuContext(String userId, String contextMessage) {
+        if (contextMessage == null || contextMessage.isBlank()) {
+            menuContextByUser.remove(userId);
+            return;
+        }
+        menuContextByUser.put(userId, contextMessage);
+    }
+
+    public String getMenuContext(String userId) {
+        return menuContextByUser.get(userId);
+    }
+
+    public void clearMenuContext(String userId) {
+        menuContextByUser.remove(userId);
+    }
+
+    public void setPendingFunctionMenu(String userId, String submenuId, String contextLabel, List<String> options) {
+        if (options == null || options.isEmpty()) {
+            pendingFunctionMenusByUser.remove(userId);
+            return;
+        }
+        pendingFunctionMenusByUser.put(userId,
+                new PendingFunctionMenu(submenuId, contextLabel, List.copyOf(options)));
+    }
+
+    public PendingFunctionSelection consumePendingFunctionMenu(String userId, String selection) {
+        PendingFunctionMenu pending = pendingFunctionMenusByUser.get(userId);
+        if (pending == null || selection == null || selection.isBlank()) {
+            return null;
+        }
+        String trimmed = selection.trim();
+        String matched = pending.options().stream()
+                .filter(option -> option.equalsIgnoreCase(trimmed))
+                .findFirst()
+                .orElse(null);
+        if (matched == null) {
+            try {
+                int numeric = Integer.parseInt(trimmed);
+                if (numeric >= 1 && numeric <= pending.options().size()) {
+                    matched = pending.options().get(numeric - 1);
+                }
+            } catch (Exception ignored) {
+            }
+        }
+        if (matched == null) {
+            return null;
+        }
+        pendingFunctionMenusByUser.remove(userId);
+        return new PendingFunctionSelection(pending, matched);
+    }
+
+    public void clearPendingFunctionMenu(String userId) {
+        pendingFunctionMenusByUser.remove(userId);
+    }
+
+    public record PendingFunctionMenu(String submenuId, String contextLabel, List<String> options) { }
+
+    public record PendingFunctionSelection(PendingFunctionMenu menu, String selection) { }
 
     private List<String> ensureMenuPath(String userId, String rootMenuId) {
         return menuPathByUser.compute(userId, (id, existing) -> {

@@ -395,6 +395,7 @@ public class WhatsappService {
         StringBuilder body = new StringBuilder();
         sessionService.setSelectionContext(to, WhatsappSessionService.SelectionContext.NONE);
         appendParagraph(body, greeting);
+        appendParagraph(body, sessionService.getMenuContext(to));
         if (selectedAccount != null) {
             appendParagraph(body, format(to, "AccountSelected", selectedAccount.accountId()));
         }
@@ -554,7 +555,7 @@ public class WhatsappService {
             body.append(i + 1).append(") ").append(summary.displayLabel()).append("\n");
         }
         if (end < accounts.size()) {
-            body.append(translate(to, "WhatsappMoreAccountsInstruction").formatted(end + 1));
+            body.append(translate(to, "WhatsappMoreAccountsInstruction").formatted(0));
         }
         body.append(translate(to, "WhatsappAccountSelectionInstruction"));
         sessionService.setSelectionContext(to, WhatsappSessionService.SelectionContext.ACCOUNT, safeStart);
@@ -569,7 +570,7 @@ public class WhatsappService {
                 rows.add(buildListRow(String.valueOf(i + 1), summary.displayLabel()));
             }
             if (end < accounts.size()) {
-                rows.add(buildListRow(String.valueOf(end + 1), "More accounts"));
+                rows.add(buildListRow("0", "More accounts"));
             }
             sendInteractiveList(to,
                     translate(to, "SelectAccountPrompt"),
@@ -604,7 +605,7 @@ public class WhatsappService {
                     .append(format(to, "ServiceButtonLabel", name, number)).append("\n");
         }
         if (end < services.size()) {
-            body.append(translate(to, "WhatsappMoreServicesInstruction").formatted(end + 1));
+            body.append(translate(to, "WhatsappMoreServicesInstruction").formatted(0));
         }
         body.append(translate(to, "WhatsappServiceSelectionInstruction"));
         sessionService.setSelectionContext(to, WhatsappSessionService.SelectionContext.SERVICE, safeStart);
@@ -625,7 +626,7 @@ public class WhatsappService {
                 rows.add(buildListRow(String.valueOf(i + 1), format(to, "ServiceButtonLabel", name, number)));
             }
             if (end < services.size()) {
-                rows.add(buildListRow(String.valueOf(end + 1), "More services"));
+                rows.add(buildListRow("0", "More services"));
             }
             sendInteractiveList(to,
                     translate(to, "SelectServicePrompt"),
@@ -658,7 +659,7 @@ public class WhatsappService {
                     .append(format(to, "InvoiceButtonLabel", id, date, total, unpaid)).append("\n");
         }
         if (end < invoices.size()) {
-            body.append(translate(to, "WhatsappMoreInvoicesInstruction").formatted(end + 1));
+            body.append(translate(to, "WhatsappMoreInvoicesInstruction").formatted(0));
         }
         body.append(translate(to, "WhatsappInvoiceSelectionInstruction"));
         sessionService.setSelectionContext(to, WhatsappSessionService.SelectionContext.INVOICE, safeStart);
@@ -678,7 +679,7 @@ public class WhatsappService {
                         format(to, "InvoiceButtonLabel", id, date, total, unpaid)));
             }
             if (end < invoices.size()) {
-                rows.add(buildListRow(String.valueOf(end + 1), "More invoices"));
+                rows.add(buildListRow("0", "More invoices"));
             }
             sendInteractiveList(to,
                     translate(to, "SelectInvoicePrompt"),
@@ -799,7 +800,7 @@ public class WhatsappService {
                     .append(format(to, "TicketButtonLabel", ticket.id(), status)).append("\n");
         }
         if (end < tickets.size()) {
-            body.append(translate(to, "WhatsappMoreTicketsInstruction").formatted(end + 1));
+            body.append(translate(to, "WhatsappMoreTicketsInstruction").formatted(0));
         }
         body.append(translate(to, "WhatsappTicketSelectionInstruction"));
         sessionService.setSelectionContext(to, WhatsappSessionService.SelectionContext.TICKET, safeStart);
@@ -817,7 +818,7 @@ public class WhatsappService {
                 rows.add(buildListRow(String.valueOf(i + 1), format(to, "TicketButtonLabel", ticket.id(), status)));
             }
             if (end < tickets.size()) {
-                rows.add(buildListRow(String.valueOf(end + 1), "More tickets"));
+                rows.add(buildListRow("0", "More tickets"));
             }
             sendInteractiveList(to,
                     translate(to, "SelectTicketPrompt"),
@@ -858,10 +859,14 @@ public class WhatsappService {
 
     public void goHomeBusinessMenu(String userId) {
         sessionService.resetBusinessMenu(userId, menuConfigurationProvider.getRootMenuId());
+        sessionService.clearMenuContext(userId);
+        sessionService.clearPendingFunctionMenu(userId);
     }
 
     public void goHomeLoginMenu(String userId) {
         sessionService.resetLoginMenu(userId, menuConfigurationProvider.getLoginRootMenuId());
+        sessionService.clearMenuContext(userId);
+        sessionService.clearPendingFunctionMenu(userId);
     }
 
     public boolean goUpBusinessMenu(String userId) {

@@ -744,19 +744,11 @@ public class TelegramService {
         int end = Math.min(accounts.size(), safeStart + 5);
 
         List<List<Map<String, Object>>> rows = new ArrayList<>();
-        List<Map<String, Object>> currentRow = new ArrayList<>();
         for (int i = safeStart; i < end; i++) {
             AccountSummary summary = accounts.get(i);
-            currentRow.add(Map.of(
+            rows.add(List.of(Map.of(
                     "text", summary.displayLabel(),
-                    "callback_data", CALLBACK_ACCOUNT_PREFIX + i));
-            if (currentRow.size() == 2) {
-                rows.add(List.copyOf(currentRow));
-                currentRow = new ArrayList<>();
-            }
-        }
-        if (!currentRow.isEmpty()) {
-            rows.add(List.copyOf(currentRow));
+                    "callback_data", CALLBACK_ACCOUNT_PREFIX + i)));
         }
 
         if (end < accounts.size()) {
@@ -809,7 +801,6 @@ public class TelegramService {
         int end = Math.min(services.size(), safeStart + 5);
 
         List<List<Map<String, Object>>> rows = new ArrayList<>();
-        List<Map<String, Object>> currentRow = new ArrayList<>();
         for (int i = safeStart; i < end; i++) {
             ServiceSummary service = services.get(i);
             String name = (service.productName() == null || service.productName().isBlank())
@@ -820,16 +811,9 @@ public class TelegramService {
                     : service.accessNumber().strip();
 
             String buttonText = format(chatId, "ServiceButtonLabel", name, number);
-            currentRow.add(Map.of(
+            rows.add(List.of(Map.of(
                     "text", buttonText,
-                    "callback_data", CALLBACK_SERVICE_PREFIX + i));
-            if (currentRow.size() == 2) {
-                rows.add(List.copyOf(currentRow));
-                currentRow = new ArrayList<>();
-            }
-        }
-        if (!currentRow.isEmpty()) {
-            rows.add(List.copyOf(currentRow));
+                    "callback_data", CALLBACK_SERVICE_PREFIX + i)));
         }
 
         if (end < services.size()) {
@@ -867,22 +851,14 @@ public class TelegramService {
         int end = Math.min(invoices.size(), safeStart + 5);
 
         List<List<Map<String, Object>>> rows = new ArrayList<>();
-        List<Map<String, Object>> currentRow = new ArrayList<>();
         for (int i = safeStart; i < end; i++) {
             InvoiceSummary invoice = invoices.get(i);
             String label = format(chatId, "InvoiceButtonLabel", safeValue(chatId, invoice.id()),
                     safeValue(chatId, invoice.billDate()), safeValue(chatId, invoice.totalAmount()),
                     safeValue(chatId, invoice.unpaidAmount()));
-            currentRow.add(Map.of(
+            rows.add(List.of(Map.of(
                     "text", label,
-                    "callback_data", CALLBACK_INVOICE_PREFIX + i));
-            if (currentRow.size() == 2) {
-                rows.add(List.copyOf(currentRow));
-                currentRow = new ArrayList<>();
-            }
-        }
-        if (!currentRow.isEmpty()) {
-            rows.add(List.copyOf(currentRow));
+                    "callback_data", CALLBACK_INVOICE_PREFIX + i)));
         }
 
         if (end < invoices.size()) {
@@ -1007,22 +983,14 @@ public class TelegramService {
         int end = Math.min(tickets.size(), safeStart + 5);
 
         List<List<Map<String, Object>>> rows = new ArrayList<>();
-        List<Map<String, Object>> currentRow = new ArrayList<>();
         for (int i = safeStart; i < end; i++) {
             TroubleTicketSummary ticket = tickets.get(i);
             String status = (ticket.status() == null || ticket.status().isBlank())
                     ? translate(chatId, "UnknownValue")
                     : ticket.status().strip();
-            currentRow.add(Map.of(
+            rows.add(List.of(Map.of(
                     "text", format(chatId, "TicketButtonLabel", ticket.id(), status),
-                    "callback_data", CALLBACK_TROUBLE_TICKET_PREFIX + ticket.id()));
-            if (currentRow.size() == 2) {
-                rows.add(List.copyOf(currentRow));
-                currentRow = new ArrayList<>();
-            }
-        }
-        if (!currentRow.isEmpty()) {
-            rows.add(List.copyOf(currentRow));
+                    "callback_data", CALLBACK_TROUBLE_TICKET_PREFIX + ticket.id())));
         }
 
         if (end < tickets.size()) {
