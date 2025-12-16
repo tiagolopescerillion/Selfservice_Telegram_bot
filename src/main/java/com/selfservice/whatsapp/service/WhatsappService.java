@@ -865,6 +865,8 @@ public class WhatsappService {
 
     public void goHomeLoginMenu(String userId) {
         sessionService.resetLoginMenu(userId, menuConfigurationProvider.getLoginRootMenuId());
+        sessionService.setSelectionContext(userId, WhatsappSessionService.SelectionContext.NONE);
+        sessionService.setAwaitingLanguageSelection(userId, false);
         sessionService.clearMenuContext(userId);
         sessionService.clearPendingFunctionMenu(userId);
     }
