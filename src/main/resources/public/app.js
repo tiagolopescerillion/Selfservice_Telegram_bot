@@ -3051,6 +3051,10 @@ function formatQueryParams(params) {
     .join("&");
 }
 
+function parseQueryParams(input) {
+  return parseQueryParamString(input);
+}
+
 function parseQueryParamString(input) {
   const result = {};
   const trimmed = (input || "").trim();
