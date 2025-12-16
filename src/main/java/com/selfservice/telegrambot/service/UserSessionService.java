@@ -406,8 +406,6 @@ public class UserSessionService {
             path.add(menuId);
             return path;
         });
-        clearMenuContext(chatId);
-        clearPendingFunctionMenu(chatId);
     }
 
     public void enterLoginMenu(long chatId, String menuId, String rootMenuId) {
