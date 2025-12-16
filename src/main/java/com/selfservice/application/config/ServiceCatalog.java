@@ -66,13 +66,7 @@ public class ServiceCatalog {
         List<ServiceDefinition> payload = definitions == null ? List.of() : definitions;
         Map<String, Object> document = new LinkedHashMap<>();
         document.put("services", payload.stream()
-                .map(service -> Map.of(
-                        "Service Name", service.name(),
-                        "API-Name", service.apiName(),
-                        "Query Parameters", service.queryParameters(),
-                        "Response Template", service.responseTemplate().name(),
-                        "Output", service.output()
-                ))
+                .map(this::serializeService)
                 .toList());
 
         DumperOptions options = new DumperOptions();
@@ -84,6 +78,26 @@ public class ServiceCatalog {
         Files.createDirectories(CONFIG_DIR);
         Files.writeString(CONFIG_DIR.resolve(LOCAL_FILE), serialized, StandardCharsets.UTF_8);
         return reload();
+    }
+
+    private Map<String, Object> serializeService(ServiceDefinition service) {
+        Map<String, Object> entry = new LinkedHashMap<>();
+        entry.put("Service Name", Optional.ofNullable(service.name()).orElse(""));
+        entry.put("API-Name", Optional.ofNullable(service.apiName()).orElse(""));
+        entry.put("Query Parameters", sanitizeQueryParameters(service.queryParameters()));
+        ResponseTemplate template = Optional.ofNullable(service.responseTemplate()).orElse(ResponseTemplate.JSON);
+        entry.put("Response Template", template.name());
+        entry.put("Output", Optional.ofNullable(service.output()).orElse(""));
+        return entry;
+    }
+
+    private Map<String, String> sanitizeQueryParameters(Map<String, String> parameters) {
+        if (parameters == null) {
+            return Map.of();
+        }
+        Map<String, String> cleaned = new LinkedHashMap<>();
+        parameters.forEach((key, value) -> cleaned.put(String.valueOf(key), value == null ? "" : String.valueOf(value)));
+        return cleaned;
     }
 
     private List<ServiceDefinition> loadServices() {

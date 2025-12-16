@@ -523,6 +523,32 @@ let serviceBuilderEntries = [];
 let editingApiName = null;
 let editingServiceName = null;
 
+function normalizeServiceDefinition(service = {}) {
+  return {
+    name: (service.name || "").trim(),
+    apiName: service.apiName || "",
+    queryParameters:
+      typeof service.queryParameters === "object" && service.queryParameters !== null
+        ? { ...service.queryParameters }
+        : {},
+    responseTemplate: service.responseTemplate || "JSON",
+    output: service.output || ""
+  };
+}
+
+function createBlankServiceDefinition() {
+  return normalizeServiceDefinition({
+    name: `service-${serviceBuilderEntries.length + 1}`,
+    apiName: apiRegistryEntries[0]?.name || ""
+  });
+}
+
+function prepareServiceForSave(service, index = 0) {
+  const normalized = normalizeServiceDefinition(service);
+  const slug = normalized.name ? slugify(normalized.name) : `service-${index + 1}`;
+  return { ...normalized, name: slug };
+}
+
 function extractContextFields(item = {}) {
   return {
     accountContextEnabled: Boolean(item.accountContextEnabled),
@@ -1955,7 +1981,9 @@ async function loadServiceBuilder() {
     }
     const payload = await response.json();
     apiRegistryEntries = Array.isArray(payload?.apis) ? payload.apis : apiRegistryEntries;
-    serviceBuilderEntries = Array.isArray(payload?.services) ? payload.services : [];
+    serviceBuilderEntries = Array.isArray(payload?.services)
+      ? payload.services.map((svc) => normalizeServiceDefinition(svc))
+      : [];
     hydrateServiceApiOptions();
     renderApiList();
     renderServiceList();
@@ -2009,6 +2037,7 @@ function hydrateServiceApiOptions() {
 
 function renderServiceList() {
   if (!serviceList) return;
+  serviceBuilderEntries = serviceBuilderEntries.map((svc) => normalizeServiceDefinition(svc));
   serviceList.innerHTML = "";
 
   if (!serviceBuilderEntries.length) {
@@ -2191,10 +2220,11 @@ async function saveServiceBuilderFile() {
     return;
   }
   try {
+    const payload = serviceBuilderEntries.map((svc, index) => prepareServiceForSave(svc, index));
     const response = await fetch(endpoint, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(serviceBuilderEntries)
+      body: JSON.stringify(payload)
     });
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}`);
@@ -3719,44 +3749,15 @@ if (saveOverlayButton) {
 }
 
 if (addServiceButton) {
-  addServiceButton.addEventListener("click", () => toggleServiceForm(true));
-}
-if (cancelServiceButton) {
-  cancelServiceButton.addEventListener("click", () => toggleServiceForm(false));
+  addServiceButton.addEventListener("click", () => {
+    serviceBuilderEntries = [...serviceBuilderEntries, createBlankServiceDefinition()];
+    renderServiceList();
+    serviceBuilderStatus.textContent = "Fill in the new service, then use Publish to save.";
+    serviceBuilderStatus.className = "hint";
+  });
 }
 if (serviceForm) {
-  serviceForm.addEventListener("submit", (event) => {
-    event.preventDefault();
-    const name = (serviceNameInput.value || "").trim();
-    const apiName = serviceApiSelect.value;
-    if (!name || !apiName) {
-      alert("Provide a service name and API name.");
-      return;
-    }
-    const slug = slugify(name);
-    const previousName = editingServiceName;
-    const parsedParams = parseQueryParamString(serviceQueryParamsInput.value);
-    const responseTemplate = serviceResponseTemplate.value || "JSON";
-    const output = (serviceOutputInput?.value || "").trim();
-    const filteredServices = serviceBuilderEntries.filter(
-      (svc) => svc.name !== slug && svc.name !== previousName
-    );
-    serviceBuilderEntries = [
-      ...filteredServices,
-      {
-        name: slug,
-        apiName,
-        queryParameters: parsedParams,
-        responseTemplate,
-        output
-      }
-    ];
-    syncServiceFunctionOptions(serviceBuilderEntries);
-    renderServiceList();
-    serviceBuilderStatus.textContent = `Saved service ${slug}.`;
-    serviceBuilderStatus.className = "hint";
-    toggleServiceForm(false);
-  });
+  serviceForm.classList.add("hidden");
 }
 if (downloadServicesButton) {
   downloadServicesButton.addEventListener("click", async () => {
@@ -3767,10 +3768,11 @@ if (downloadServicesButton) {
       return;
     }
     try {
+      const payload = serviceBuilderEntries.map((svc, index) => prepareServiceForSave(svc, index));
       const response = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(serviceBuilderEntries)
+        body: JSON.stringify(payload)
       });
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}`);
