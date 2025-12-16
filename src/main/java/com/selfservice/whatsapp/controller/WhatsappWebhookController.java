@@ -286,6 +286,10 @@ public class WhatsappWebhookController {
                     return;
                 }
                 if (selectionFunction == LoginMenuFunction.MENU) {
+                    whatsappService.goHomeLoginMenu(userId);
+                    if (hasValidToken) {
+                        whatsappService.goHomeBusinessMenu(userId);
+                    }
                     if (hasValidToken && ensureAccountSelected(sessionKey, userId)) {
                         sendBusinessMenu(from, userId);
                     } else {
@@ -330,10 +334,12 @@ public class WhatsappWebhookController {
 
         if (lower.equals(WhatsappService.COMMAND_MENU)) {
             sessionService.setAwaitingLanguageSelection(userId, false);
+            whatsappService.goHomeLoginMenu(userId);
             if (!hasValidToken) {
                 sendLoginPrompt(from, sessionKey);
                 return;
             }
+            whatsappService.goHomeBusinessMenu(userId);
             sendBusinessMenu(from, userId);
             return;
         }
