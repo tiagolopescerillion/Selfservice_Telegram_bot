@@ -423,6 +423,7 @@ public class TelegramService {
 
         StringBuilder menuText = new StringBuilder();
         appendParagraph(menuText, greeting);
+        appendParagraph(menuText, userSessionService.getMenuContext(chatId));
         if (selectedAccount != null) {
             appendParagraph(menuText, format(chatId, "AccountSelected", selectedAccount.accountId()));
         }
@@ -684,6 +685,8 @@ public class TelegramService {
 
     public void goHomeBusinessMenu(long chatId) {
         userSessionService.resetBusinessMenu(chatId, menuConfigurationProvider.getRootMenuId());
+        userSessionService.clearMenuContext(chatId);
+        userSessionService.clearPendingFunctionMenu(chatId);
     }
 
     public void goHomeLoginMenu(long chatId) {
@@ -691,7 +694,12 @@ public class TelegramService {
     }
 
     public boolean goUpBusinessMenu(long chatId) {
-        return userSessionService.goUpBusinessMenu(chatId, menuConfigurationProvider.getRootMenuId());
+        boolean moved = userSessionService.goUpBusinessMenu(chatId, menuConfigurationProvider.getRootMenuId());
+        if (moved) {
+            userSessionService.clearMenuContext(chatId);
+            userSessionService.clearPendingFunctionMenu(chatId);
+        }
+        return moved;
     }
 
     public boolean goUpLoginMenu(long chatId) {

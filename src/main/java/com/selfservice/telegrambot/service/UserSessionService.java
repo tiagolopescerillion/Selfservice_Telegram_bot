@@ -62,6 +62,8 @@ public class UserSessionService {
     private final Map<Long, List<String>> menuPathByChat = new ConcurrentHashMap<>();
     private final Map<Long, List<String>> loginMenuPathByChat = new ConcurrentHashMap<>();
     private final Map<Long, Boolean> optInByChat = new ConcurrentHashMap<>();
+    private final Map<Long, String> menuContextByChat = new ConcurrentHashMap<>();
+    private final Map<Long, PendingFunctionMenu> pendingFunctionMenusByChat = new ConcurrentHashMap<>();
 
     public void save(long chatId, String accessToken, String refreshToken, String idToken, long expiresInSeconds,
             String exchangeId) {
@@ -324,6 +326,8 @@ public class UserSessionService {
         languageByChat.remove(chatId);
         menuPathByChat.remove(chatId);
         optInByChat.remove(chatId);
+        menuContextByChat.remove(chatId);
+        pendingFunctionMenusByChat.remove(chatId);
     }
 
     public String getRefreshToken(long chatId) {
@@ -364,6 +368,8 @@ public class UserSessionService {
 
     public void resetBusinessMenu(long chatId, String rootMenuId) {
         menuPathByChat.put(chatId, new ArrayList<>(List.of(rootMenuId)));
+        clearMenuContext(chatId);
+        clearPendingFunctionMenu(chatId);
     }
 
     public void resetLoginMenu(long chatId, String rootMenuId) {
@@ -400,6 +406,8 @@ public class UserSessionService {
             path.add(menuId);
             return path;
         });
+        clearMenuContext(chatId);
+        clearPendingFunctionMenu(chatId);
     }
 
     public void enterLoginMenu(long chatId, String menuId, String rootMenuId) {
@@ -424,6 +432,10 @@ public class UserSessionService {
             }
             return path;
         });
+        if (moved[0]) {
+            clearMenuContext(chatId);
+            clearPendingFunctionMenu(chatId);
+        }
         return moved[0];
     }
 
@@ -441,6 +453,50 @@ public class UserSessionService {
         });
         return moved[0];
     }
+
+    public void setMenuContext(long chatId, String contextMessage) {
+        if (contextMessage == null || contextMessage.isBlank()) {
+            menuContextByChat.remove(chatId);
+            return;
+        }
+        menuContextByChat.put(chatId, contextMessage);
+    }
+
+    public String getMenuContext(long chatId) {
+        return menuContextByChat.get(chatId);
+    }
+
+    public void clearMenuContext(long chatId) {
+        menuContextByChat.remove(chatId);
+    }
+
+    public void setPendingFunctionMenu(long chatId, String submenuId, String contextLabel, List<String> options) {
+        if (options == null || options.isEmpty()) {
+            pendingFunctionMenusByChat.remove(chatId);
+            return;
+        }
+        pendingFunctionMenusByChat.put(chatId, new PendingFunctionMenu(submenuId, contextLabel, List.copyOf(options)));
+    }
+
+    public PendingFunctionMenu consumePendingFunctionMenu(long chatId, String selection) {
+        PendingFunctionMenu pending = pendingFunctionMenusByChat.get(chatId);
+        if (pending == null || selection == null || selection.isBlank()) {
+            return null;
+        }
+        boolean matched = pending.options().stream()
+                .anyMatch(option -> option.equalsIgnoreCase(selection.trim()));
+        if (!matched) {
+            return null;
+        }
+        pendingFunctionMenusByChat.remove(chatId);
+        return pending;
+    }
+
+    public void clearPendingFunctionMenu(long chatId) {
+        pendingFunctionMenusByChat.remove(chatId);
+    }
+
+    public record PendingFunctionMenu(String submenuId, String contextLabel, List<String> options) { }
 
     public int getBusinessMenuDepth(long chatId, String rootMenuId) {
         List<String> path = ensureMenuPath(chatId, rootMenuId);
