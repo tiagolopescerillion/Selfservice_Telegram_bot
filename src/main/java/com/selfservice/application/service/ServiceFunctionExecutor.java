@@ -88,14 +88,14 @@ public class ServiceFunctionExecutor {
 
         if (response.body() == null || response.body().isBlank()) {
             return ExecutionResult.handled("Service call succeeded but returned an empty response.", ResponseMode.TEXT,
-                    null);
+                    null, null);
         }
 
         JsonBody jsonBody = parseBody(response.body(), response.headers().getContentType());
 
         if (definition.responseTemplate() == ServiceCatalog.ResponseTemplate.JSON) {
             log.info("Service '{}' response: {}", callbackId, jsonBody.prettyBody);
-            return ExecutionResult.handled("Service response recorded in logs.", ResponseMode.SILENT, null);
+            return ExecutionResult.handled("Service response recorded in logs.", ResponseMode.SILENT, null, null);
         }
 
         RenderResult rendered = renderOutput(definition.output(), jsonBody,
