@@ -1168,7 +1168,8 @@ public class WhatsappWebhookController {
         boolean serviceContext = directives != null && directives.serviceContextEnabled();
         sessionService.setPendingFunctionMenu(userId,
                 matchedItem == null ? null : matchedItem.submenuId(), trimmedLabel, options, execResult.contextValues(),
-                storeContext, accountContext, serviceContext, execResult.objectContextEnabled());
+                storeContext, accountContext, serviceContext, execResult.objectContextEnabled(),
+                execResult.objectContextLabel());
         String header = buildContextualPrompt(userId, trimmedLabel);
         StringBuilder prompt = new StringBuilder(header).append("\n");
         for (int i = 0; i < options.size(); i++) {
