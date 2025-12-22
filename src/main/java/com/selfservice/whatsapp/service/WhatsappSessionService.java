@@ -67,7 +67,7 @@ public class WhatsappSessionService {
     private final Map<String, PendingFunctionMenu> pendingFunctionMenusByUser = new ConcurrentHashMap<>();
     private final Map<String, ContextState> contextStateByUser = new ConcurrentHashMap<>();
 
-    public record ContextState(String accountContext, String serviceContext, String objectContext) { }
+    public record ContextState(String accountContext, String serviceContext, String objectContext, String objectLabel) { }
 
     public enum SelectionContext {
         NONE,
@@ -553,6 +553,11 @@ public class WhatsappSessionService {
     }
 
     public void updateContext(String userId, String accountContext, String serviceContext, String objectContext) {
+        updateContext(userId, accountContext, serviceContext, objectContext, null);
+    }
+
+    public void updateContext(String userId, String accountContext, String serviceContext, String objectContext,
+                              String objectLabel) {
         contextStateByUser.compute(userId, (id, existing) -> {
             String accountValue = accountContext == null ? (existing == null ? null : existing.accountContext())
                     : (accountContext.isBlank() ? null : accountContext);
@@ -560,10 +565,15 @@ public class WhatsappSessionService {
                     : (serviceContext.isBlank() ? null : serviceContext);
             String objectValue = objectContext == null ? (existing == null ? null : existing.objectContext())
                     : (objectContext.isBlank() ? null : objectContext);
+            String objectLabelValue = objectLabel == null ? (existing == null ? null : existing.objectLabel())
+                    : (objectLabel.isBlank() ? null : objectLabel);
+            if (objectValue == null) {
+                objectLabelValue = null;
+            }
             if (accountValue == null && serviceValue == null && objectValue == null) {
                 return null;
             }
-            return new ContextState(accountValue, serviceValue, objectValue);
+            return new ContextState(accountValue, serviceValue, objectValue, objectLabelValue);
         });
     }
 
@@ -573,7 +583,7 @@ public class WhatsappSessionService {
 
     public void setPendingFunctionMenu(String userId, String submenuId, String contextLabel, List<String> options,
                                        List<String> contextValues, boolean storeContext, boolean accountContext,
-                                       boolean serviceContext, boolean objectContextEnabled) {
+                                       boolean serviceContext, boolean objectContextEnabled, String objectContextLabel) {
         if (options == null || options.isEmpty()) {
             pendingFunctionMenusByUser.remove(userId);
             return;
@@ -581,7 +591,7 @@ public class WhatsappSessionService {
         pendingFunctionMenusByUser.put(userId,
                 new PendingFunctionMenu(submenuId, contextLabel, List.copyOf(options),
                         contextValues == null ? List.of() : List.copyOf(contextValues), storeContext,
-                        accountContext, serviceContext, objectContextEnabled));
+                        accountContext, serviceContext, objectContextEnabled, objectContextLabel));
     }
 
     public PendingFunctionSelection consumePendingFunctionMenu(String userId, String selection) {
@@ -627,7 +637,8 @@ public class WhatsappSessionService {
 
     public record PendingFunctionMenu(String submenuId, String contextLabel, List<String> options,
                                       List<String> contextValues, boolean storeContext,
-                                      boolean accountContext, boolean serviceContext, boolean objectContextEnabled) { }
+                                      boolean accountContext, boolean serviceContext, boolean objectContextEnabled,
+                                      String objectContextLabel) { }
 
     public record PendingFunctionSelection(PendingFunctionMenu menu, String selection, String objectContextValue) { }
 

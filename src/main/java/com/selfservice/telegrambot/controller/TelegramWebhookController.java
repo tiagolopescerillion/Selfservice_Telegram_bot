@@ -687,24 +687,24 @@ public class TelegramWebhookController {
                         UserSessionService.PendingSelection pendingMenu = userSessionService
                                 .consumePendingFunctionMenu(chatId, text);
                         if (pendingMenu != null) {
-                            String contextMessage = pendingMenu.menu().storeContext()
-                                    ? buildFunctionMenuSelectionMessage(pendingMenu.menu().contextLabel(), text)
-                                    : null;
-                            if (pendingMenu.menu().storeContext()) {
-                                userSessionService.setMenuContext(chatId, contextMessage);
-                            } else {
-                                userSessionService.clearMenuContext(chatId);
-                            }
+                            String contextMessage = null;
                             if (pendingMenu.menu().objectContextEnabled()
                                     && pendingMenu.objectContextValue() != null
                                     && !pendingMenu.objectContextValue().isBlank()) {
                                 AccountSummary acc = userSessionService.getSelectedAccount(chatId);
                                 ServiceSummary svc = userSessionService.getSelectedService(chatId);
-                                userSessionService.updateContext(chatId, null, null, pendingMenu.objectContextValue());
+                                userSessionService.updateContext(chatId, null, null, pendingMenu.objectContextValue(),
+                                        pendingMenu.menu().objectContextLabel());
                                 contextTraceLogger.logContext(
                                         acc == null ? "<none>" : acc.accountId(),
                                         svc == null ? "<none>" : svc.productId(),
                                         pendingMenu.objectContextValue());
+                                contextMessage = buildContextualPrompt(chatId, pendingMenu.menu().objectContextLabel());
+                            }
+                            if (pendingMenu.menu().storeContext()) {
+                                userSessionService.setMenuContext(chatId, contextMessage);
+                            } else {
+                                userSessionService.clearMenuContext(chatId);
                             }
                             if (pendingMenu.menu().submenuId() != null && !pendingMenu.menu().submenuId().isBlank()) {
                                 telegramService.goToBusinessMenu(chatId, pendingMenu.menu().submenuId());
@@ -805,7 +805,7 @@ public class TelegramWebhookController {
         BusinessMenuItem.ContextDirectives directives = matchedItem.contextDirectives();
         userSessionService.setPendingFunctionMenu(chatId, matchedItem.submenuId(), trimmedLabel, options,
                 execResult.contextValues(), storeContext, directives.accountContextEnabled(),
-                directives.serviceContextEnabled(), execResult.objectContextEnabled());
+                directives.serviceContextEnabled(), execResult.objectContextEnabled(), execResult.objectContextLabel());
         String prompt = buildContextualPrompt(chatId, trimmedLabel);
         telegramService.sendCardMessage(chatId, prompt, options);
         return true;
@@ -825,25 +825,24 @@ public class TelegramWebhookController {
         String trimmedLabel = contextLabel == null || contextLabel.isBlank() ? null : contextLabel.trim();
 
         if (options.size() == 1) {
-            String contextMessage = storeContext
-                    ? buildFunctionMenuSelectionMessage(trimmedLabel, options.get(0))
-                    : null;
-            if (storeContext) {
-                userSessionService.setMenuContext(chatId, contextMessage);
-            } else {
-                userSessionService.clearMenuContext(chatId);
-            }
+            String contextMessage = null;
             if (execResult.objectContextEnabled()
                     && execResult.contextValues() != null && !execResult.contextValues().isEmpty()) {
                 String ctxValue = execResult.contextValues().get(0);
-                userSessionService.updateContext(chatId, null, null, ctxValue);
+                userSessionService.updateContext(chatId, null, null, ctxValue, execResult.objectContextLabel());
                 AccountSummary acc = userSessionService.getSelectedAccount(chatId);
                 ServiceSummary svc = userSessionService.getSelectedService(chatId);
                 contextTraceLogger.logContext(acc == null ? "<none>" : acc.accountId(),
                         svc == null ? "<none>" : svc.productId(),
                         ctxValue == null ? "<none>" : ctxValue);
+                contextMessage = buildContextualPrompt(chatId, execResult.objectContextLabel());
             } else {
                 userSessionService.updateContext(chatId, null, null, null);
+            }
+            if (storeContext) {
+                userSessionService.setMenuContext(chatId, contextMessage);
+            } else {
+                userSessionService.clearMenuContext(chatId);
             }
             userSessionService.clearPendingFunctionMenu(chatId);
             telegramService.sendLoggedInMenu(chatId, selectedAccount,
@@ -857,7 +856,8 @@ public class TelegramWebhookController {
         boolean serviceContext = directives != null && directives.serviceContextEnabled();
         userSessionService.setPendingFunctionMenu(chatId,
                 matchedItem == null ? null : matchedItem.submenuId(), trimmedLabel, options, execResult.contextValues(),
-                storeContext, accountContext, serviceContext, execResult.objectContextEnabled());
+                storeContext, accountContext, serviceContext, execResult.objectContextEnabled(),
+                execResult.objectContextLabel());
         String prompt = buildContextualPrompt(chatId, trimmedLabel);
         if (execResult.mode() == ServiceFunctionExecutor.ResponseMode.CARD) {
             telegramService.sendCardMessage(chatId, prompt, options);
@@ -884,14 +884,17 @@ public class TelegramWebhookController {
         StringBuilder header = new StringBuilder();
         if (contextState != null) {
             if (contextState.accountContext() != null && !contextState.accountContext().isBlank()) {
-                header.append("Account # ").append(contextState.accountContext().trim()).append('\n');
+                header.append("Account ").append(contextState.accountContext().trim()).append('\n');
             }
             if (contextState.serviceContext() != null && !contextState.serviceContext().isBlank()) {
-                header.append("Telefone # ").append(contextState.serviceContext().trim()).append('\n');
+                header.append("Access Number ").append(contextState.serviceContext().trim()).append('\n');
             }
             if (contextState.objectContext() != null && !contextState.objectContext().isBlank()) {
-                String label = (objectLabel == null || objectLabel.isBlank()) ? "Object" : objectLabel.trim();
-                header.append(label).append(' ').append(contextState.objectContext().trim()).append(" selected").append('\n');
+                String label = (contextState.objectLabel() != null && !contextState.objectLabel().isBlank())
+                        ? contextState.objectLabel().trim()
+                        : (objectLabel == null || objectLabel.isBlank() ? "Object" : objectLabel.trim());
+                header.append(label).append(' ').append(contextState.objectContext().trim()).append(" selected")
+                        .append('\n');
             }
         }
         header.append("Choose an option");

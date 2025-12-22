@@ -586,23 +586,22 @@ public class WhatsappWebhookController {
         WhatsappSessionService.PendingFunctionSelection pendingMenuSelection =
                 sessionService.consumePendingFunctionMenu(userId, body);
         if (pendingMenuSelection != null) {
-            String contextMessage = pendingMenuSelection.menu().storeContext()
-                    ? buildFunctionMenuSelectionMessage(
-                            pendingMenuSelection.menu().contextLabel(), pendingMenuSelection.selection())
-                    : null;
-            if (pendingMenuSelection.menu().storeContext()) {
-                sessionService.setMenuContext(userId, contextMessage);
-            } else {
-                sessionService.clearMenuContext(userId);
-            }
+            String contextMessage = null;
             if (pendingMenuSelection.menu().objectContextEnabled()
                     && pendingMenuSelection.objectContextValue() != null
                     && !pendingMenuSelection.objectContextValue().isBlank()) {
-                sessionService.updateContext(userId, null, null, pendingMenuSelection.objectContextValue());
+                sessionService.updateContext(userId, null, null, pendingMenuSelection.objectContextValue(),
+                        pendingMenuSelection.menu().objectContextLabel());
                 AccountSummary acc = sessionService.getSelectedAccount(userId);
                 ServiceSummary svc = sessionService.getSelectedService(userId);
                 contextTraceLogger.logContext(acc == null ? "<none>" : acc.accountId(),
                         svc == null ? "<none>" : svc.productId(), pendingMenuSelection.objectContextValue());
+                contextMessage = buildContextualPrompt(userId, pendingMenuSelection.menu().objectContextLabel());
+            }
+            if (pendingMenuSelection.menu().storeContext()) {
+                sessionService.setMenuContext(userId, contextMessage);
+            } else {
+                sessionService.clearMenuContext(userId);
             }
             if (pendingMenuSelection.menu().submenuId() != null
                     && !pendingMenuSelection.menu().submenuId().isBlank()) {
@@ -1082,24 +1081,23 @@ public class WhatsappWebhookController {
         }
 
         if (options.size() == 1) {
-            String contextMessage = storeContext
-                    ? buildFunctionMenuSelectionMessage(trimmedLabel, options.get(0))
-                    : null;
-            if (storeContext) {
-                sessionService.setMenuContext(userId, contextMessage);
-            } else {
-                sessionService.clearMenuContext(userId);
-            }
+            String contextMessage = null;
             if (execResult.objectContextEnabled()
                     && execResult.contextValues() != null && !execResult.contextValues().isEmpty()) {
                 String ctxValue = execResult.contextValues().get(0);
-                sessionService.updateContext(userId, null, null, ctxValue);
+                sessionService.updateContext(userId, null, null, ctxValue, execResult.objectContextLabel());
                 AccountSummary acc = sessionService.getSelectedAccount(userId);
                 ServiceSummary svc = sessionService.getSelectedService(userId);
                 contextTraceLogger.logContext(acc == null ? "<none>" : acc.accountId(),
                         svc == null ? "<none>" : svc.productId(), ctxValue == null ? "<none>" : ctxValue);
+                contextMessage = buildContextualPrompt(userId, execResult.objectContextLabel());
             } else {
                 sessionService.updateContext(userId, null, null, null);
+            }
+            if (storeContext) {
+                sessionService.setMenuContext(userId, contextMessage);
+            } else {
+                sessionService.clearMenuContext(userId);
             }
             sessionService.clearPendingFunctionMenu(userId);
             if (matchedItem.submenuId() != null && !matchedItem.submenuId().isBlank()) {
@@ -1114,7 +1112,7 @@ public class WhatsappWebhookController {
         BusinessMenuItem.ContextDirectives directives = matchedItem.contextDirectives();
         sessionService.setPendingFunctionMenu(userId, matchedItem.submenuId(), trimmedLabel, options,
                 execResult.contextValues(), storeContext, directives.accountContextEnabled(),
-                directives.serviceContextEnabled(), execResult.objectContextEnabled());
+                directives.serviceContextEnabled(), execResult.objectContextEnabled(), execResult.objectContextLabel());
         String header = buildContextualPrompt(userId, trimmedLabel);
         StringBuilder prompt = new StringBuilder(header).append("\n");
         for (int i = 0; i < options.size(); i++) {
@@ -1194,13 +1192,15 @@ public class WhatsappWebhookController {
         StringBuilder header = new StringBuilder();
         if (contextState != null) {
             if (contextState.accountContext() != null && !contextState.accountContext().isBlank()) {
-                header.append("Account # ").append(contextState.accountContext().trim()).append('\n');
+                header.append("Account ").append(contextState.accountContext().trim()).append('\n');
             }
             if (contextState.serviceContext() != null && !contextState.serviceContext().isBlank()) {
-                header.append("Telefone # ").append(contextState.serviceContext().trim()).append('\n');
+                header.append("Access Number ").append(contextState.serviceContext().trim()).append('\n');
             }
             if (contextState.objectContext() != null && !contextState.objectContext().isBlank()) {
-                String label = (objectLabel == null || objectLabel.isBlank()) ? "Object" : objectLabel.trim();
+                String label = (contextState.objectLabel() != null && !contextState.objectLabel().isBlank())
+                        ? contextState.objectLabel().trim()
+                        : (objectLabel == null || objectLabel.isBlank() ? "Object" : objectLabel.trim());
                 header.append(label).append(' ').append(contextState.objectContext().trim()).append(" selected").append('\n');
             }
         }

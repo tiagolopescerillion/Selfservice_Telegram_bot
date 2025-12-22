@@ -97,12 +97,13 @@ public class ServiceFunctionExecutor {
         if (response.body() == null || response.body().isBlank()) {
             logContextTrace(account, service, null);
             return ExecutionResult.handled("Service call succeeded but returned an empty response.", ResponseMode.TEXT,
-                    null, null, null, false);
+                    null, null, null, false, null);
         }
 
         JsonBody jsonBody = parseBody(response.body(), response.headers().getContentType());
 
         boolean objectContextEnabled = hasObjectContext(definition.outputs());
+        String objectContextLabel = resolveObjectContextLabel(definition.outputs());
         int itemCount = jsonBody.node != null && jsonBody.node.isArray() ? jsonBody.node.size() : 1;
         String objectContextValue = (itemCount == 1) ? extractObjectContext(definition.outputs(), jsonBody) : null;
         logContextTrace(account, service, objectContextValue);
@@ -110,7 +111,7 @@ public class ServiceFunctionExecutor {
         if (definition.responseTemplate() == ServiceCatalog.ResponseTemplate.JSON) {
             log.info("Service '{}' response: {}", callbackId, jsonBody.prettyBody);
             return ExecutionResult.handled("Service response recorded in logs.", ResponseMode.SILENT, null, null,
-                    null, objectContextEnabled);
+                    null, objectContextEnabled, objectContextLabel);
         }
 
         RenderResult rendered = renderOutput(definition.outputs(), jsonBody,
@@ -122,11 +123,11 @@ public class ServiceFunctionExecutor {
         }
         if (definition.responseTemplate() == ServiceCatalog.ResponseTemplate.CARD) {
             return ExecutionResult.handled(messageText, ResponseMode.CARD, rendered.buttons(), rendered.options(),
-                    rendered.contextValues(), objectContextEnabled);
+                    rendered.contextValues(), objectContextEnabled, objectContextLabel);
         }
 
         return ExecutionResult.handled(messageText, ResponseMode.TEXT, null, rendered.options(), rendered.contextValues(),
-                objectContextEnabled);
+                objectContextEnabled, objectContextLabel);
     }
 
     private Map<String, String> buildQuery(ServiceCatalog.ServiceDefinition definition, AccountSummary account,
@@ -219,6 +220,17 @@ public class ServiceFunctionExecutor {
             return false;
         }
         return fields.stream().anyMatch(ServiceCatalog.OutputField::objectContext);
+    }
+
+    private String resolveObjectContextLabel(java.util.List<ServiceCatalog.OutputField> fields) {
+        if (fields == null) {
+            return null;
+        }
+        return fields.stream()
+                .filter(ServiceCatalog.OutputField::objectContext)
+                .findFirst()
+                .map(field -> (field.label() == null || field.label().isBlank()) ? field.field() : field.label())
+                .orElse(null);
     }
 
     private String extractObjectContext(java.util.List<ServiceCatalog.OutputField> fields, JsonBody body) {
@@ -420,24 +432,25 @@ public class ServiceFunctionExecutor {
 
     public record ExecutionResult(boolean handled, String message, ResponseMode mode, java.util.List<String> buttons,
                                   java.util.List<String> options, java.util.List<String> contextValues,
-                                  boolean objectContextEnabled) {
+                                  boolean objectContextEnabled, String objectContextLabel) {
         public static ExecutionResult handled(String message) {
             return new ExecutionResult(true, message, ResponseMode.TEXT, java.util.Collections.emptyList(),
-                    java.util.Collections.emptyList(), java.util.Collections.emptyList(), false);
+                    java.util.Collections.emptyList(), java.util.Collections.emptyList(), false, null);
         }
 
         public static ExecutionResult handled(String message, ResponseMode mode, java.util.List<String> buttons,
-                java.util.List<String> options, java.util.List<String> contextValues, boolean objectContextEnabled) {
+                java.util.List<String> options, java.util.List<String> contextValues, boolean objectContextEnabled,
+                String objectContextLabel) {
             return new ExecutionResult(true, message, mode,
                     buttons == null ? java.util.Collections.emptyList() : buttons,
                     options == null ? java.util.Collections.emptyList() : options,
                     contextValues == null ? java.util.Collections.emptyList() : contextValues,
-                    objectContextEnabled);
+                    objectContextEnabled, objectContextLabel);
         }
 
         public static ExecutionResult notHandled() {
             return new ExecutionResult(false, null, ResponseMode.TEXT, java.util.Collections.emptyList(),
-                    java.util.Collections.emptyList(), java.util.Collections.emptyList(), false);
+                    java.util.Collections.emptyList(), java.util.Collections.emptyList(), false, null);
         }
     }
 

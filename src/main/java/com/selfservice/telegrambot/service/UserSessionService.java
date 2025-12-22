@@ -66,7 +66,7 @@ public class UserSessionService {
     private final Map<Long, PendingFunctionMenu> pendingFunctionMenusByChat = new ConcurrentHashMap<>();
     private final Map<Long, ContextState> contextStateByChat = new ConcurrentHashMap<>();
 
-    public record ContextState(String accountContext, String serviceContext, String objectContext) { }
+    public record ContextState(String accountContext, String serviceContext, String objectContext, String objectLabel) { }
 
     public void save(long chatId, String accessToken, String refreshToken, String idToken, long expiresInSeconds,
             String exchangeId) {
@@ -476,6 +476,11 @@ public class UserSessionService {
     }
 
     public void updateContext(long chatId, String accountContext, String serviceContext, String objectContext) {
+        updateContext(chatId, accountContext, serviceContext, objectContext, null);
+    }
+
+    public void updateContext(long chatId, String accountContext, String serviceContext, String objectContext,
+                              String objectLabel) {
         contextStateByChat.compute(chatId, (id, existing) -> {
             String accountValue = accountContext == null ? (existing == null ? null : existing.accountContext())
                     : (accountContext.isBlank() ? null : accountContext);
@@ -483,10 +488,15 @@ public class UserSessionService {
                     : (serviceContext.isBlank() ? null : serviceContext);
             String objectValue = objectContext == null ? (existing == null ? null : existing.objectContext())
                     : (objectContext.isBlank() ? null : objectContext);
+            String objectLabelValue = objectLabel == null ? (existing == null ? null : existing.objectLabel())
+                    : (objectLabel.isBlank() ? null : objectLabel);
+            if (objectValue == null) {
+                objectLabelValue = null;
+            }
             if (accountValue == null && serviceValue == null && objectValue == null) {
                 return null;
             }
-            return new ContextState(accountValue, serviceValue, objectValue);
+            return new ContextState(accountValue, serviceValue, objectValue, objectLabelValue);
         });
     }
 
@@ -496,7 +506,7 @@ public class UserSessionService {
 
     public void setPendingFunctionMenu(long chatId, String submenuId, String contextLabel, List<String> options,
                                        List<String> contextValues, boolean storeContext, boolean accountContext,
-                                       boolean serviceContext, boolean objectContextEnabled) {
+                                       boolean serviceContext, boolean objectContextEnabled, String objectContextLabel) {
         if (options == null || options.isEmpty()) {
             pendingFunctionMenusByChat.remove(chatId);
             return;
@@ -504,7 +514,7 @@ public class UserSessionService {
         pendingFunctionMenusByChat.put(chatId,
                 new PendingFunctionMenu(submenuId, contextLabel, List.copyOf(options),
                         contextValues == null ? List.of() : List.copyOf(contextValues), storeContext,
-                        accountContext, serviceContext, objectContextEnabled));
+                        accountContext, serviceContext, objectContextEnabled, objectContextLabel));
     }
 
     public PendingSelection consumePendingFunctionMenu(long chatId, String selection) {
@@ -537,7 +547,8 @@ public class UserSessionService {
 
     public record PendingFunctionMenu(String submenuId, String contextLabel, List<String> options,
                                       List<String> contextValues, boolean storeContext,
-                                      boolean accountContext, boolean serviceContext, boolean objectContextEnabled) { }
+                                      boolean accountContext, boolean serviceContext, boolean objectContextEnabled,
+                                      String objectContextLabel) { }
 
     public record PendingSelection(PendingFunctionMenu menu, String selection, String objectContextValue) { }
 
