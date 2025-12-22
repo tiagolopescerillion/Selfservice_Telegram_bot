@@ -468,12 +468,14 @@ public class UserSessionService {
         menuContextByChat.remove(chatId);
     }
 
-    public void setPendingFunctionMenu(long chatId, String submenuId, String contextLabel, List<String> options) {
+    public void setPendingFunctionMenu(long chatId, String submenuId, String contextLabel, List<String> options,
+                                       boolean storeContext) {
         if (options == null || options.isEmpty()) {
             pendingFunctionMenusByChat.remove(chatId);
             return;
         }
-        pendingFunctionMenusByChat.put(chatId, new PendingFunctionMenu(submenuId, contextLabel, List.copyOf(options)));
+        pendingFunctionMenusByChat.put(chatId,
+                new PendingFunctionMenu(submenuId, contextLabel, List.copyOf(options), storeContext));
     }
 
     public PendingFunctionMenu consumePendingFunctionMenu(long chatId, String selection) {
@@ -494,7 +496,7 @@ public class UserSessionService {
         pendingFunctionMenusByChat.remove(chatId);
     }
 
-    public record PendingFunctionMenu(String submenuId, String contextLabel, List<String> options) { }
+    public record PendingFunctionMenu(String submenuId, String contextLabel, List<String> options, boolean storeContext) { }
 
     public int getBusinessMenuDepth(long chatId, String rootMenuId) {
         List<String> path = ensureMenuPath(chatId, rootMenuId);

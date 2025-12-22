@@ -545,13 +545,14 @@ public class WhatsappSessionService {
         menuContextByUser.remove(userId);
     }
 
-    public void setPendingFunctionMenu(String userId, String submenuId, String contextLabel, List<String> options) {
+    public void setPendingFunctionMenu(String userId, String submenuId, String contextLabel, List<String> options,
+                                       boolean storeContext) {
         if (options == null || options.isEmpty()) {
             pendingFunctionMenusByUser.remove(userId);
             return;
         }
         pendingFunctionMenusByUser.put(userId,
-                new PendingFunctionMenu(submenuId, contextLabel, List.copyOf(options)));
+                new PendingFunctionMenu(submenuId, contextLabel, List.copyOf(options), storeContext));
     }
 
     public PendingFunctionSelection consumePendingFunctionMenu(String userId, String selection) {
@@ -584,7 +585,7 @@ public class WhatsappSessionService {
         pendingFunctionMenusByUser.remove(userId);
     }
 
-    public record PendingFunctionMenu(String submenuId, String contextLabel, List<String> options) { }
+    public record PendingFunctionMenu(String submenuId, String contextLabel, List<String> options, boolean storeContext) { }
 
     public record PendingFunctionSelection(PendingFunctionMenu menu, String selection) { }
 

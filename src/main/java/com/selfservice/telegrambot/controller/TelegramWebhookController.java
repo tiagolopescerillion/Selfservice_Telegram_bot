@@ -683,8 +683,14 @@ public class TelegramWebhookController {
                         UserSessionService.PendingFunctionMenu pendingMenu = userSessionService
                                 .consumePendingFunctionMenu(chatId, text);
                         if (pendingMenu != null) {
-                            String contextMessage = buildFunctionMenuSelectionMessage(pendingMenu.contextLabel(), text);
-                            userSessionService.setMenuContext(chatId, contextMessage);
+                            String contextMessage = pendingMenu.storeContext()
+                                    ? buildFunctionMenuSelectionMessage(pendingMenu.contextLabel(), text)
+                                    : null;
+                            if (pendingMenu.storeContext()) {
+                                userSessionService.setMenuContext(chatId, contextMessage);
+                            } else {
+                                userSessionService.clearMenuContext(chatId);
+                            }
                             if (pendingMenu.submenuId() != null && !pendingMenu.submenuId().isBlank()) {
                                 telegramService.goToBusinessMenu(chatId, pendingMenu.submenuId());
                             }
@@ -704,6 +710,10 @@ public class TelegramWebhookController {
                             }
                         }
                         if (execResult.handled()) {
+                            boolean handledOptions = handleFunctionOptions(chatId, matchedItem, execResult, selected);
+                            if (handledOptions) {
+                                break;
+                            }
                             if (execResult.mode() == ServiceFunctionExecutor.ResponseMode.CARD) {
                                 telegramService.sendCardMessage(chatId, execResult.message(), execResult.buttons());
                             } else {
@@ -736,6 +746,7 @@ public class TelegramWebhookController {
                 ? null
                 : matchedItem.contextDirectives().resolvedLabel();
         String trimmedLabel = contextLabel == null || contextLabel.isBlank() ? null : contextLabel.trim();
+        boolean storeContext = matchedItem.contextDirectives() != null && matchedItem.contextDirectives().menuContextEnabled();
 
         if (options.isEmpty()) {
             String message = trimmedLabel == null ? "No records found" : "No " + trimmedLabel + " found.";
@@ -746,8 +757,14 @@ public class TelegramWebhookController {
         }
 
         if (options.size() == 1) {
-            String contextMessage = buildFunctionMenuSelectionMessage(trimmedLabel, options.get(0));
-            userSessionService.setMenuContext(chatId, contextMessage);
+            String contextMessage = storeContext
+                    ? buildFunctionMenuSelectionMessage(trimmedLabel, options.get(0))
+                    : null;
+            if (storeContext) {
+                userSessionService.setMenuContext(chatId, contextMessage);
+            } else {
+                userSessionService.clearMenuContext(chatId);
+            }
             userSessionService.clearPendingFunctionMenu(chatId);
             if (matchedItem.submenuId() != null && !matchedItem.submenuId().isBlank()) {
                 telegramService.goToBusinessMenu(chatId, matchedItem.submenuId());
@@ -758,7 +775,7 @@ public class TelegramWebhookController {
         }
 
         userSessionService.clearMenuContext(chatId);
-        userSessionService.setPendingFunctionMenu(chatId, matchedItem.submenuId(), trimmedLabel, options);
+        userSessionService.setPendingFunctionMenu(chatId, matchedItem.submenuId(), trimmedLabel, options, storeContext);
         String prompt = trimmedLabel == null || trimmedLabel.isBlank()
                 ? execResult.message()
                 : trimmedLabel;
@@ -766,6 +783,55 @@ public class TelegramWebhookController {
             prompt = "Select an option.";
         }
         telegramService.sendCardMessage(chatId, prompt, options);
+        return true;
+    }
+
+    private boolean handleFunctionOptions(long chatId, BusinessMenuItem matchedItem,
+            ServiceFunctionExecutor.ExecutionResult execResult, AccountSummary selectedAccount) {
+        List<String> options = execResult.options() == null ? List.of() : execResult.options();
+        if (options.isEmpty()) {
+            return false;
+        }
+        boolean storeContext = matchedItem != null && matchedItem.contextDirectives() != null
+                && matchedItem.contextDirectives().menuContextEnabled();
+        String contextLabel = matchedItem != null && matchedItem.contextDirectives() != null
+                ? matchedItem.contextDirectives().resolvedLabel()
+                : null;
+        String trimmedLabel = contextLabel == null || contextLabel.isBlank() ? null : contextLabel.trim();
+
+        if (options.size() == 1) {
+            String contextMessage = storeContext
+                    ? buildFunctionMenuSelectionMessage(trimmedLabel, options.get(0))
+                    : null;
+            if (storeContext) {
+                userSessionService.setMenuContext(chatId, contextMessage);
+            } else {
+                userSessionService.clearMenuContext(chatId);
+            }
+            userSessionService.clearPendingFunctionMenu(chatId);
+            telegramService.sendLoggedInMenu(chatId, selectedAccount,
+                    userSessionService.getAccounts(chatId).size() > 1, contextMessage);
+            return true;
+        }
+
+        userSessionService.clearMenuContext(chatId);
+        userSessionService.setPendingFunctionMenu(chatId,
+                matchedItem == null ? null : matchedItem.submenuId(), trimmedLabel, options, storeContext);
+        String prompt = trimmedLabel == null || trimmedLabel.isBlank()
+                ? execResult.message()
+                : trimmedLabel;
+        if (prompt == null || prompt.isBlank()) {
+            prompt = "Select an option.";
+        }
+        if (execResult.mode() == ServiceFunctionExecutor.ResponseMode.CARD) {
+            telegramService.sendCardMessage(chatId, prompt, options);
+        } else {
+            StringBuilder builder = new StringBuilder(prompt.strip()).append("\n");
+            for (int i = 0; i < options.size(); i++) {
+                builder.append(i + 1).append(") ").append(options.get(i)).append('\n');
+            }
+            telegramService.sendMessage(chatId, builder.toString());
+        }
         return true;
     }
 
