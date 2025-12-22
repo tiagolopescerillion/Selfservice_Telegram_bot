@@ -14,6 +14,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
+import org.springframework.web.util.UriComponentsBuilder;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -75,11 +76,15 @@ public class ServiceFunctionExecutor {
 
         String url = resolvePlaceholders(maybeApi.get().url());
         Map<String, String> query = buildQuery(definition, account, service, contextDirectives);
+        String targetUrl = buildTargetUrl(url, query);
 
         CommonApiService.ApiResponse response = commonApiService.execute(
                 new CommonApiService.ApiRequest(url, HttpMethod.GET, accessToken, query, new HttpHeaders(), null));
 
+        logApiTrace(definition.apiName(), targetUrl, response);
+
         if (!response.success()) {
+            logContextTrace(account, service, null);
             String error = response.statusCode() == 0
                     ? response.errorMessage()
                     : ("HTTP " + response.statusCode());
@@ -87,11 +92,15 @@ public class ServiceFunctionExecutor {
         }
 
         if (response.body() == null || response.body().isBlank()) {
+            logContextTrace(account, service, null);
             return ExecutionResult.handled("Service call succeeded but returned an empty response.", ResponseMode.TEXT,
                     null, null);
         }
 
         JsonBody jsonBody = parseBody(response.body(), response.headers().getContentType());
+
+        String objectContextValue = extractObjectContext(definition.outputs(), jsonBody);
+        logContextTrace(account, service, objectContextValue);
 
         if (definition.responseTemplate() == ServiceCatalog.ResponseTemplate.JSON) {
             log.info("Service '{}' response: {}", callbackId, jsonBody.prettyBody);
@@ -156,6 +165,66 @@ public class ServiceFunctionExecutor {
             return service.productId();
         }
         return current;
+    }
+
+    private String buildTargetUrl(String baseUrl, Map<String, String> params) {
+        if (baseUrl == null || baseUrl.isBlank()) {
+            return "<unknown>";
+        }
+        try {
+            UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(baseUrl);
+            if (params != null) {
+                params.forEach(builder::queryParam);
+            }
+            return builder.build(true).toUriString();
+        } catch (Exception ex) {
+            return baseUrl;
+        }
+    }
+
+    private void logApiTrace(String apiName, String requestUrl, CommonApiService.ApiResponse response) {
+        if (!isFlagEnabled("test.api")) {
+            return;
+        }
+        String status = response == null ? "<no-response>" : String.valueOf(response.statusCode());
+        String body = response == null ? "<null>" : (response.body() == null ? "<empty>" : response.body());
+        log.info("-----------\nAPI: {}\n- Request: {}\n- Response: {} {}\n-----------", apiName, requestUrl, status, body);
+    }
+
+    private void logContextTrace(AccountSummary account, ServiceSummary service, String objectContextValue) {
+        if (!isFlagEnabled("test.context")) {
+            return;
+        }
+        String accountValue = account == null ? "<none>" : String.valueOf(account.accountId());
+        String serviceValue = service == null ? "<none>" : String.valueOf(service.productId());
+        String objectValue = (objectContextValue == null || objectContextValue.isBlank()) ? "<none>" : objectContextValue;
+        log.info("-----------\nContext:\n- Account = {}\n- Service = {}\n- Object = {}\n-----------", accountValue, serviceValue, objectValue);
+    }
+
+    private boolean isFlagEnabled(String property) {
+        if (environment == null || property == null) {
+            return false;
+        }
+        String raw = environment.getProperty(property, "no");
+        return "yes".equalsIgnoreCase(raw.trim());
+    }
+
+    private String extractObjectContext(java.util.List<ServiceCatalog.OutputField> fields, JsonBody body) {
+        if (body == null || body.node == null || fields == null) {
+            return null;
+        }
+        return fields.stream()
+                .filter(ServiceCatalog.OutputField::objectContext)
+                .findFirst()
+                .map(field -> {
+                    JsonNode root = body.node.isArray() && body.node.size() > 0 ? body.node.get(0) : body.node;
+                    JsonNode value = resolvePath(root, field.field());
+                    if (value == null || value.isMissingNode() || value.isNull()) {
+                        return null;
+                    }
+                    return value.isTextual() ? value.asText() : value.toString();
+                })
+                .orElse(null);
     }
 
     private String resolvePlaceholders(String value) {

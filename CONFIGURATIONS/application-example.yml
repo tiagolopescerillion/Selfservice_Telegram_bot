@@ -31,6 +31,10 @@ logging:
   level:
     root: INFO  # Default log level; override with DEBUG for more verbose output
 
+test:
+  context: "no"  # When "yes", log account/service/object context values around service calls
+  api: "no"      # When "yes", log outbound API requests and responses
+
 app:
   public-base-url: YOUR_SERVER_PUBLIC_URL  # Base URL exposed to the internet (used to build webhook callbacks)
   http-logging:
