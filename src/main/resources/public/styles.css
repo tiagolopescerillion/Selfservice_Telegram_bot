@@ -737,6 +737,12 @@ button:disabled {
 .service-card__meta {
     color: #475569;
     font-size: 14px;
+    word-break: break-word;
+    overflow-wrap: anywhere;
+}
+
+.service-card__meta--query {
+    white-space: pre-wrap;
 }
 
 .service-card__outputs {
@@ -831,6 +837,19 @@ button:disabled {
     display: flex;
     justify-content: space-between;
     align-items: center;
+}
+
+.service-query-textarea {
+    width: 100%;
+    min-height: 120px;
+    resize: vertical;
+    padding: 0.65rem 0.75rem;
+    border: 1px solid var(--border);
+    border-radius: 0.5rem;
+    font: inherit;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
 }
 
 .output-fields {

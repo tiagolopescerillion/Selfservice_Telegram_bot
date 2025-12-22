@@ -540,7 +540,7 @@ function normalizeServiceDefinition(service = {}) {
 
 function createBlankServiceDefinition() {
   return normalizeServiceDefinition({
-    name: `service-${serviceBuilderEntries.length + 1}`,
+    name: "",
     apiName: apiRegistryEntries[0]?.name || "",
     outputs: [{ field: "", label: "", objectContext: false }]
   });
@@ -2185,7 +2185,7 @@ function renderServiceList() {
     header.append(title, meta);
 
     const queryLine = document.createElement("div");
-    queryLine.className = "service-card__meta";
+    queryLine.className = "service-card__meta service-card__meta--query";
     queryLine.textContent = `Query Parameters: ${formatQueryParams(service.queryParameters) || "None"}`;
 
     const outputsBox = document.createElement("div");
