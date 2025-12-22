@@ -211,7 +211,8 @@ public class ServiceCatalog {
         }
         String field = normalize(raw.get("Field"));
         String label = normalize(raw.get("Label"));
-        boolean objectContext = Boolean.parseBoolean(String.valueOf(raw.getOrDefault("Object Context", false)));
+        Object rawObjectContext = raw.getOrDefault("Object Context", Boolean.FALSE);
+        boolean objectContext = Boolean.parseBoolean(String.valueOf(rawObjectContext));
         if (!StringUtils.hasText(field)) {
             return null;
         }
