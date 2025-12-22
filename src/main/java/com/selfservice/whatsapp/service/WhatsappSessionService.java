@@ -572,14 +572,16 @@ public class WhatsappSessionService {
     }
 
     public void setPendingFunctionMenu(String userId, String submenuId, String contextLabel, List<String> options,
-                                       boolean storeContext, boolean accountContext, boolean serviceContext) {
+                                       List<String> contextValues, boolean storeContext, boolean accountContext,
+                                       boolean serviceContext, boolean objectContextEnabled) {
         if (options == null || options.isEmpty()) {
             pendingFunctionMenusByUser.remove(userId);
             return;
         }
         pendingFunctionMenusByUser.put(userId,
-                new PendingFunctionMenu(submenuId, contextLabel, List.copyOf(options), storeContext,
-                        accountContext, serviceContext));
+                new PendingFunctionMenu(submenuId, contextLabel, List.copyOf(options),
+                        contextValues == null ? List.of() : List.copyOf(contextValues), storeContext,
+                        accountContext, serviceContext, objectContextEnabled));
     }
 
     public PendingFunctionSelection consumePendingFunctionMenu(String userId, String selection) {
@@ -588,15 +590,26 @@ public class WhatsappSessionService {
             return null;
         }
         String trimmed = selection.trim();
-        String matched = pending.options().stream()
-                .filter(option -> option.equalsIgnoreCase(trimmed))
-                .findFirst()
-                .orElse(null);
+        String matched = null;
+        String matchedContext = null;
+        for (int i = 0; i < pending.options().size(); i++) {
+            String option = pending.options().get(i);
+            if (option != null && option.equalsIgnoreCase(trimmed)) {
+                matched = option;
+                if (pending.contextValues().size() > i) {
+                    matchedContext = pending.contextValues().get(i);
+                }
+                break;
+            }
+        }
         if (matched == null) {
             try {
                 int numeric = Integer.parseInt(trimmed);
                 if (numeric >= 1 && numeric <= pending.options().size()) {
                     matched = pending.options().get(numeric - 1);
+                    if (pending.contextValues().size() >= numeric) {
+                        matchedContext = pending.contextValues().get(numeric - 1);
+                    }
                 }
             } catch (Exception ignored) {
             }
@@ -605,17 +618,18 @@ public class WhatsappSessionService {
             return null;
         }
         pendingFunctionMenusByUser.remove(userId);
-        return new PendingFunctionSelection(pending, matched);
+        return new PendingFunctionSelection(pending, matched, matchedContext);
     }
 
     public void clearPendingFunctionMenu(String userId) {
         pendingFunctionMenusByUser.remove(userId);
     }
 
-    public record PendingFunctionMenu(String submenuId, String contextLabel, List<String> options, boolean storeContext,
-                                      boolean accountContext, boolean serviceContext) { }
+    public record PendingFunctionMenu(String submenuId, String contextLabel, List<String> options,
+                                      List<String> contextValues, boolean storeContext,
+                                      boolean accountContext, boolean serviceContext, boolean objectContextEnabled) { }
 
-    public record PendingFunctionSelection(PendingFunctionMenu menu, String selection) { }
+    public record PendingFunctionSelection(PendingFunctionMenu menu, String selection, String objectContextValue) { }
 
     private List<String> ensureMenuPath(String userId, String rootMenuId) {
         return menuPathByUser.compute(userId, (id, existing) -> {

@@ -102,7 +102,9 @@ public class ServiceFunctionExecutor {
 
         JsonBody jsonBody = parseBody(response.body(), response.headers().getContentType());
 
-        String objectContextValue = extractObjectContext(definition.outputs(), jsonBody);
+        boolean objectContextEnabled = hasObjectContext(definition.outputs());
+        int itemCount = jsonBody.node != null && jsonBody.node.isArray() ? jsonBody.node.size() : 1;
+        String objectContextValue = (itemCount == 1) ? extractObjectContext(definition.outputs(), jsonBody) : null;
         logContextTrace(account, service, objectContextValue);
 
         if (definition.responseTemplate() == ServiceCatalog.ResponseTemplate.JSON) {
@@ -118,10 +120,12 @@ public class ServiceFunctionExecutor {
             messageText = contextLabel + " select: " + messageText;
         }
         if (definition.responseTemplate() == ServiceCatalog.ResponseTemplate.CARD) {
-            return ExecutionResult.handled(messageText, ResponseMode.CARD, rendered.buttons(), rendered.options());
+            return ExecutionResult.handled(messageText, ResponseMode.CARD, rendered.buttons(), rendered.options(),
+                    rendered.contextValues(), objectContextEnabled);
         }
 
-        return ExecutionResult.handled(messageText, ResponseMode.TEXT, null, rendered.options());
+        return ExecutionResult.handled(messageText, ResponseMode.TEXT, null, rendered.options(), rendered.contextValues(),
+                objectContextEnabled);
     }
 
     private Map<String, String> buildQuery(ServiceCatalog.ServiceDefinition definition, AccountSummary account,
@@ -209,6 +213,13 @@ public class ServiceFunctionExecutor {
         return "yes".equalsIgnoreCase(raw.trim());
     }
 
+    private boolean hasObjectContext(java.util.List<ServiceCatalog.OutputField> fields) {
+        if (fields == null) {
+            return false;
+        }
+        return fields.stream().anyMatch(ServiceCatalog.OutputField::objectContext);
+    }
+
     private String extractObjectContext(java.util.List<ServiceCatalog.OutputField> fields, JsonBody body) {
         if (body == null || body.node == null || fields == null) {
             return null;
@@ -253,7 +264,8 @@ public class ServiceFunctionExecutor {
 
     private RenderResult renderOutput(java.util.List<ServiceCatalog.OutputField> outputFields, JsonBody body, boolean listMode) {
         if (body == null) {
-            return new RenderResult("", java.util.Collections.emptyList(), java.util.Collections.emptyList());
+            return new RenderResult("", java.util.Collections.emptyList(), java.util.Collections.emptyList(),
+                    java.util.Collections.emptyList());
         }
         java.util.List<ServiceCatalog.OutputField> fields = outputFields == null
                 ? java.util.Collections.emptyList()
@@ -268,11 +280,13 @@ public class ServiceFunctionExecutor {
 
     private RenderResult renderList(java.util.List<ServiceCatalog.OutputField> fields, JsonBody body) {
         java.util.List<String> labels = new java.util.ArrayList<>();
+        java.util.List<String> contextValues = new java.util.ArrayList<>();
         if (body.node != null && body.node.isArray()) {
             for (JsonNode element : body.node) {
                 String rendered = renderFields(fields, element);
                 if (!rendered.isBlank()) {
                     labels.add(rendered);
+                    contextValues.add(extractObjectContextFromNode(fields, element));
                 }
             }
         }
@@ -282,22 +296,25 @@ public class ServiceFunctionExecutor {
             if (rendered == null || rendered.isBlank()) {
                 rendered = "No data available.";
             }
-            return new RenderResult(rendered, java.util.Collections.emptyList(), java.util.Collections.emptyList());
+            return new RenderResult(rendered, java.util.Collections.emptyList(), java.util.Collections.emptyList(),
+                    java.util.Collections.emptyList());
         }
 
         if (labels.size() == 1) {
-            return new RenderResult(labels.get(0), java.util.Collections.emptyList(), labels);
+            return new RenderResult(labels.get(0), java.util.Collections.emptyList(), labels, contextValues);
         }
 
-        return new RenderResult("Select an option:", labels, labels);
+        return new RenderResult("Select an option:", labels, labels, contextValues);
     }
 
     private RenderResult renderText(java.util.List<ServiceCatalog.OutputField> fields, JsonBody body) {
         if (fields.isEmpty()) {
-            return new RenderResult(body.prettyBody, java.util.Collections.emptyList(), java.util.Collections.emptyList());
+            return new RenderResult(body.prettyBody, java.util.Collections.emptyList(), java.util.Collections.emptyList(),
+                    java.util.Collections.emptyList());
         }
         if (body.node == null) {
-            return new RenderResult(body.prettyBody, java.util.Collections.emptyList(), java.util.Collections.emptyList());
+            return new RenderResult(body.prettyBody, java.util.Collections.emptyList(), java.util.Collections.emptyList(),
+                    java.util.Collections.emptyList());
         }
         if (body.node.isArray()) {
             StringBuilder aggregated = new StringBuilder();
@@ -316,16 +333,19 @@ public class ServiceFunctionExecutor {
                 aggregated.append(rendered);
             }
             if (aggregated.length() == 0) {
-                return new RenderResult("No data available.", java.util.Collections.emptyList(), java.util.Collections.emptyList());
+                return new RenderResult("No data available.", java.util.Collections.emptyList(),
+                        java.util.Collections.emptyList(), java.util.Collections.emptyList());
             }
-            return new RenderResult(aggregated.toString(), java.util.Collections.emptyList(), java.util.Collections.emptyList());
+            return new RenderResult(aggregated.toString(), java.util.Collections.emptyList(),
+                    java.util.Collections.emptyList(), java.util.Collections.emptyList());
         }
 
         String rendered = renderFields(fields, body.node);
         if (rendered.isEmpty()) {
             rendered = "No data available.";
         }
-        return new RenderResult(rendered, java.util.Collections.emptyList(), java.util.Collections.emptyList());
+        return new RenderResult(rendered, java.util.Collections.emptyList(), java.util.Collections.emptyList(),
+                java.util.Collections.emptyList());
     }
 
     private String renderFields(java.util.List<ServiceCatalog.OutputField> fields, JsonNode root) {
@@ -349,6 +369,23 @@ public class ServiceFunctionExecutor {
             builder.append(value.isTextual() ? value.asText() : value.toString());
         }
         return builder.toString();
+    }
+
+    private String extractObjectContextFromNode(java.util.List<ServiceCatalog.OutputField> fields, JsonNode root) {
+        if (fields == null || fields.isEmpty() || root == null) {
+            return null;
+        }
+        return fields.stream()
+                .filter(ServiceCatalog.OutputField::objectContext)
+                .findFirst()
+                .map(field -> {
+                    JsonNode value = resolvePath(root, field.field());
+                    if (value == null || value.isMissingNode() || value.isNull()) {
+                        return null;
+                    }
+                    return value.isTextual() ? value.asText() : value.toString();
+                })
+                .orElse(null);
     }
 
     private JsonNode resolvePath(JsonNode root, String path) {
@@ -381,26 +418,30 @@ public class ServiceFunctionExecutor {
     public enum ResponseMode { TEXT, CARD, SILENT }
 
     public record ExecutionResult(boolean handled, String message, ResponseMode mode, java.util.List<String> buttons,
-                                  java.util.List<String> options) {
+                                  java.util.List<String> options, java.util.List<String> contextValues,
+                                  boolean objectContextEnabled) {
         public static ExecutionResult handled(String message) {
             return new ExecutionResult(true, message, ResponseMode.TEXT, java.util.Collections.emptyList(),
-                    java.util.Collections.emptyList());
+                    java.util.Collections.emptyList(), java.util.Collections.emptyList(), false);
         }
 
         public static ExecutionResult handled(String message, ResponseMode mode, java.util.List<String> buttons,
-                java.util.List<String> options) {
+                java.util.List<String> options, java.util.List<String> contextValues, boolean objectContextEnabled) {
             return new ExecutionResult(true, message, mode,
                     buttons == null ? java.util.Collections.emptyList() : buttons,
-                    options == null ? java.util.Collections.emptyList() : options);
+                    options == null ? java.util.Collections.emptyList() : options,
+                    contextValues == null ? java.util.Collections.emptyList() : contextValues,
+                    objectContextEnabled);
         }
 
         public static ExecutionResult notHandled() {
             return new ExecutionResult(false, null, ResponseMode.TEXT, java.util.Collections.emptyList(),
-                    java.util.Collections.emptyList());
+                    java.util.Collections.emptyList(), java.util.Collections.emptyList(), false);
         }
     }
 
     private record JsonBody(JsonNode node, String prettyBody) { }
 
-    private record RenderResult(String text, java.util.List<String> buttons, java.util.List<String> options) { }
+    private record RenderResult(String text, java.util.List<String> buttons, java.util.List<String> options,
+                                java.util.List<String> contextValues) { }
 }

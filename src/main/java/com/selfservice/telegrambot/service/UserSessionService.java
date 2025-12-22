@@ -495,36 +495,51 @@ public class UserSessionService {
     }
 
     public void setPendingFunctionMenu(long chatId, String submenuId, String contextLabel, List<String> options,
-                                       boolean storeContext, boolean accountContext, boolean serviceContext) {
+                                       List<String> contextValues, boolean storeContext, boolean accountContext,
+                                       boolean serviceContext, boolean objectContextEnabled) {
         if (options == null || options.isEmpty()) {
             pendingFunctionMenusByChat.remove(chatId);
             return;
         }
         pendingFunctionMenusByChat.put(chatId,
-                new PendingFunctionMenu(submenuId, contextLabel, List.copyOf(options), storeContext,
-                        accountContext, serviceContext));
+                new PendingFunctionMenu(submenuId, contextLabel, List.copyOf(options),
+                        contextValues == null ? List.of() : List.copyOf(contextValues), storeContext,
+                        accountContext, serviceContext, objectContextEnabled));
     }
 
-    public PendingFunctionMenu consumePendingFunctionMenu(long chatId, String selection) {
+    public PendingSelection consumePendingFunctionMenu(long chatId, String selection) {
         PendingFunctionMenu pending = pendingFunctionMenusByChat.get(chatId);
         if (pending == null || selection == null || selection.isBlank()) {
             return null;
         }
-        boolean matched = pending.options().stream()
-                .anyMatch(option -> option.equalsIgnoreCase(selection.trim()));
-        if (!matched) {
+        String matchedOption = null;
+        String matchedContext = null;
+        for (int i = 0; i < pending.options().size(); i++) {
+            String option = pending.options().get(i);
+            if (option != null && option.equalsIgnoreCase(selection.trim())) {
+                matchedOption = option;
+                if (pending.contextValues().size() > i) {
+                    matchedContext = pending.contextValues().get(i);
+                }
+                break;
+            }
+        }
+        if (matchedOption == null) {
             return null;
         }
         pendingFunctionMenusByChat.remove(chatId);
-        return pending;
+        return new PendingSelection(pending, matchedOption, matchedContext);
     }
 
     public void clearPendingFunctionMenu(long chatId) {
         pendingFunctionMenusByChat.remove(chatId);
     }
 
-    public record PendingFunctionMenu(String submenuId, String contextLabel, List<String> options, boolean storeContext,
-                                      boolean accountContext, boolean serviceContext) { }
+    public record PendingFunctionMenu(String submenuId, String contextLabel, List<String> options,
+                                      List<String> contextValues, boolean storeContext,
+                                      boolean accountContext, boolean serviceContext, boolean objectContextEnabled) { }
+
+    public record PendingSelection(PendingFunctionMenu menu, String selection, String objectContextValue) { }
 
     public int getBusinessMenuDepth(long chatId, String rootMenuId) {
         List<String> path = ensureMenuPath(chatId, rootMenuId);

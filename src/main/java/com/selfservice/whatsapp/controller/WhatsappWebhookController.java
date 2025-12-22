@@ -9,6 +9,7 @@ import com.selfservice.application.dto.ServiceListResult;
 import com.selfservice.application.dto.ServiceSummary;
 import com.selfservice.application.dto.TroubleTicketListResult;
 import com.selfservice.application.dto.TroubleTicketSummary;
+import com.selfservice.application.service.ContextTraceLogger;
 import com.selfservice.application.service.InvoiceService;
 import com.selfservice.application.service.ProductService;
 import com.selfservice.application.service.TroubleTicketService;
@@ -56,6 +57,7 @@ public class WhatsappWebhookController {
     private final ConnectorsProperties connectorsProperties;
     private final BusinessMenuConfigurationProvider menuConfigurationProvider;
     private final ServiceFunctionExecutor serviceFunctionExecutor;
+    private final ContextTraceLogger contextTraceLogger;
 
     public WhatsappWebhookController(
             WhatsappService whatsappService,
@@ -69,7 +71,8 @@ public class WhatsappWebhookController {
             OperationsMonitoringService monitoringService,
             ConnectorsProperties connectorsProperties,
             BusinessMenuConfigurationProvider menuConfigurationProvider,
-            ServiceFunctionExecutor serviceFunctionExecutor) {
+            ServiceFunctionExecutor serviceFunctionExecutor,
+            ContextTraceLogger contextTraceLogger) {
         this.whatsappService = whatsappService;
         this.oauthSessionService = oauthSessionService;
         this.sessionService = sessionService;
@@ -82,6 +85,7 @@ public class WhatsappWebhookController {
         this.connectorsProperties = connectorsProperties;
         this.menuConfigurationProvider = menuConfigurationProvider;
         this.serviceFunctionExecutor = serviceFunctionExecutor;
+        this.contextTraceLogger = contextTraceLogger;
     }
 
     @GetMapping
@@ -591,6 +595,15 @@ public class WhatsappWebhookController {
             } else {
                 sessionService.clearMenuContext(userId);
             }
+            if (pendingMenuSelection.menu().objectContextEnabled()
+                    && pendingMenuSelection.objectContextValue() != null
+                    && !pendingMenuSelection.objectContextValue().isBlank()) {
+                sessionService.updateContext(userId, null, null, pendingMenuSelection.objectContextValue());
+                AccountSummary acc = sessionService.getSelectedAccount(userId);
+                ServiceSummary svc = sessionService.getSelectedService(userId);
+                contextTraceLogger.logContext(acc == null ? "<none>" : acc.accountId(),
+                        svc == null ? "<none>" : svc.productId(), pendingMenuSelection.objectContextValue());
+            }
             if (pendingMenuSelection.menu().submenuId() != null
                     && !pendingMenuSelection.menu().submenuId().isBlank()) {
                 whatsappService.goToBusinessMenu(userId, pendingMenuSelection.menu().submenuId());
@@ -1077,6 +1090,17 @@ public class WhatsappWebhookController {
             } else {
                 sessionService.clearMenuContext(userId);
             }
+            if (execResult.objectContextEnabled()
+                    && execResult.contextValues() != null && !execResult.contextValues().isEmpty()) {
+                String ctxValue = execResult.contextValues().get(0);
+                sessionService.updateContext(userId, null, null, ctxValue);
+                AccountSummary acc = sessionService.getSelectedAccount(userId);
+                ServiceSummary svc = sessionService.getSelectedService(userId);
+                contextTraceLogger.logContext(acc == null ? "<none>" : acc.accountId(),
+                        svc == null ? "<none>" : svc.productId(), ctxValue == null ? "<none>" : ctxValue);
+            } else {
+                sessionService.updateContext(userId, null, null, null);
+            }
             sessionService.clearPendingFunctionMenu(userId);
             if (matchedItem.submenuId() != null && !matchedItem.submenuId().isBlank()) {
                 whatsappService.goToBusinessMenu(userId, matchedItem.submenuId());
@@ -1088,8 +1112,9 @@ public class WhatsappWebhookController {
 
         sessionService.clearMenuContext(userId);
         BusinessMenuItem.ContextDirectives directives = matchedItem.contextDirectives();
-        sessionService.setPendingFunctionMenu(userId, matchedItem.submenuId(), trimmedLabel, options, storeContext,
-                directives.accountContextEnabled(), directives.serviceContextEnabled());
+        sessionService.setPendingFunctionMenu(userId, matchedItem.submenuId(), trimmedLabel, options,
+                execResult.contextValues(), storeContext, directives.accountContextEnabled(),
+                directives.serviceContextEnabled(), execResult.objectContextEnabled());
         String header = trimmedLabel == null || trimmedLabel.isBlank() ? execResult.message() : trimmedLabel;
         if (header == null || header.isBlank()) {
             header = "Select an option.";
@@ -1125,6 +1150,17 @@ public class WhatsappWebhookController {
             } else {
                 sessionService.clearMenuContext(userId);
             }
+            if (execResult.objectContextEnabled()
+                    && execResult.contextValues() != null && !execResult.contextValues().isEmpty()) {
+                String ctxValue = execResult.contextValues().get(0);
+                sessionService.updateContext(userId, null, null, ctxValue);
+                AccountSummary acc = sessionService.getSelectedAccount(userId);
+                ServiceSummary svc = sessionService.getSelectedService(userId);
+                contextTraceLogger.logContext(acc == null ? "<none>" : acc.accountId(),
+                        svc == null ? "<none>" : svc.productId(), ctxValue == null ? "<none>" : ctxValue);
+            } else {
+                sessionService.updateContext(userId, null, null, null);
+            }
             sessionService.clearPendingFunctionMenu(userId);
             AccountSummary selected = sessionService.getSelectedAccount(userId);
             whatsappService.sendLoggedInMenu(to, selected, sessionService.getAccounts(userId).size() > 1, contextMessage);
@@ -1136,8 +1172,8 @@ public class WhatsappWebhookController {
         boolean accountContext = directives != null && directives.accountContextEnabled();
         boolean serviceContext = directives != null && directives.serviceContextEnabled();
         sessionService.setPendingFunctionMenu(userId,
-                matchedItem == null ? null : matchedItem.submenuId(), trimmedLabel, options, storeContext,
-                accountContext, serviceContext);
+                matchedItem == null ? null : matchedItem.submenuId(), trimmedLabel, options, execResult.contextValues(),
+                storeContext, accountContext, serviceContext, execResult.objectContextEnabled());
         String header = trimmedLabel == null || trimmedLabel.isBlank() ? execResult.message() : trimmedLabel;
         if (header == null || header.isBlank()) {
             header = "Select an option.";
