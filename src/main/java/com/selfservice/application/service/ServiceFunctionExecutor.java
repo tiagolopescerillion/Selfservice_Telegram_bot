@@ -34,17 +34,20 @@ public class ServiceFunctionExecutor {
     private final CommonApiService commonApiService;
     private final Environment environment;
     private final ObjectMapper objectMapper;
+    private final ContextTraceLogger contextTraceLogger;
 
     public ServiceFunctionExecutor(ApiRegistry apiRegistry,
             ServiceCatalog serviceCatalog,
             CommonApiService commonApiService,
             Environment environment,
-            ObjectMapper objectMapper) {
+            ObjectMapper objectMapper,
+            ContextTraceLogger contextTraceLogger) {
         this.apiRegistry = apiRegistry;
         this.serviceCatalog = serviceCatalog;
         this.commonApiService = commonApiService;
         this.environment = environment;
         this.objectMapper = objectMapper;
+        this.contextTraceLogger = contextTraceLogger;
     }
 
     /**
@@ -192,13 +195,10 @@ public class ServiceFunctionExecutor {
     }
 
     private void logContextTrace(AccountSummary account, ServiceSummary service, String objectContextValue) {
-        if (!isFlagEnabled("test.context")) {
-            return;
-        }
         String accountValue = account == null ? "<none>" : String.valueOf(account.accountId());
         String serviceValue = service == null ? "<none>" : String.valueOf(service.productId());
         String objectValue = (objectContextValue == null || objectContextValue.isBlank()) ? "<none>" : objectContextValue;
-        log.info("-----------\nContext:\n- Account = {}\n- Service = {}\n- Object = {}\n-----------", accountValue, serviceValue, objectValue);
+        contextTraceLogger.logContext(accountValue, serviceValue, objectValue);
     }
 
     private boolean isFlagEnabled(String property) {

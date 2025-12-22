@@ -65,6 +65,9 @@ public class WhatsappSessionService {
     private final Map<String, Boolean> optInByUser = new ConcurrentHashMap<>();
     private final Map<String, String> menuContextByUser = new ConcurrentHashMap<>();
     private final Map<String, PendingFunctionMenu> pendingFunctionMenusByUser = new ConcurrentHashMap<>();
+    private final Map<String, ContextState> contextStateByUser = new ConcurrentHashMap<>();
+
+    public record ContextState(String accountContext, String serviceContext, String objectContext) { }
 
     public enum SelectionContext {
         NONE,
@@ -189,6 +192,7 @@ public class WhatsappSessionService {
                     existing.accounts,
                     matched, existing.exchangeId);
         });
+        updateContext(userId, account.accountId(), null, null);
         clearServices(userId);
         clearTroubleTickets(userId);
         clearSelectedService(userId);
@@ -210,6 +214,7 @@ public class WhatsappSessionService {
         clearTroubleTickets(userId);
         clearSelectedService(userId);
         clearInvoices(userId);
+        updateContext(userId, null, null, null);
     }
 
     public void saveServices(String userId, List<ServiceSummary> services) {
@@ -253,6 +258,7 @@ public class WhatsappSessionService {
                 .orElse(null);
         if (matched != null) {
             selectedServiceByUser.put(userId, matched);
+            updateContext(userId, null, matched.productId(), null);
         }
     }
 
@@ -349,6 +355,7 @@ public class WhatsappSessionService {
         optInByUser.remove(userId);
         menuContextByUser.remove(userId);
         pendingFunctionMenusByUser.remove(userId);
+        contextStateByUser.remove(userId);
     }
 
     public String getIdToken(String userId) {
@@ -545,14 +552,34 @@ public class WhatsappSessionService {
         menuContextByUser.remove(userId);
     }
 
+    public void updateContext(String userId, String accountContext, String serviceContext, String objectContext) {
+        contextStateByUser.compute(userId, (id, existing) -> {
+            String accountValue = accountContext == null ? (existing == null ? null : existing.accountContext())
+                    : (accountContext.isBlank() ? null : accountContext);
+            String serviceValue = serviceContext == null ? (existing == null ? null : existing.serviceContext())
+                    : (serviceContext.isBlank() ? null : serviceContext);
+            String objectValue = objectContext == null ? (existing == null ? null : existing.objectContext())
+                    : (objectContext.isBlank() ? null : objectContext);
+            if (accountValue == null && serviceValue == null && objectValue == null) {
+                return null;
+            }
+            return new ContextState(accountValue, serviceValue, objectValue);
+        });
+    }
+
+    public ContextState getContextState(String userId) {
+        return contextStateByUser.get(userId);
+    }
+
     public void setPendingFunctionMenu(String userId, String submenuId, String contextLabel, List<String> options,
-                                       boolean storeContext) {
+                                       boolean storeContext, boolean accountContext, boolean serviceContext) {
         if (options == null || options.isEmpty()) {
             pendingFunctionMenusByUser.remove(userId);
             return;
         }
         pendingFunctionMenusByUser.put(userId,
-                new PendingFunctionMenu(submenuId, contextLabel, List.copyOf(options), storeContext));
+                new PendingFunctionMenu(submenuId, contextLabel, List.copyOf(options), storeContext,
+                        accountContext, serviceContext));
     }
 
     public PendingFunctionSelection consumePendingFunctionMenu(String userId, String selection) {
@@ -585,7 +612,8 @@ public class WhatsappSessionService {
         pendingFunctionMenusByUser.remove(userId);
     }
 
-    public record PendingFunctionMenu(String submenuId, String contextLabel, List<String> options, boolean storeContext) { }
+    public record PendingFunctionMenu(String submenuId, String contextLabel, List<String> options, boolean storeContext,
+                                      boolean accountContext, boolean serviceContext) { }
 
     public record PendingFunctionSelection(PendingFunctionMenu menu, String selection) { }
 

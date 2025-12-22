@@ -1087,7 +1087,9 @@ public class WhatsappWebhookController {
         }
 
         sessionService.clearMenuContext(userId);
-        sessionService.setPendingFunctionMenu(userId, matchedItem.submenuId(), trimmedLabel, options, storeContext);
+        BusinessMenuItem.ContextDirectives directives = matchedItem.contextDirectives();
+        sessionService.setPendingFunctionMenu(userId, matchedItem.submenuId(), trimmedLabel, options, storeContext,
+                directives.accountContextEnabled(), directives.serviceContextEnabled());
         String header = trimmedLabel == null || trimmedLabel.isBlank() ? execResult.message() : trimmedLabel;
         if (header == null || header.isBlank()) {
             header = "Select an option.";
@@ -1130,8 +1132,12 @@ public class WhatsappWebhookController {
         }
 
         sessionService.clearMenuContext(userId);
+        BusinessMenuItem.ContextDirectives directives = matchedItem == null ? null : matchedItem.contextDirectives();
+        boolean accountContext = directives != null && directives.accountContextEnabled();
+        boolean serviceContext = directives != null && directives.serviceContextEnabled();
         sessionService.setPendingFunctionMenu(userId,
-                matchedItem == null ? null : matchedItem.submenuId(), trimmedLabel, options, storeContext);
+                matchedItem == null ? null : matchedItem.submenuId(), trimmedLabel, options, storeContext,
+                accountContext, serviceContext);
         String header = trimmedLabel == null || trimmedLabel.isBlank() ? execResult.message() : trimmedLabel;
         if (header == null || header.isBlank()) {
             header = "Select an option.";

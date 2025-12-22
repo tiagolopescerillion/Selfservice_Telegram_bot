@@ -13,6 +13,7 @@ import com.selfservice.application.service.InvoiceService;
 import com.selfservice.application.service.TroubleTicketService;
 import com.selfservice.application.service.OperationsMonitoringService;
 import com.selfservice.application.service.ServiceFunctionExecutor;
+import com.selfservice.application.service.ContextTraceLogger;
 import com.selfservice.application.config.menu.LoginMenuFunction;
 import com.selfservice.application.config.menu.LoginMenuItem;
 import com.selfservice.application.config.menu.BusinessMenuConfigurationProvider;
@@ -45,6 +46,7 @@ public class TelegramWebhookController {
     private final ConnectorsProperties connectorsProperties;
     private final BusinessMenuConfigurationProvider menuConfigurationProvider;
     private final ServiceFunctionExecutor serviceFunctionExecutor;
+    private final ContextTraceLogger contextTraceLogger;
 
     public TelegramWebhookController(TelegramService telegramService,
             KeycloakAuthService keycloakAuthService,
@@ -56,7 +58,8 @@ public class TelegramWebhookController {
             OperationsMonitoringService monitoringService,
             ConnectorsProperties connectorsProperties,
             BusinessMenuConfigurationProvider menuConfigurationProvider,
-            ServiceFunctionExecutor serviceFunctionExecutor) {
+            ServiceFunctionExecutor serviceFunctionExecutor,
+            ContextTraceLogger contextTraceLogger) {
         this.telegramService = telegramService;
         this.keycloakAuthService = keycloakAuthService;
         this.productService = productService;
@@ -69,6 +72,7 @@ public class TelegramWebhookController {
         this.connectorsProperties = connectorsProperties;
         this.menuConfigurationProvider = menuConfigurationProvider;
         this.serviceFunctionExecutor = serviceFunctionExecutor;
+        this.contextTraceLogger = contextTraceLogger;
 
     }
 
@@ -775,7 +779,9 @@ public class TelegramWebhookController {
         }
 
         userSessionService.clearMenuContext(chatId);
-        userSessionService.setPendingFunctionMenu(chatId, matchedItem.submenuId(), trimmedLabel, options, storeContext);
+        BusinessMenuItem.ContextDirectives directives = matchedItem.contextDirectives();
+        userSessionService.setPendingFunctionMenu(chatId, matchedItem.submenuId(), trimmedLabel, options, storeContext,
+                directives.accountContextEnabled(), directives.serviceContextEnabled());
         String prompt = trimmedLabel == null || trimmedLabel.isBlank()
                 ? execResult.message()
                 : trimmedLabel;
@@ -815,8 +821,12 @@ public class TelegramWebhookController {
         }
 
         userSessionService.clearMenuContext(chatId);
+        BusinessMenuItem.ContextDirectives directives = matchedItem == null ? null : matchedItem.contextDirectives();
+        boolean accountContext = directives != null && directives.accountContextEnabled();
+        boolean serviceContext = directives != null && directives.serviceContextEnabled();
         userSessionService.setPendingFunctionMenu(chatId,
-                matchedItem == null ? null : matchedItem.submenuId(), trimmedLabel, options, storeContext);
+                matchedItem == null ? null : matchedItem.submenuId(), trimmedLabel, options, storeContext,
+                accountContext, serviceContext);
         String prompt = trimmedLabel == null || trimmedLabel.isBlank()
                 ? execResult.message()
                 : trimmedLabel;
