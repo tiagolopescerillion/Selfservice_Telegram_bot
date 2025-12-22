@@ -18,6 +18,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
@@ -87,8 +88,24 @@ public class ServiceCatalog {
         entry.put("Query Parameters", sanitizeQueryParameters(service.queryParameters()));
         ResponseTemplate template = Optional.ofNullable(service.responseTemplate()).orElse(ResponseTemplate.JSON);
         entry.put("Response Template", template.name());
-        entry.put("Output", Optional.ofNullable(service.output()).orElse(""));
+        entry.put("Output", serializeOutputs(service.outputs()));
         return entry;
+    }
+
+    private List<Map<String, Object>> serializeOutputs(List<OutputField> outputs) {
+        if (outputs == null || outputs.isEmpty()) {
+            return List.of();
+        }
+        return outputs.stream()
+                .filter(Objects::nonNull)
+                .map(field -> {
+                    Map<String, Object> map = new LinkedHashMap<>();
+                    map.put("Field", Optional.ofNullable(field.field()).orElse(""));
+                    map.put("Label", Optional.ofNullable(field.label()).orElse(""));
+                    map.put("Object Context", field.objectContext());
+                    return map;
+                })
+                .toList();
     }
 
     private Map<String, String> sanitizeQueryParameters(Map<String, String> parameters) {
@@ -144,7 +161,7 @@ public class ServiceCatalog {
             String apiName = normalize(values.get("API-Name"));
             Object queryParams = values.getOrDefault("Query Parameters", Map.of());
             String responseTemplate = normalize(values.get("Response Template"));
-            String output = normalize(values.get("Output"));
+            Object rawOutput = values.get("Output");
 
             if (!StringUtils.hasText(name) || !StringUtils.hasText(apiName)) {
                 return Optional.empty();
@@ -154,9 +171,84 @@ public class ServiceCatalog {
                 queryMap.forEach((key, value) -> params.put(String.valueOf(key), value == null ? "" : String.valueOf(value)));
             }
             ResponseTemplate template = ResponseTemplate.fromLabel(responseTemplate);
-            return Optional.of(new ServiceDefinition(slugify(name), slugify(apiName), params, template, output));
+            List<OutputField> outputs = parseOutputs(rawOutput);
+            return Optional.of(new ServiceDefinition(slugify(name), slugify(apiName), params, template, outputs));
         }
         return Optional.empty();
+    }
+
+    private List<OutputField> parseOutputs(Object rawOutput) {
+        if (rawOutput == null) {
+            return List.of();
+        }
+        if (rawOutput instanceof String rawString) {
+            if (!StringUtils.hasText(rawString)) {
+                return List.of();
+            }
+            return sanitizeOutputs(List.of(rawString.split(",")));
+        }
+        if (rawOutput instanceof List<?> list) {
+            if (list.isEmpty()) {
+                return List.of();
+            }
+            boolean containsMap = list.stream().anyMatch(Map.class::isInstance);
+            if (containsMap) {
+                return sanitizeOutputs(list.stream().map(this::mapToOutputField).filter(Objects::nonNull).toList());
+            }
+            return sanitizeOutputs(list.stream().map(Object::toString).toList());
+        }
+        if (rawOutput instanceof Map<?, ?> map) {
+            OutputField field = mapToOutputField(map);
+            return field == null ? List.of() : List.of(field);
+        }
+        return List.of();
+    }
+
+    private OutputField mapToOutputField(Object entry) {
+        if (!(entry instanceof Map<?, ?> raw)) {
+            return null;
+        }
+        String field = normalize(raw.get("Field"));
+        String label = normalize(raw.get("Label"));
+        boolean objectContext = Boolean.parseBoolean(String.valueOf(raw.getOrDefault("Object Context", false)));
+        if (!StringUtils.hasText(field)) {
+            return null;
+        }
+        return new OutputField(field, StringUtils.hasText(label) ? label : field, objectContext);
+    }
+
+    private List<OutputField> sanitizeOutputs(List<?> rawOutputs) {
+        if (rawOutputs == null || rawOutputs.isEmpty()) {
+            return List.of();
+        }
+        List<OutputField> parsed = rawOutputs.stream()
+                .map(value -> {
+                    if (value instanceof OutputField outputField) {
+                        return outputField;
+                    }
+                    String path = normalize(value);
+                    if (!StringUtils.hasText(path)) {
+                        return null;
+                    }
+                    return new OutputField(path, path, false);
+                })
+                .filter(Objects::nonNull)
+                .toList();
+
+        boolean objectContextFound = false;
+        return parsed.stream()
+                .map(field -> {
+                    boolean objectContext = field.objectContext();
+                    if (objectContext && objectContextFound) {
+                        objectContext = false;
+                    }
+                    if (objectContext) {
+                        objectContextFound = true;
+                    }
+                    String label = StringUtils.hasText(field.label()) ? field.label() : field.field();
+                    return new OutputField(field.field(), label, objectContext);
+                })
+                .toList();
     }
 
     private Path resolveConfigPath() {
@@ -208,5 +300,7 @@ public class ServiceCatalog {
     }
 
     public record ServiceDefinition(String name, String apiName, Map<String, String> queryParameters,
-                                    ResponseTemplate responseTemplate, String output) { }
+                                    ResponseTemplate responseTemplate, List<OutputField> outputs) { }
+
+    public record OutputField(String field, String label, boolean objectContext) { }
 }

@@ -54,7 +54,7 @@ public class ServiceBuilderController {
                     entry.put("API-Name", service.apiName());
                     entry.put("Query Parameters", service.queryParameters());
                     entry.put("Response Template", service.responseTemplate().name());
-                    entry.put("Output", service.output());
+                    entry.put("Output", service.outputs());
                     return entry;
                 })
                 .collect(Collectors.toList()));

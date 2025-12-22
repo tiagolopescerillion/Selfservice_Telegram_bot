@@ -326,7 +326,8 @@ const serviceNameInput = document.getElementById("serviceNameInput");
 const serviceApiSelect = document.getElementById("serviceApiSelect");
 const serviceQueryParamsInput = document.getElementById("serviceQueryParamsInput");
 const serviceResponseTemplate = document.getElementById("serviceResponseTemplate");
-const serviceOutputInput = document.getElementById("serviceOutputInput");
+const outputFieldsContainer = document.getElementById("outputFieldsContainer");
+const addOutputFieldButton = document.getElementById("addOutputFieldButton");
 const cancelServiceButton = document.getElementById("cancelServiceButton");
 const serviceList = document.getElementById("serviceList");
 const serviceBuilderStatus = document.getElementById("serviceBuilderStatus");
@@ -521,9 +522,10 @@ let configEndpointCache = "";
 let apiRegistryEntries = [];
 let serviceBuilderEntries = [];
 let editingApiName = null;
-let editingServiceName = null;
+let editingServiceIndex = null;
 
 function normalizeServiceDefinition(service = {}) {
+  const outputs = normalizeOutputFields(Array.isArray(service.outputs) ? service.outputs : parseLegacyOutputs(service.output));
   return {
     name: (service.name || "").trim(),
     apiName: service.apiName || "",
@@ -532,14 +534,15 @@ function normalizeServiceDefinition(service = {}) {
         ? { ...service.queryParameters }
         : {},
     responseTemplate: service.responseTemplate || "JSON",
-    output: service.output || ""
+    outputs
   };
 }
 
 function createBlankServiceDefinition() {
   return normalizeServiceDefinition({
     name: `service-${serviceBuilderEntries.length + 1}`,
-    apiName: apiRegistryEntries[0]?.name || ""
+    apiName: apiRegistryEntries[0]?.name || "",
+    outputs: [{ field: "", label: "", objectContext: false }]
   });
 }
 
@@ -547,6 +550,126 @@ function prepareServiceForSave(service, index = 0) {
   const normalized = normalizeServiceDefinition(service);
   const slug = normalized.name ? slugify(normalized.name) : `service-${index + 1}`;
   return { ...normalized, name: slug };
+}
+
+function normalizeOutputFields(outputs = []) {
+  const normalized = outputs
+    .map((entry) => {
+      const field = (entry?.field || entry?.Field || entry?.path || entry?.output || "").trim();
+      const label = (entry?.label || entry?.Label || field).trim();
+      const objectContext = Boolean(entry?.objectContext || entry?.["Object Context"]);
+      if (!field) return null;
+      return { field, label: label || field, objectContext };
+    })
+    .filter(Boolean);
+
+  let contextSet = false;
+  return normalized.map((entry) => {
+    const flag = entry.objectContext && !contextSet;
+    if (flag) {
+      contextSet = true;
+    }
+    return { ...entry, objectContext: flag };
+  });
+}
+
+function parseLegacyOutputs(rawOutput) {
+  if (!rawOutput || typeof rawOutput !== "string") {
+    return [];
+  }
+  return rawOutput
+    .split(",")
+    .map((part) => ({ field: part.trim(), label: part.trim(), objectContext: false }))
+    .filter((entry) => entry.field);
+}
+
+function renderOutputFieldInputs(outputs = []) {
+  if (!outputFieldsContainer) return;
+  outputFieldsContainer.innerHTML = "";
+  const normalized = normalizeOutputFields(outputs);
+  const fields = normalized.length ? normalized : [{ field: "", label: "", objectContext: false }];
+  fields.forEach((field) => addOutputFieldRow(field));
+}
+
+function addOutputFieldRow(field = { field: "", label: "", objectContext: false }) {
+  if (!outputFieldsContainer) return;
+  const row = document.createElement("div");
+  row.className = "output-field-row";
+
+  const fieldLabel = document.createElement("label");
+  fieldLabel.textContent = "Field";
+  const fieldInput = document.createElement("input");
+  fieldInput.type = "text";
+  fieldInput.value = field.field || "";
+  fieldInput.placeholder = "items[0].id";
+  fieldLabel.append(fieldInput);
+
+  const labelLabel = document.createElement("label");
+  labelLabel.textContent = "Label";
+  const labelInput = document.createElement("input");
+  labelInput.type = "text";
+  labelInput.value = field.label || "";
+  labelInput.placeholder = "Invoice ID";
+  labelLabel.append(labelInput);
+
+  const actions = document.createElement("div");
+  actions.className = "output-actions";
+
+  const contextWrapper = document.createElement("label");
+  contextWrapper.className = "output-context-toggle";
+  const contextInput = document.createElement("input");
+  contextInput.type = "radio";
+  contextInput.name = "objectContextField";
+  contextInput.checked = Boolean(field.objectContext);
+  contextWrapper.append(contextInput, document.createTextNode("Object Context"));
+
+  const removeBtn = document.createElement("button");
+  removeBtn.type = "button";
+  removeBtn.className = "secondary";
+  removeBtn.textContent = "Remove";
+  removeBtn.addEventListener("click", () => {
+    row.remove();
+    if (!outputFieldsContainer.children.length) {
+      addOutputFieldRow();
+    }
+  });
+
+  actions.append(contextWrapper, removeBtn);
+
+  contextInput.addEventListener("change", () => {
+    document.querySelectorAll('input[name="objectContextField"]').forEach((input) => {
+      if (input !== contextInput) {
+        input.checked = false;
+      }
+    });
+  });
+
+  row.append(fieldLabel, labelLabel, actions);
+  outputFieldsContainer.append(row);
+}
+
+function collectOutputFieldsFromForm() {
+  if (!outputFieldsContainer) return [];
+  const rows = Array.from(outputFieldsContainer.querySelectorAll(".output-field-row"));
+  const entries = rows
+    .map((row) => {
+      const [fieldInput, labelInput] = row.querySelectorAll("input[type='text']");
+      const contextInput = row.querySelector('input[name="objectContextField"]');
+      const field = (fieldInput?.value || "").trim();
+      const label = (labelInput?.value || "").trim();
+      if (!field) return null;
+      return { field, label: label || field, objectContext: Boolean(contextInput?.checked) };
+    })
+    .filter(Boolean);
+
+  let contextApplied = false;
+  return entries.map((entry) => {
+    const flag = entry.objectContext && !contextApplied;
+    if (flag) {
+      contextApplied = true;
+    }
+    return { ...entry, objectContext: flag };
+  });
 }
 
 function extractContextFields(item = {}) {
@@ -2004,16 +2127,16 @@ function toggleServiceForm(show, service = null) {
     serviceApiSelect.value = service.apiName || "";
     serviceQueryParamsInput.value = formatQueryParams(service.queryParameters);
     serviceResponseTemplate.value = service.responseTemplate || "JSON";
-    if (serviceOutputInput) {
-      serviceOutputInput.value = service.output || "";
-    }
-    editingServiceName = service.name;
+    renderOutputFieldInputs(service.outputs);
+    editingServiceIndex = serviceBuilderEntries.findIndex((entry) => entry === service);
   } else if (show) {
     serviceForm.reset();
-    editingServiceName = null;
+    renderOutputFieldInputs([]);
+    editingServiceIndex = null;
   } else {
     serviceForm.reset();
-    editingServiceName = null;
+    renderOutputFieldInputs([]);
+    editingServiceIndex = null;
   }
 }
 
@@ -2046,76 +2169,102 @@ function renderServiceList() {
   }
 
   serviceBuilderEntries.forEach((service, index) => {
-    const row = document.createElement("div");
-    row.className = "config-entry config-entry--services";
+    const card = document.createElement("div");
+    card.className = "service-card";
 
-    const nameInput = document.createElement("input");
-    nameInput.type = "text";
-    nameInput.placeholder = "Service name";
-    nameInput.value = service?.name || "";
-    nameInput.addEventListener("input", (event) => {
-      serviceBuilderEntries[index].name = event.target.value;
-      syncServiceFunctionOptions(serviceBuilderEntries);
-    });
+    const header = document.createElement("div");
+    header.className = "service-card__header";
 
-    const apiSelect = document.createElement("select");
-    apiRegistryEntries
-      .slice()
-      .sort((a, b) => (a.name || "").localeCompare(b.name || ""))
-      .forEach((api) => {
-        apiSelect.append(new Option(api.name, api.name, false, api.name === service.apiName));
+    const title = document.createElement("div");
+    title.className = "service-card__title";
+    title.textContent = service.name || "Unnamed service";
+    const meta = document.createElement("div");
+    meta.className = "service-card__meta";
+    const templateLabel = service.responseTemplate === "CARD" ? "List of Objects" : service.responseTemplate;
+    meta.textContent = `API: ${service.apiName || ""} • Type: ${templateLabel}`;
+    header.append(title, meta);
+
+    const queryLine = document.createElement("div");
+    queryLine.className = "service-card__meta";
+    queryLine.textContent = `Query Parameters: ${formatQueryParams(service.queryParameters) || "None"}`;
+
+    const outputsBox = document.createElement("div");
+    outputsBox.className = "service-card__outputs";
+    const outputs = normalizeOutputFields(service.outputs);
+    if (!outputs.length) {
+      outputsBox.textContent = "No output fields configured.";
+    } else {
+      outputs.forEach((output) => {
+        const line = document.createElement("div");
+        const label = document.createElement("strong");
+        label.textContent = `${output.label}: `;
+        const value = document.createElement("span");
+        value.textContent = output.field;
+        line.append(label, value);
+        if (output.objectContext) {
+          const pill = document.createElement("span");
+          pill.className = "service-pill";
+          pill.textContent = "Object Context";
+          line.append(" ", pill);
+        }
+        outputsBox.append(line);
       });
-    apiSelect.addEventListener("change", (event) => {
-      serviceBuilderEntries[index].apiName = event.target.value;
-    });
-
-    const paramsField = document.createElement("textarea");
-    paramsField.rows = 2;
-    paramsField.placeholder = "key=value&limit=10";
-    paramsField.value = formatQueryParams(service?.queryParameters);
-    paramsField.addEventListener("input", (event) => {
-      serviceBuilderEntries[index].queryParameters = parseQueryParams(event.target.value);
-    });
-
-    const templateSelect = document.createElement("select");
-    [
-      { value: "EXISTING", label: "Existing" },
-      { value: "JSON", label: "JSON" },
-      { value: "MESSAGE", label: "Message" },
-      { value: "CARD", label: "Card" }
-    ].forEach((opt) => {
-      templateSelect.append(
-        new Option(opt.label, opt.value, false, opt.value === (service.responseTemplate || "JSON"))
-      );
-    });
-    templateSelect.addEventListener("change", (event) => {
-      serviceBuilderEntries[index].responseTemplate = event.target.value;
-    });
-
-    const outputField = document.createElement("input");
-    outputField.type = "text";
-    outputField.placeholder = "Output fields";
-    outputField.value = service?.output || "";
-    outputField.addEventListener("input", (event) => {
-      serviceBuilderEntries[index].output = event.target.value;
-    });
+    }
 
     const actions = document.createElement("div");
-    actions.className = "config-entry__actions";
+    actions.className = "service-card__actions";
+    const editBtn = document.createElement("button");
+    editBtn.type = "button";
+    editBtn.textContent = "Edit";
+    editBtn.addEventListener("click", () => startServiceEdit(service, index));
+
     const deleteBtn = document.createElement("button");
     deleteBtn.type = "button";
-    deleteBtn.textContent = "✕";
-    deleteBtn.title = "Remove";
+    deleteBtn.className = "secondary";
+    deleteBtn.textContent = "Delete";
     deleteBtn.addEventListener("click", () => {
       serviceBuilderEntries.splice(index, 1);
       syncServiceFunctionOptions(serviceBuilderEntries);
       renderServiceList();
     });
-    actions.append(deleteBtn);
 
-    row.append(nameInput, apiSelect, paramsField, templateSelect, outputField, actions);
-    serviceList.append(row);
+    actions.append(editBtn, deleteBtn);
+
+    card.append(header, queryLine, outputsBox, actions);
+    serviceList.append(card);
   });
+}
+
+function startServiceEdit(service, index = null) {
+  editingServiceIndex = index;
+  toggleServiceForm(true, normalizeServiceDefinition(service));
+  serviceNameInput?.focus();
+}
+
+function handleServiceFormSubmit(event) {
+  event.preventDefault();
+  const name = (serviceNameInput?.value || "").trim();
+  const apiName = serviceApiSelect?.value || "";
+  if (!name || !apiName) {
+    alert("Please provide both Service Name and API Name.");
+    return;
+  }
+  const queryParameters = parseQueryParams(serviceQueryParamsInput?.value || "");
+  const outputs = collectOutputFieldsFromForm();
+  const responseTemplate = serviceResponseTemplate?.value || "JSON";
+  const payload = normalizeServiceDefinition({ name, apiName, queryParameters, outputs, responseTemplate });
+
+  if (editingServiceIndex !== null && editingServiceIndex >= 0) {
+    serviceBuilderEntries[editingServiceIndex] = payload;
+  } else {
+    serviceBuilderEntries = [...serviceBuilderEntries, payload];
+  }
+  editingServiceIndex = null;
+  toggleServiceForm(false);
+  syncServiceFunctionOptions(serviceBuilderEntries);
+  renderServiceList();
+  serviceBuilderStatus.textContent = "Changes saved. Publish to apply.";
+  serviceBuilderStatus.className = "hint";
 }
 
 function toggleNewServiceFunctionForm() {}
@@ -3754,14 +3903,24 @@ if (saveOverlayButton) {
 
 if (addServiceButton) {
   addServiceButton.addEventListener("click", () => {
-    serviceBuilderEntries = [...serviceBuilderEntries, createBlankServiceDefinition()];
-    renderServiceList();
+    editingServiceIndex = null;
+    toggleServiceForm(true, createBlankServiceDefinition());
     serviceBuilderStatus.textContent = "Fill in the new service, then use Publish to save.";
     serviceBuilderStatus.className = "hint";
   });
 }
 if (serviceForm) {
   serviceForm.classList.add("hidden");
+  serviceForm.addEventListener("submit", handleServiceFormSubmit);
+}
+if (addOutputFieldButton) {
+  addOutputFieldButton.addEventListener("click", () => addOutputFieldRow());
+}
+if (cancelServiceButton) {
+  cancelServiceButton.addEventListener("click", () => {
+    editingServiceIndex = null;
+    toggleServiceForm(false);
+  });
 }
 if (downloadServicesButton) {
   downloadServicesButton.addEventListener("click", async () => {

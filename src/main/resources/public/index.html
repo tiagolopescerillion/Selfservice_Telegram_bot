@@ -117,9 +117,9 @@
                 </button>
               </div>
               <form id="serviceForm" class="card hidden" autocomplete="off">
-                <div class="two-col-grid">
+                <div class="service-form__row">
                   <label>
-                    Service name
+                    Service Name
                     <input
                       id="serviceNameInput"
                       type="text"
@@ -128,43 +128,46 @@
                     />
                   </label>
                   <label>
-                    API name
+                    API Name
                     <select id="serviceApiSelect" required></select>
                   </label>
+                  <label>
+                    Service Type
+                    <select id="serviceResponseTemplate">
+                      <option value="EXISTING">Existing</option>
+                      <option value="JSON">JSON</option>
+                      <option value="MESSAGE">Message</option>
+                      <option value="CARD">List of Objects</option>
+                    </select>
+                  </label>
                 </div>
-                <label>
-                  Query parameters
+                <label class="service-form__row">
+                  Query Parameters
                   <textarea
                     id="serviceQueryParamsInput"
                     rows="3"
                     placeholder="key=value&limit=10"
                   ></textarea>
                 </label>
-                <label>
-                  Response template
-                  <select id="serviceResponseTemplate">
-                    <option value="EXISTING">Existing</option>
-                    <option value="JSON">JSON</option>
-                    <option value="MESSAGE">Message</option>
-                    <option value="CARD">Card</option>
-                  </select>
-                </label>
-                <label>
-                  Output (comma-separated JSON paths)
-                  <input
-                    id="serviceOutputInput"
-                    type="text"
-                    placeholder="items[0].id,items[0].status"
-                  />
-                </label>
+                <div class="service-form__outputs">
+                  <div class="service-form__outputs-header">
+                    <div>Output field / Label</div>
+                    <button id="addOutputFieldButton" class="secondary" type="button">Add field</button>
+                  </div>
+                  <div id="outputFieldsContainer" class="output-fields"></div>
+                  <p class="hint">
+                    Mark one output as <strong>Object Context</strong> to reuse its value later. Output values are
+                    still combined for query parameters when calling your APIs.
+                  </p>
+                </div>
                 <div class="toolbar toolbar--end">
-                  <button id="saveServiceButton" type="submit">Publish service</button>
+                  <button id="saveServiceButton" type="submit">Save changes</button>
                   <button id="cancelServiceButton" class="secondary" type="button">
                     Cancel
                   </button>
                 </div>
               </form>
-              <div id="serviceList" class="config-tree"></div>
+              <div id="serviceList" class="service-card-list"></div>
               <p id="serviceBuilderStatus" class="hint" aria-live="polite"></p>
             </section>
           </section>

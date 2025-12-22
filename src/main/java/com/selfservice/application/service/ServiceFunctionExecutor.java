@@ -98,7 +98,7 @@ public class ServiceFunctionExecutor {
             return ExecutionResult.handled("Service response recorded in logs.", ResponseMode.SILENT, null, null);
         }
 
-        RenderResult rendered = renderOutput(definition.output(), jsonBody,
+        RenderResult rendered = renderOutput(definition.outputs(), jsonBody,
                 definition.responseTemplate() == ServiceCatalog.ResponseTemplate.CARD);
         String contextLabel = contextDirectives == null ? null : contextDirectives.resolvedLabel();
         String messageText = rendered.text();
@@ -106,9 +106,6 @@ public class ServiceFunctionExecutor {
             messageText = contextLabel + " select: " + messageText;
         }
         if (definition.responseTemplate() == ServiceCatalog.ResponseTemplate.CARD) {
-            if (rendered.buttons().isEmpty()) {
-                return ExecutionResult.handled(messageText, ResponseMode.CARD, rendered.buttons(), rendered.options());
-            }
             return ExecutionResult.handled(messageText, ResponseMode.CARD, rendered.buttons(), rendered.options());
         }
 
@@ -185,58 +182,59 @@ public class ServiceFunctionExecutor {
         return new JsonBody(null, body);
     }
 
-    private RenderResult renderOutput(String outputSpec, JsonBody body, boolean cardMode) {
+    private RenderResult renderOutput(java.util.List<ServiceCatalog.OutputField> outputFields, JsonBody body, boolean listMode) {
         if (body == null) {
             return new RenderResult("", java.util.Collections.emptyList(), java.util.Collections.emptyList());
         }
+        java.util.List<ServiceCatalog.OutputField> fields = outputFields == null
+                ? java.util.Collections.emptyList()
+                : outputFields;
 
-        String cleanedSpec = outputSpec == null ? "" : outputSpec.strip();
-        String[] paths = cleanedSpec.isEmpty() ? null : cleanedSpec.split(",");
-
-        if (cardMode) {
-            return renderForCard(paths, cleanedSpec, body);
+        if (listMode) {
+            return renderList(fields, body);
         }
 
-        return renderForText(paths, cleanedSpec, body);
+        return renderText(fields, body);
     }
 
-    private RenderResult renderForCard(String[] paths, String outputSpec, JsonBody body) {
+    private RenderResult renderList(java.util.List<ServiceCatalog.OutputField> fields, JsonBody body) {
+        java.util.List<String> labels = new java.util.ArrayList<>();
         if (body.node != null && body.node.isArray()) {
-            java.util.List<String> labels = new java.util.ArrayList<>();
             for (JsonNode element : body.node) {
-                String rendered = resolveRenderedValue(paths, outputSpec, element, body.prettyBody);
+                String rendered = renderFields(fields, element);
                 if (!rendered.isBlank()) {
                     labels.add(rendered);
                 }
             }
-            if (labels.isEmpty()) {
-                return new RenderResult("No data available.", java.util.Collections.emptyList(), labels);
-            }
-            if (labels.size() == 1) {
-                return new RenderResult(labels.get(0), java.util.Collections.emptyList(), labels);
-            }
-            return new RenderResult("Select an option:", labels, labels);
         }
 
-        String rendered = resolveRenderedValue(paths, outputSpec, body.node, body.prettyBody);
-        if (rendered.isBlank()) {
-            rendered = "No data available.";
+        if (labels.isEmpty()) {
+            String rendered = body.node == null ? body.prettyBody : renderFields(fields, body.node);
+            if (rendered == null || rendered.isBlank()) {
+                rendered = "No data available.";
+            }
+            return new RenderResult(rendered, java.util.Collections.emptyList(), java.util.Collections.emptyList());
         }
-        return new RenderResult(rendered, java.util.Collections.emptyList(), java.util.Collections.emptyList());
+
+        if (labels.size() == 1) {
+            return new RenderResult(labels.get(0), java.util.Collections.emptyList(), labels);
+        }
+
+        return new RenderResult("Select an option:", labels, labels);
     }
 
-    private RenderResult renderForText(String[] paths, String outputSpec, JsonBody body) {
-        if (outputSpec.isEmpty()) {
+    private RenderResult renderText(java.util.List<ServiceCatalog.OutputField> fields, JsonBody body) {
+        if (fields.isEmpty()) {
             return new RenderResult(body.prettyBody, java.util.Collections.emptyList(), java.util.Collections.emptyList());
         }
         if (body.node == null) {
-            return new RenderResult(outputSpec, java.util.Collections.emptyList(), java.util.Collections.emptyList());
+            return new RenderResult(body.prettyBody, java.util.Collections.emptyList(), java.util.Collections.emptyList());
         }
         if (body.node.isArray()) {
             StringBuilder aggregated = new StringBuilder();
             int idx = 1;
             for (JsonNode element : body.node) {
-                String rendered = renderFields(paths, element);
+                String rendered = renderFields(fields, element);
                 if (rendered.isEmpty()) {
                     continue;
                 }
@@ -254,41 +252,32 @@ public class ServiceFunctionExecutor {
             return new RenderResult(aggregated.toString(), java.util.Collections.emptyList(), java.util.Collections.emptyList());
         }
 
-        String rendered = renderFields(paths, body.node);
+        String rendered = renderFields(fields, body.node);
         if (rendered.isEmpty()) {
             rendered = "No data available.";
         }
         return new RenderResult(rendered, java.util.Collections.emptyList(), java.util.Collections.emptyList());
     }
 
-    private String resolveRenderedValue(String[] paths, String outputSpec, JsonNode node, String prettyBody) {
-        if (node == null) {
-            return outputSpec.isEmpty() ? prettyBody : outputSpec;
+    private String renderFields(java.util.List<ServiceCatalog.OutputField> fields, JsonNode root) {
+        if (fields == null || fields.isEmpty()) {
+            return root == null ? "" : root.toString();
         }
-        if (paths == null) {
-            if (node.isValueNode()) {
-                return node.asText();
-            }
-            return node.toString();
-        }
-        return renderFields(paths, node);
-    }
-
-    private String renderFields(String[] paths, JsonNode root) {
         StringBuilder builder = new StringBuilder();
-        for (String rawPath : paths) {
-            String path = rawPath.trim();
-            if (path.isEmpty()) {
+        for (ServiceCatalog.OutputField field : fields) {
+            if (field == null || field.field() == null) {
                 continue;
             }
-            JsonNode value = resolvePath(root, path);
-            if (value != null && !value.isMissingNode()) {
-                if (!builder.isEmpty()) {
-                    builder.append('\n');
-                }
-                builder.append(path).append(": ");
-                builder.append(value.isTextual() ? value.asText() : value.toString());
+            JsonNode value = resolvePath(root, field.field());
+            if (value == null || value.isMissingNode() || value.isNull()) {
+                continue;
             }
+            if (!builder.isEmpty()) {
+                builder.append('\n');
+            }
+            String label = field.label() == null || field.label().isBlank() ? field.field() : field.label();
+            builder.append(label).append(' ');
+            builder.append(value.isTextual() ? value.asText() : value.toString());
         }
         return builder.toString();
     }
