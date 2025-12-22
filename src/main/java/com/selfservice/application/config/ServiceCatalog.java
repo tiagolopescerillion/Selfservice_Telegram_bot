@@ -20,6 +20,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
@@ -235,15 +236,15 @@ public class ServiceCatalog {
                 .filter(Objects::nonNull)
                 .toList();
 
-        boolean objectContextFound = false;
+        AtomicBoolean objectContextFound = new AtomicBoolean(false);
         return parsed.stream()
                 .map(field -> {
                     boolean objectContext = field.objectContext();
-                    if (objectContext && objectContextFound) {
+                    if (objectContext && objectContextFound.get()) {
                         objectContext = false;
                     }
                     if (objectContext) {
-                        objectContextFound = true;
+                        objectContextFound.set(true);
                     }
                     String label = StringUtils.hasText(field.label()) ? field.label() : field.field();
                     return new OutputField(field.field(), label, objectContext);
