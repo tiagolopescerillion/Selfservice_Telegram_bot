@@ -97,7 +97,7 @@ public class ServiceFunctionExecutor {
         if (response.body() == null || response.body().isBlank()) {
             logContextTrace(account, service, null);
             return ExecutionResult.handled("Service call succeeded but returned an empty response.", ResponseMode.TEXT,
-                    null, null);
+                    null, null, null, false);
         }
 
         JsonBody jsonBody = parseBody(response.body(), response.headers().getContentType());
@@ -109,7 +109,8 @@ public class ServiceFunctionExecutor {
 
         if (definition.responseTemplate() == ServiceCatalog.ResponseTemplate.JSON) {
             log.info("Service '{}' response: {}", callbackId, jsonBody.prettyBody);
-            return ExecutionResult.handled("Service response recorded in logs.", ResponseMode.SILENT, null, null);
+            return ExecutionResult.handled("Service response recorded in logs.", ResponseMode.SILENT, null, null,
+                    null, objectContextEnabled);
         }
 
         RenderResult rendered = renderOutput(definition.outputs(), jsonBody,
