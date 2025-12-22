@@ -1115,11 +1115,8 @@ public class WhatsappWebhookController {
         sessionService.setPendingFunctionMenu(userId, matchedItem.submenuId(), trimmedLabel, options,
                 execResult.contextValues(), storeContext, directives.accountContextEnabled(),
                 directives.serviceContextEnabled(), execResult.objectContextEnabled());
-        String header = trimmedLabel == null || trimmedLabel.isBlank() ? execResult.message() : trimmedLabel;
-        if (header == null || header.isBlank()) {
-            header = "Select an option.";
-        }
-        StringBuilder prompt = new StringBuilder(header.strip()).append("\n");
+        String header = buildContextualPrompt(userId, trimmedLabel);
+        StringBuilder prompt = new StringBuilder(header).append("\n");
         for (int i = 0; i < options.size(); i++) {
             prompt.append(i + 1).append(") ").append(options.get(i)).append("\n");
         }
@@ -1174,11 +1171,8 @@ public class WhatsappWebhookController {
         sessionService.setPendingFunctionMenu(userId,
                 matchedItem == null ? null : matchedItem.submenuId(), trimmedLabel, options, execResult.contextValues(),
                 storeContext, accountContext, serviceContext, execResult.objectContextEnabled());
-        String header = trimmedLabel == null || trimmedLabel.isBlank() ? execResult.message() : trimmedLabel;
-        if (header == null || header.isBlank()) {
-            header = "Select an option.";
-        }
-        StringBuilder prompt = new StringBuilder(header.strip()).append("\n");
+        String header = buildContextualPrompt(userId, trimmedLabel);
+        StringBuilder prompt = new StringBuilder(header).append("\n");
         for (int i = 0; i < options.size(); i++) {
             prompt.append(i + 1).append(") ").append(options.get(i)).append("\n");
         }
@@ -1193,6 +1187,25 @@ public class WhatsappWebhookController {
             return resolvedSelection + " Selected. Select an option.";
         }
         return contextLabel.trim() + " " + resolvedSelection + " Selected. Select an option.";
+    }
+
+    private String buildContextualPrompt(String userId, String objectLabel) {
+        var contextState = sessionService.getContextState(userId);
+        StringBuilder header = new StringBuilder();
+        if (contextState != null) {
+            if (contextState.accountContext() != null && !contextState.accountContext().isBlank()) {
+                header.append("Account # ").append(contextState.accountContext().trim()).append('\n');
+            }
+            if (contextState.serviceContext() != null && !contextState.serviceContext().isBlank()) {
+                header.append("Telefone # ").append(contextState.serviceContext().trim()).append('\n');
+            }
+            if (contextState.objectContext() != null && !contextState.objectContext().isBlank()) {
+                String label = (objectLabel == null || objectLabel.isBlank()) ? "Object" : objectLabel.trim();
+                header.append(label).append(' ').append(contextState.objectContext().trim()).append(" selected").append('\n');
+            }
+        }
+        header.append("Choose an option");
+        return header.toString();
     }
 
     private LoginMenuItem parseLoginMenuSelection(String text, List<LoginMenuItem> options) {

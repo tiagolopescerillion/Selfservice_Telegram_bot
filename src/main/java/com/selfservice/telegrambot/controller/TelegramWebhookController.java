@@ -806,12 +806,7 @@ public class TelegramWebhookController {
         userSessionService.setPendingFunctionMenu(chatId, matchedItem.submenuId(), trimmedLabel, options,
                 execResult.contextValues(), storeContext, directives.accountContextEnabled(),
                 directives.serviceContextEnabled(), execResult.objectContextEnabled());
-        String prompt = trimmedLabel == null || trimmedLabel.isBlank()
-                ? execResult.message()
-                : trimmedLabel;
-        if (prompt == null || prompt.isBlank()) {
-            prompt = "Select an option.";
-        }
+        String prompt = buildContextualPrompt(chatId, trimmedLabel);
         telegramService.sendCardMessage(chatId, prompt, options);
         return true;
     }
@@ -863,16 +858,11 @@ public class TelegramWebhookController {
         userSessionService.setPendingFunctionMenu(chatId,
                 matchedItem == null ? null : matchedItem.submenuId(), trimmedLabel, options, execResult.contextValues(),
                 storeContext, accountContext, serviceContext, execResult.objectContextEnabled());
-        String prompt = trimmedLabel == null || trimmedLabel.isBlank()
-                ? execResult.message()
-                : trimmedLabel;
-        if (prompt == null || prompt.isBlank()) {
-            prompt = "Select an option.";
-        }
+        String prompt = buildContextualPrompt(chatId, trimmedLabel);
         if (execResult.mode() == ServiceFunctionExecutor.ResponseMode.CARD) {
             telegramService.sendCardMessage(chatId, prompt, options);
         } else {
-            StringBuilder builder = new StringBuilder(prompt.strip()).append("\n");
+            StringBuilder builder = new StringBuilder(prompt).append("\n");
             for (int i = 0; i < options.size(); i++) {
                 builder.append(i + 1).append(") ").append(options.get(i)).append('\n');
             }
@@ -887,6 +877,25 @@ public class TelegramWebhookController {
             return resolvedSelection + " Selected. Select an option.";
         }
         return contextLabel.trim() + " " + resolvedSelection + " Selected. Select an option.";
+    }
+
+    private String buildContextualPrompt(long chatId, String objectLabel) {
+        var contextState = userSessionService.getContextState(chatId);
+        StringBuilder header = new StringBuilder();
+        if (contextState != null) {
+            if (contextState.accountContext() != null && !contextState.accountContext().isBlank()) {
+                header.append("Account # ").append(contextState.accountContext().trim()).append('\n');
+            }
+            if (contextState.serviceContext() != null && !contextState.serviceContext().isBlank()) {
+                header.append("Telefone # ").append(contextState.serviceContext().trim()).append('\n');
+            }
+            if (contextState.objectContext() != null && !contextState.objectContext().isBlank()) {
+                String label = (objectLabel == null || objectLabel.isBlank()) ? "Object" : objectLabel.trim();
+                header.append(label).append(' ').append(contextState.objectContext().trim()).append(" selected").append('\n');
+            }
+        }
+        header.append("Choose an option");
+        return header.toString();
     }
 
     private String extractDisplayName(Map<String, Object> chat) {
