@@ -328,6 +328,7 @@ const serviceQueryParamsInput = document.getElementById("serviceQueryParamsInput
 const serviceResponseTemplate = document.getElementById("serviceResponseTemplate");
 const outputFieldsContainer = document.getElementById("outputFieldsContainer");
 const addOutputFieldButton = document.getElementById("addOutputFieldButton");
+const addOutputFieldButtonSecondary = document.getElementById("addOutputFieldButtonSecondary");
 const cancelServiceButton = document.getElementById("cancelServiceButton");
 const serviceList = document.getElementById("serviceList");
 const serviceBuilderStatus = document.getElementById("serviceBuilderStatus");
@@ -3915,6 +3916,9 @@ if (serviceForm) {
 }
 if (addOutputFieldButton) {
   addOutputFieldButton.addEventListener("click", () => addOutputFieldRow());
+}
+if (addOutputFieldButtonSecondary) {
+  addOutputFieldButtonSecondary.addEventListener("click", () => addOutputFieldRow());
 }
 if (cancelServiceButton) {
   cancelServiceButton.addEventListener("click", () => {

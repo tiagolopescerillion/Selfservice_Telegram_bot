@@ -822,10 +822,23 @@ button:disabled {
     margin-top: 1rem;
 }
 
+.service-form__stack {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
 .service-form__row {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
     gap: 12px;
+}
+
+.service-form__field,
+.form-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
 }
 
 .service-form__outputs {
@@ -837,6 +850,11 @@ button:disabled {
     display: flex;
     justify-content: space-between;
     align-items: center;
+}
+
+.service-form__outputs-footer {
+    display: flex;
+    justify-content: flex-end;
 }
 
 .service-query-textarea {

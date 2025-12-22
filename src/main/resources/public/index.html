@@ -117,49 +117,58 @@
                 </button>
               </div>
               <form id="serviceForm" class="card hidden" autocomplete="off">
-                <div class="service-form__row">
-                  <label>
-                    Service Name
-                    <input
-                      id="serviceNameInput"
-                      type="text"
-                      required
-                      placeholder="Product"
-                    />
-                  </label>
-                  <label>
-                    API Name
-                    <select id="serviceApiSelect" required></select>
-                  </label>
-                  <label>
-                    Service Type
-                    <select id="serviceResponseTemplate">
-                      <option value="EXISTING">Existing</option>
-                      <option value="JSON">JSON</option>
-                      <option value="MESSAGE">Message</option>
-                      <option value="CARD">List of Objects</option>
-                    </select>
-                  </label>
-                </div>
-                <label class="service-form__row">
-                  Query Parameters
-                  <textarea
-                    id="serviceQueryParamsInput"
-                    class="service-query-textarea"
-                    rows="5"
-                    placeholder="key=value&limit=10"
-                  ></textarea>
-                </label>
-                <div class="service-form__outputs">
-                  <div class="service-form__outputs-header">
-                    <div>Output field / Label</div>
-                    <button id="addOutputFieldButton" class="secondary" type="button">Add field</button>
+                <div class="service-form__stack">
+                  <div class="service-form__row">
+                    <label class="form-field">
+                      Service Name
+                      <input
+                        id="serviceNameInput"
+                        type="text"
+                        required
+                        placeholder="Product"
+                      />
+                    </label>
+                    <label class="form-field">
+                      API Name
+                      <select id="serviceApiSelect" required></select>
+                    </label>
+                    <label class="form-field">
+                      Service Type
+                      <select id="serviceResponseTemplate">
+                        <option value="EXISTING">Existing</option>
+                        <option value="JSON">JSON</option>
+                        <option value="MESSAGE">Message</option>
+                        <option value="CARD">List of Objects</option>
+                      </select>
+                    </label>
                   </div>
-                  <div id="outputFieldsContainer" class="output-fields"></div>
-                  <p class="hint">
-                    Mark one output as <strong>Object Context</strong> to reuse its value later. Output values are
-                    still combined for query parameters when calling your APIs.
-                  </p>
+
+                  <div class="service-form__field">
+                    <label for="serviceQueryParamsInput">Query Parameters</label>
+                    <textarea
+                      id="serviceQueryParamsInput"
+                      class="service-query-textarea"
+                      rows="5"
+                      placeholder="key=value&limit=10"
+                    ></textarea>
+                  </div>
+
+                  <div class="service-form__outputs">
+                    <div class="service-form__outputs-header">
+                      <div>Output field / Label</div>
+                      <button id="addOutputFieldButton" class="secondary" type="button">Add field</button>
+                    </div>
+                    <div id="outputFieldsContainer" class="output-fields"></div>
+                    <div class="service-form__outputs-footer">
+                      <button id="addOutputFieldButtonSecondary" class="secondary" type="button">
+                        Add another output
+                      </button>
+                    </div>
+                    <p class="hint">
+                      Mark one output as <strong>Object Context</strong> to reuse its value later. Output values are
+                      still combined for query parameters when calling your APIs.
+                    </p>
+                  </div>
                 </div>
                 <div class="toolbar toolbar--end">
                   <button id="saveServiceButton" type="submit">Save changes</button>
