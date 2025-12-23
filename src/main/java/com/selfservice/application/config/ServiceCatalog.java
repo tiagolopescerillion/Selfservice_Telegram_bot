@@ -87,6 +87,15 @@ public class ServiceCatalog {
         entry.put("Service Name", Optional.ofNullable(service.name()).orElse(""));
         entry.put("API-Name", Optional.ofNullable(service.apiName()).orElse(""));
         entry.put("Query Parameters", sanitizeQueryParameters(service.queryParameters()));
+        if (StringUtils.hasText(service.accountContextField())) {
+            entry.put("Account Context Field", service.accountContextField());
+        }
+        if (StringUtils.hasText(service.serviceContextField())) {
+            entry.put("Service Context Field", service.serviceContextField());
+        }
+        if (StringUtils.hasText(service.objectContextField())) {
+            entry.put("Object Context Field", service.objectContextField());
+        }
         ResponseTemplate template = Optional.ofNullable(service.responseTemplate()).orElse(ResponseTemplate.JSON);
         entry.put("Response Template", template.name());
         entry.put("Output", serializeOutputs(service.outputs()));
@@ -161,6 +170,9 @@ public class ServiceCatalog {
             String name = normalize(values.get("Service Name"));
             String apiName = normalize(values.get("API-Name"));
             Object queryParams = values.getOrDefault("Query Parameters", Map.of());
+            String accountContextField = normalize(values.get("Account Context Field"));
+            String serviceContextField = normalize(values.get("Service Context Field"));
+            String objectContextField = normalize(values.get("Object Context Field"));
             String responseTemplate = normalize(values.get("Response Template"));
             Object rawOutput = values.get("Output");
 
@@ -173,7 +185,8 @@ public class ServiceCatalog {
             }
             ResponseTemplate template = ResponseTemplate.fromLabel(responseTemplate);
             List<OutputField> outputs = parseOutputs(rawOutput);
-            return Optional.of(new ServiceDefinition(slugify(name), slugify(apiName), params, template, outputs));
+            return Optional.of(new ServiceDefinition(slugify(name), slugify(apiName), params, template, outputs,
+                    accountContextField, serviceContextField, objectContextField));
         }
         return Optional.empty();
     }
@@ -302,7 +315,8 @@ public class ServiceCatalog {
     }
 
     public record ServiceDefinition(String name, String apiName, Map<String, String> queryParameters,
-                                    ResponseTemplate responseTemplate, List<OutputField> outputs) { }
+                                    ResponseTemplate responseTemplate, List<OutputField> outputs,
+                                    String accountContextField, String serviceContextField, String objectContextField) { }
 
     public record OutputField(String field, String label, boolean objectContext) { }
 }

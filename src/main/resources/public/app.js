@@ -324,6 +324,9 @@ const downloadServicesButton = document.getElementById("downloadServicesButton")
 const serviceForm = document.getElementById("serviceForm");
 const serviceNameInput = document.getElementById("serviceNameInput");
 const serviceApiSelect = document.getElementById("serviceApiSelect");
+const serviceAccountContextField = document.getElementById("serviceAccountContextField");
+const serviceServiceContextField = document.getElementById("serviceServiceContextField");
+const serviceObjectContextField = document.getElementById("serviceObjectContextField");
 const serviceQueryParamsInput = document.getElementById("serviceQueryParamsInput");
 const serviceResponseTemplate = document.getElementById("serviceResponseTemplate");
 const outputFieldsContainer = document.getElementById("outputFieldsContainer");
@@ -530,6 +533,9 @@ function normalizeServiceDefinition(service = {}) {
   return {
     name: (service.name || "").trim(),
     apiName: service.apiName || "",
+    accountContextField: (service.accountContextField || "").trim(),
+    serviceContextField: (service.serviceContextField || "").trim(),
+    objectContextField: (service.objectContextField || "").trim(),
     queryParameters:
       typeof service.queryParameters === "object" && service.queryParameters !== null
         ? { ...service.queryParameters }
@@ -543,6 +549,9 @@ function createBlankServiceDefinition() {
   return normalizeServiceDefinition({
     name: "",
     apiName: apiRegistryEntries[0]?.name || "",
+    accountContextField: "",
+    serviceContextField: "",
+    objectContextField: "",
     outputs: [{ field: "", label: "", objectContext: false }]
   });
 }
@@ -674,31 +683,11 @@ function collectOutputFieldsFromForm() {
 }
 
 function extractContextFields(item = {}) {
-  return {
-    accountContextEnabled: Boolean(item.accountContextEnabled),
-    accountContextKey: item.accountContextKey || "",
-    accountContextLabel: item.accountContextLabel || "",
-    serviceContextEnabled: Boolean(item.serviceContextEnabled),
-    serviceContextKey: item.serviceContextKey || "",
-    serviceContextLabel: item.serviceContextLabel || "",
-    menuContextEnabled: Boolean(item.menuContextEnabled),
-    menuContextKey: item.menuContextKey || "",
-    menuContextLabel: item.menuContextLabel || ""
-  };
+  return {};
 }
 
 function serializeContextFields(item = {}) {
-  return {
-    accountContextEnabled: Boolean(item.accountContextEnabled),
-    accountContextKey: item.accountContextKey || null,
-    accountContextLabel: item.accountContextLabel || null,
-    serviceContextEnabled: Boolean(item.serviceContextEnabled),
-    serviceContextKey: item.serviceContextKey || null,
-    serviceContextLabel: item.serviceContextLabel || null,
-    menuContextEnabled: Boolean(item.menuContextEnabled),
-    menuContextKey: item.menuContextKey || null,
-    menuContextLabel: item.menuContextLabel || null
-  };
+  return {};
 }
 
 applyConfiguredApiBase(getConfiguredPublicBaseFromMeta());
@@ -1181,67 +1170,7 @@ function renderMenuItems() {
 }
 
 function appendContextEditors(container, menuId, index, item) {
-  const contextWrapper = document.createElement("div");
-  contextWrapper.className = "context-fields";
-  const contexts = [
-    { label: "Menu context", flag: "menuContextEnabled", key: "menuContextKey", text: "menuContextLabel" },
-    { label: "Service context", flag: "serviceContextEnabled", key: "serviceContextKey", text: "serviceContextLabel" },
-    { label: "Account context", flag: "accountContextEnabled", key: "accountContextKey", text: "accountContextLabel" }
-  ];
-
-  contexts.forEach((ctx) => {
-    const row = document.createElement("div");
-    row.className = "context-row";
-
-    const checkboxLabel = document.createElement("label");
-    checkboxLabel.className = "checkbox";
-    const checkbox = document.createElement("input");
-    checkbox.type = "checkbox";
-    checkbox.checked = Boolean(item[ctx.flag]);
-    const checkboxText = document.createElement("span");
-    checkboxText.textContent = ctx.label;
-    checkboxLabel.append(checkbox, checkboxText);
-
-    const inputs = document.createElement("div");
-    inputs.className = "context-row__inputs";
-    const keyInput = document.createElement("input");
-    keyInput.type = "text";
-    keyInput.placeholder = "Query key";
-    keyInput.value = item[ctx.key] || "";
-    keyInput.disabled = !checkbox.checked;
-    keyInput.addEventListener("input", (event) => {
-      menusById.get(menuId).items[index][ctx.key] = event.target.value;
-      updatePreview();
-    });
-
-    const labelInput = document.createElement("input");
-    labelInput.type = "text";
-    labelInput.placeholder = "Display label";
-    labelInput.value = item[ctx.text] || "";
-    labelInput.disabled = !checkbox.checked;
-    labelInput.addEventListener("input", (event) => {
-      menusById.get(menuId).items[index][ctx.text] = event.target.value;
-      updatePreview();
-    });
-
-    checkbox.addEventListener("change", (event) => {
-      menusById.get(menuId).items[index][ctx.flag] = event.target.checked;
-      keyInput.disabled = !event.target.checked;
-      labelInput.disabled = !event.target.checked;
-      updatePreview();
-    });
-
-    inputs.append(keyInput, labelInput);
-    row.append(checkboxLabel, inputs);
-    contextWrapper.append(row);
-  });
-
-  const hint = document.createElement("p");
-  hint.className = "hint";
-  hint.textContent = "Enabled contexts add their key/value to the API call and prefix the response.";
-  contextWrapper.append(hint);
-
-  container.append(contextWrapper);
+  return;
 }
 
 function renderItemDetails(container, menuId, item, index) {
@@ -1533,17 +1462,7 @@ function updateAddFormSubmenuOptions() {
 }
 
 function getContextFormState() {
-  return {
-    menuContextEnabled: Boolean(menuContextToggle?.checked),
-    menuContextKey: (menuContextKeyInput?.value || "").trim(),
-    menuContextLabel: (menuContextLabelInput?.value || "").trim(),
-    serviceContextEnabled: Boolean(serviceContextToggle?.checked),
-    serviceContextKey: (serviceContextKeyInput?.value || "").trim(),
-    serviceContextLabel: (serviceContextLabelInput?.value || "").trim(),
-    accountContextEnabled: Boolean(accountContextToggle?.checked),
-    accountContextKey: (accountContextKeyInput?.value || "").trim(),
-    accountContextLabel: (accountContextLabelInput?.value || "").trim()
-  };
+  return {};
 }
 
 function resetContextForm() {
@@ -2126,16 +2045,25 @@ function toggleServiceForm(show, service = null) {
   if (show && service) {
     serviceNameInput.value = service.name || "";
     serviceApiSelect.value = service.apiName || "";
+    if (serviceAccountContextField) serviceAccountContextField.value = service.accountContextField || "";
+    if (serviceServiceContextField) serviceServiceContextField.value = service.serviceContextField || "";
+    if (serviceObjectContextField) serviceObjectContextField.value = service.objectContextField || "";
     serviceQueryParamsInput.value = formatQueryParams(service.queryParameters);
     serviceResponseTemplate.value = service.responseTemplate || "JSON";
     renderOutputFieldInputs(service.outputs);
     editingServiceIndex = serviceBuilderEntries.findIndex((entry) => entry === service);
   } else if (show) {
     serviceForm.reset();
+    if (serviceAccountContextField) serviceAccountContextField.value = "";
+    if (serviceServiceContextField) serviceServiceContextField.value = "";
+    if (serviceObjectContextField) serviceObjectContextField.value = "";
     renderOutputFieldInputs([]);
     editingServiceIndex = null;
   } else {
     serviceForm.reset();
+    if (serviceAccountContextField) serviceAccountContextField.value = "";
+    if (serviceServiceContextField) serviceServiceContextField.value = "";
+    if (serviceObjectContextField) serviceObjectContextField.value = "";
     renderOutputFieldInputs([]);
     editingServiceIndex = null;
   }
@@ -2189,6 +2117,22 @@ function renderServiceList() {
     queryLine.className = "service-card__meta service-card__meta--query";
     queryLine.textContent = `Query Parameters: ${formatQueryParams(service.queryParameters) || "None"}`;
 
+    const contextLine = document.createElement("div");
+    contextLine.className = "service-card__meta service-card__meta--query";
+    const contextBits = [];
+    if (service.accountContextField) {
+      contextBits.push(`Account → ${service.accountContextField}`);
+    }
+    if (service.serviceContextField) {
+      contextBits.push(`Service → ${service.serviceContextField}`);
+    }
+    if (service.objectContextField) {
+      contextBits.push(`Object → ${service.objectContextField}`);
+    }
+    contextLine.textContent = contextBits.length
+      ? `Context Parameters: ${contextBits.join(" • ")}`
+      : "Context Parameters: none";
+
     const outputsBox = document.createElement("div");
     outputsBox.className = "service-card__outputs";
     const outputs = normalizeOutputFields(service.outputs);
@@ -2231,7 +2175,7 @@ function renderServiceList() {
 
     actions.append(editBtn, deleteBtn);
 
-    card.append(header, queryLine, outputsBox, actions);
+    card.append(header, queryLine, contextLine, outputsBox, actions);
     serviceList.append(card);
   });
 }
@@ -2250,10 +2194,22 @@ function handleServiceFormSubmit(event) {
     alert("Please provide both Service Name and API Name.");
     return;
   }
+  const accountContextField = (serviceAccountContextField?.value || "").trim();
+  const serviceContextField = (serviceServiceContextField?.value || "").trim();
+  const objectContextField = (serviceObjectContextField?.value || "").trim();
   const queryParameters = parseQueryParams(serviceQueryParamsInput?.value || "");
   const outputs = collectOutputFieldsFromForm();
   const responseTemplate = serviceResponseTemplate?.value || "JSON";
-  const payload = normalizeServiceDefinition({ name, apiName, queryParameters, outputs, responseTemplate });
+  const payload = normalizeServiceDefinition({
+    name,
+    apiName,
+    queryParameters,
+    outputs,
+    responseTemplate,
+    accountContextField,
+    serviceContextField,
+    objectContextField
+  });
 
   if (editingServiceIndex !== null && editingServiceIndex >= 0) {
     serviceBuilderEntries[editingServiceIndex] = payload;

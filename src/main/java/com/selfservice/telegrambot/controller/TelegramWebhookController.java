@@ -715,9 +715,10 @@ public class TelegramWebhookController {
                         }
 
                         BusinessMenuItem matchedItem = menuConfigurationProvider.findMenuItemByCallback(text);
+                        var contextState = userSessionService.getContextState(chatId);
                         ServiceFunctionExecutor.ExecutionResult execResult = serviceFunctionExecutor
                                 .execute(text, existingToken, selected, selectedService,
-                                        matchedItem == null ? null : matchedItem.contextDirectives());
+                                        contextState == null ? null : contextState.objectContext());
                         if (matchedItem != null && matchedItem.isFunctionMenu()) {
                             boolean handled = handleFunctionMenuResponse(chatId, matchedItem, execResult, selected);
                             if (handled) {

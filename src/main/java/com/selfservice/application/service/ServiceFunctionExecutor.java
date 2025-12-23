@@ -4,7 +4,6 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.selfservice.application.config.ApiRegistry;
 import com.selfservice.application.config.ServiceCatalog;
-import com.selfservice.application.config.menu.BusinessMenuItem;
 import com.selfservice.application.dto.AccountSummary;
 import com.selfservice.application.dto.ServiceSummary;
 import org.slf4j.Logger;
@@ -57,10 +56,11 @@ public class ServiceFunctionExecutor {
      * @param accessToken bearer token for downstream API calls
      * @param account selected account context (may be null)
      * @param service selected service context (may be null)
+     * @param objectContextValue selected object context value (may be null)
      * @return result indicating if the callback was handled and the formatted response text
      */
     public ExecutionResult execute(String callbackId, String accessToken, AccountSummary account,
-            ServiceSummary service, BusinessMenuItem.ContextDirectives contextDirectives) {
+            ServiceSummary service, String objectContextValue) {
         Optional<ServiceCatalog.ServiceDefinition> maybeDefinition = serviceCatalog.findByName(callbackId);
         if (maybeDefinition.isEmpty()) {
             return ExecutionResult.notHandled();
@@ -78,7 +78,7 @@ public class ServiceFunctionExecutor {
         }
 
         String url = resolvePlaceholders(maybeApi.get().url());
-        Map<String, String> query = buildQuery(definition, account, service, contextDirectives);
+        Map<String, String> query = buildQuery(definition, account, service, objectContextValue);
         String targetUrl = buildTargetUrl(url, query);
 
         CommonApiService.ApiResponse response = commonApiService.execute(
@@ -105,8 +105,10 @@ public class ServiceFunctionExecutor {
         boolean objectContextEnabled = hasObjectContext(definition.outputs());
         String objectContextLabel = resolveObjectContextLabel(definition.outputs());
         int itemCount = jsonBody.node != null && jsonBody.node.isArray() ? jsonBody.node.size() : 1;
-        String objectContextValue = (itemCount == 1) ? extractObjectContext(definition.outputs(), jsonBody) : null;
-        logContextTrace(account, service, objectContextValue);
+        String resolvedObjectContextValue = (itemCount == 1)
+                ? extractObjectContext(definition.outputs(), jsonBody)
+                : null;
+        logContextTrace(account, service, resolvedObjectContextValue);
 
         if (definition.responseTemplate() == ServiceCatalog.ResponseTemplate.JSON) {
             log.info("Service '{}' response: {}", callbackId, jsonBody.prettyBody);
@@ -116,7 +118,7 @@ public class ServiceFunctionExecutor {
 
         RenderResult rendered = renderOutput(definition.outputs(), jsonBody,
                 definition.responseTemplate() == ServiceCatalog.ResponseTemplate.CARD);
-        String contextLabel = contextDirectives == null ? null : contextDirectives.resolvedLabel();
+        String contextLabel = null;
         String messageText = rendered.text();
         if (contextLabel != null && !contextLabel.isBlank()) {
             messageText = contextLabel + " select: " + messageText;
@@ -131,7 +133,7 @@ public class ServiceFunctionExecutor {
     }
 
     private Map<String, String> buildQuery(ServiceCatalog.ServiceDefinition definition, AccountSummary account,
-            ServiceSummary service, BusinessMenuItem.ContextDirectives contextDirectives) {
+            ServiceSummary service, String objectContextValue) {
         Map<String, String> params = new LinkedHashMap<>();
         if (definition.queryParameters() != null) {
             definition.queryParameters().forEach((key, value) -> params.put(key, resolvePlaceholders(value)));
@@ -143,15 +145,17 @@ public class ServiceFunctionExecutor {
         if (service != null) {
             params.replaceAll((k, v) -> v == null || v.isBlank() ? substituteService(k, v, service) : v);
         }
-        if (contextDirectives != null) {
-            if (contextDirectives.accountContextEnabled() && account != null
-                    && account.accountId() != null && contextDirectives.accountContextKey() != null) {
-                params.put(contextDirectives.accountContextKey(), account.accountId());
-            }
-            if (contextDirectives.serviceContextEnabled() && service != null
-                    && service.productId() != null && contextDirectives.serviceContextKey() != null) {
-                params.put(contextDirectives.serviceContextKey(), service.productId());
-            }
+        if (definition.accountContextField() != null && !definition.accountContextField().isBlank()
+                && account != null && account.accountId() != null) {
+            params.put(definition.accountContextField(), account.accountId());
+        }
+        if (definition.serviceContextField() != null && !definition.serviceContextField().isBlank()
+                && service != null && service.productId() != null) {
+            params.put(definition.serviceContextField(), service.productId());
+        }
+        if (definition.objectContextField() != null && !definition.objectContextField().isBlank()
+                && objectContextValue != null && !objectContextValue.isBlank()) {
+            params.put(definition.objectContextField(), objectContextValue);
         }
         return params;
     }

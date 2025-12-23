@@ -841,9 +841,31 @@ button:disabled {
     gap: 6px;
 }
 
+
 .service-form__outputs {
     display: grid;
     gap: 8px;
+}
+
+.service-form__context {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 0.5rem;
+    border: 1px solid var(--border);
+    border-radius: 0.5rem;
+    background: var(--panel);
+}
+
+.service-context-row {
+    display: grid;
+    grid-template-columns: 1fr 220px;
+    gap: 12px;
+    align-items: end;
+}
+
+.service-context-row .hint {
+    margin: 0;
 }
 
 .service-form__outputs-header {

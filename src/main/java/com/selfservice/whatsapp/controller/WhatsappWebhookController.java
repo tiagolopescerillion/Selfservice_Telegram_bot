@@ -667,8 +667,10 @@ public class WhatsappWebhookController {
                     }
                     AccountSummary selected = sessionService.getSelectedAccount(userId);
                     ServiceSummary selectedService = sessionService.getSelectedService(userId);
+                    var contextState = sessionService.getContextState(userId);
                     ServiceFunctionExecutor.ExecutionResult result = serviceFunctionExecutor
-                            .execute(item.function(), token, selected, selectedService, item.contextDirectives());
+                            .execute(item.function(), token, selected, selectedService,
+                                    contextState == null ? null : contextState.objectContext());
                     if (item.isFunctionMenu()) {
                         boolean handled = handleFunctionMenuResponse(userId, from, item, result);
                         if (handled) {
