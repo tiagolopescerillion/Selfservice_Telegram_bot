@@ -422,12 +422,25 @@ public class TelegramService {
         Map<String, Object> replyMarkup = Map.of("inline_keyboard", keyboard);
 
         StringBuilder menuText = new StringBuilder();
-        appendParagraph(menuText, greeting);
-        appendParagraph(menuText, userSessionService.getMenuContext(chatId));
-        if (selectedAccount != null) {
-            appendParagraph(menuText, format(chatId, "AccountSelected", selectedAccount.accountId()));
+        boolean hasGreeting = greeting != null && !greeting.isBlank();
+        String storedContext = userSessionService.getMenuContext(chatId);
+        boolean appendedContext = false;
+
+        if (hasGreeting) {
+            appendParagraph(menuText, greeting);
+            appendedContext = true;
+        } else if (storedContext != null && !storedContext.isBlank()) {
+            appendParagraph(menuText, storedContext);
+            appendedContext = true;
         }
-        appendParagraph(menuText, translate(chatId, "LoginWelcome"));
+
+        String combinedContext = hasGreeting ? greeting : storedContext;
+        boolean contextContainsChoice = combinedContext != null && combinedContext.contains("Choose an option");
+        if (!contextContainsChoice) {
+            appendParagraph(menuText, translate(chatId, "LoginWelcome"));
+        } else if (!appendedContext) {
+            appendParagraph(menuText, translate(chatId, "LoginWelcome"));
+        }
 
         Map<String, Object> body = Map.of(
                 "chat_id", chatId,

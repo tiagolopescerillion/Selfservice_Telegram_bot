@@ -394,12 +394,27 @@ public class WhatsappService {
         List<BusinessMenuItem> menuItems = menuConfigurationProvider.getMenuItems(menuId);
         StringBuilder body = new StringBuilder();
         sessionService.setSelectionContext(to, WhatsappSessionService.SelectionContext.NONE);
-        appendParagraph(body, greeting);
-        appendParagraph(body, sessionService.getMenuContext(to));
-        if (selectedAccount != null) {
-            appendParagraph(body, format(to, "AccountSelected", selectedAccount.accountId()));
+
+        boolean hasGreeting = greeting != null && !greeting.isBlank();
+        String storedContext = sessionService.getMenuContext(to);
+        boolean appendedContext = false;
+
+        if (hasGreeting) {
+            appendParagraph(body, greeting);
+            appendedContext = true;
+        } else if (storedContext != null && !storedContext.isBlank()) {
+            appendParagraph(body, storedContext);
+            appendedContext = true;
         }
-        appendParagraph(body, translate(to, "LoginWelcome"));
+
+        String combinedContext = hasGreeting ? greeting : storedContext;
+        boolean contextContainsChoice = combinedContext != null && combinedContext.contains("Choose an option");
+        if (!contextContainsChoice) {
+            appendParagraph(body, translate(to, "LoginWelcome"));
+        } else if (!appendedContext) {
+            appendParagraph(body, translate(to, "LoginWelcome"));
+        }
+
         if (!body.toString().endsWith("\n\n")) {
             body.append("\n");
         }
