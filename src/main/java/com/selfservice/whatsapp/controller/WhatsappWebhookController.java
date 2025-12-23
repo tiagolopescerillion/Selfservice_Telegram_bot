@@ -286,9 +286,11 @@ public class WhatsappWebhookController {
         if (selectionContext == WhatsappSessionService.SelectionContext.SETTINGS) {
             List<LoginMenuItem> settingsOptions = whatsappService.loginSettingsMenuOptions(userId);
             LoginMenuItem settingsSelection = parseLoginMenuSelection(cleanedBody, settingsOptions);
+            int settingsIndex = parseIndex(cleanedBody);
             if (settingsSelection == null && (lower.equals(menuText)
                     || lower.equals(WhatsappService.COMMAND_MENU)
-                    || lower.equals("menu"))) {
+                    || lower.equals("menu")
+                    || settingsIndex == 0)) {
                 settingsSelection = settingsOptions.stream()
                         .filter(item -> item.resolvedFunction() == LoginMenuFunction.MENU)
                         .findFirst()
