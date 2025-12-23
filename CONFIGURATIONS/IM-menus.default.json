@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generatedAt": "2024-01-01T00:00:00.000Z",
+  "generatedAt": "2025-01-01T00:00:00.000Z",
   "loginMenu": {
     "menus": [
       {
@@ -9,6 +9,7 @@
         "parentId": null,
         "items": [
           {
+            "type": "function",
             "order": 1,
             "label": "Self-service login",
             "function": "DIGITAL_LOGIN",
@@ -17,6 +18,7 @@
             "submenuId": null
           },
           {
+            "type": "function",
             "order": 2,
             "label": "Direct login",
             "function": "CRM_LOGIN",
@@ -25,11 +27,12 @@
             "submenuId": null
           },
           {
+            "type": "submenu",
             "order": 3,
             "label": "Settings",
-            "function": "SETTINGS",
-            "callbackData": "SETTINGS_MENU",
-            "translationKey": "ButtonSettings",
+            "function": null,
+            "callbackData": null,
+            "translationKey": null,
             "submenuId": "login-settings"
           }
         ]
@@ -40,6 +43,7 @@
         "parentId": "login-home",
         "items": [
           {
+            "type": "function",
             "order": 1,
             "label": "Consent management",
             "function": "OPT_IN",
@@ -48,6 +52,7 @@
             "submenuId": null
           },
           {
+            "type": "function",
             "order": 2,
             "label": "Language settings",
             "function": "CHANGE_LANGUAGE",
@@ -56,24 +61,9 @@
             "submenuId": null
           },
           {
+            "type": "function",
             "order": 3,
-            "label": "Select a different account",
-            "function": "CHANGE_ACCOUNT",
-            "callbackData": "CHANGE_ACCOUNT",
-            "translationKey": "ButtonChangeAccount",
-            "submenuId": null
-          },
-          {
-            "order": 4,
-            "label": "Logout",
-            "function": "LOGOUT",
-            "callbackData": "LOGOUT",
-            "translationKey": "ButtonLogout",
-            "submenuId": null
-          },
-          {
-            "order": 5,
-            "label": "Back to menu",
+            "label": "Menu",
             "function": "MENU",
             "callbackData": "MENU",
             "translationKey": "ButtonMenu",
@@ -81,39 +71,74 @@
           }
         ]
       }
+    ],
+    "menu": [
+      {
+        "order": 1,
+        "label": "Self-service login",
+        "function": "DIGITAL_LOGIN",
+        "callbackData": "SELF_SERVICE_LOGIN",
+        "translationKey": null
+      },
+      {
+        "order": 2,
+        "label": "Direct login",
+        "function": "CRM_LOGIN",
+        "callbackData": "DIRECT_LOGIN",
+        "translationKey": null
+      }
+    ],
+    "settingsMenu": [
+      {
+        "order": 1,
+        "label": "Consent management",
+        "function": "OPT_IN",
+        "callbackData": "OPT_IN",
+        "translationKey": null
+      },
+      {
+        "order": 2,
+        "label": "Language settings",
+        "function": "CHANGE_LANGUAGE",
+        "callbackData": "CHANGE_LANGUAGE",
+        "translationKey": null
+      },
+      {
+        "order": 3,
+        "label": "Menu",
+        "function": "MENU",
+        "callbackData": "MENU",
+        "translationKey": null
+      }
     ]
   },
   "menus": [
     {
       "id": "home",
       "name": "Home",
+      "parentId": null,
       "items": [
         {
+          "type": "function-menu",
           "order": 1,
-          "label": "Hello World",
-          "function": "HELLO_WORLD",
-          "callbackData": "HELLO_WORLD",
-          "translationKey": "ButtonHelloWorld",
-          "submenuId": null
+          "label": "My Invoices",
+          "function": "open-invoice-list",
+          "callbackData": "open-invoice-list",
+          "translationKey": null,
+          "submenuId": "invoice-actions"
         },
         {
+          "type": "function-menu",
           "order": 2,
-          "label": "Hello Cerillion",
-          "function": "HELLO_CERILLION",
-          "callbackData": "HELLO_CERILLION",
-          "translationKey": "ButtonHelloCerillion",
-          "submenuId": null
+          "label": "My Orders",
+          "function": "open-orders",
+          "callbackData": "open-orders",
+          "translationKey": null,
+          "submenuId": "my-order-sub-menu"
         },
         {
+          "type": "function",
           "order": 3,
-          "label": "Trouble Ticket",
-          "function": "VIEW_TROUBLE_TICKET",
-          "callbackData": "VIEW_TROUBLE_TICKET",
-          "translationKey": "ButtonTroubleTicket",
-          "submenuId": null
-        },
-        {
-          "order": 4,
           "label": "Select a Service",
           "function": "SELECT_SERVICE",
           "callbackData": "SELECT_SERVICE",
@@ -121,24 +146,17 @@
           "submenuId": null
         },
         {
-          "order": 5,
-          "label": "My Issues",
-          "function": "MY_ISSUES",
-          "callbackData": "MY_ISSUES",
-          "translationKey": "ButtonMyIssues",
+          "type": "function",
+          "order": 4,
+          "label": "Account Selector",
+          "function": "CHANGE_ACCOUNT",
+          "callbackData": "CHANGE_ACCOUNT",
+          "translationKey": null,
           "submenuId": null
         },
         {
-          "order": 6,
-          "label": "Invoice history",
-          "type": "function-menu",
-          "function": "INVOICE_HISTORY",
-          "callbackData": "INVOICE_HISTORY",
-          "translationKey": "ButtonInvoiceHistory",
-          "submenuId": "invoice-actions"
-        },
-        {
-          "order": 7,
+          "type": "submenu",
+          "order": 5,
           "label": "Settings",
           "function": null,
           "callbackData": null,
@@ -146,20 +164,22 @@
           "submenuId": "settings"
         },
         {
-          "order": 8,
-          "label": "Select a different account",
-          "function": "CHANGE_ACCOUNT",
-          "callbackData": "CHANGE_ACCOUNT",
-          "translationKey": "ButtonChangeAccount",
-          "submenuId": null
-        },
-        {
-          "order": 9,
+          "type": "function",
+          "order": 6,
           "label": "Logout",
           "function": "LOGOUT",
           "callbackData": "LOGOUT",
-          "translationKey": "ButtonLogout",
+          "translationKey": null,
           "submenuId": null
+        },
+        {
+          "type": "function-menu",
+          "order": 7,
+          "label": "New Open Issues",
+          "function": "my-open-issues",
+          "callbackData": "my-open-issues",
+          "translationKey": null,
+          "submenuId": "my-tickets"
         }
       ]
     },
@@ -169,6 +189,7 @@
       "parentId": "home",
       "items": [
         {
+          "type": "function",
           "order": 1,
           "label": "Consent management",
           "function": "OPT_IN",
@@ -177,6 +198,7 @@
           "submenuId": null
         },
         {
+          "type": "function",
           "order": 2,
           "label": "Language settings",
           "function": "CHANGE_LANGUAGE",
@@ -185,24 +207,9 @@
           "submenuId": null
         },
         {
+          "type": "function",
           "order": 3,
-          "label": "Select a different account",
-          "function": "CHANGE_ACCOUNT",
-          "callbackData": "CHANGE_ACCOUNT",
-          "translationKey": "ButtonChangeAccount",
-          "submenuId": null
-        },
-        {
-          "order": 4,
-          "label": "Logout",
-          "function": "LOGOUT",
-          "callbackData": "LOGOUT",
-          "translationKey": "ButtonLogout",
-          "submenuId": null
-        },
-        {
-          "order": 5,
-          "label": "Back to menu",
+          "label": "Menu",
           "function": "MENU",
           "callbackData": "MENU",
           "translationKey": "ButtonMenu",
@@ -213,38 +220,110 @@
     {
       "id": "invoice-actions",
       "name": "Invoice actions",
-      "parentId": null,
+      "parentId": "home",
       "items": [
         {
+          "type": "function",
           "order": 1,
-          "label": "View invoice PDF",
-          "function": "INVOICE_VIEW_PDF",
-          "callbackData": "INVOICE_VIEW_PDF:",
-          "translationKey": "ButtonInvoiceViewPdf",
+          "label": "View Invoice PDF",
+          "function": "HELLO_CERILLION",
+          "callbackData": "HELLO_CERILLION",
+          "translationKey": "ButtonHelloCerillion",
           "submenuId": null
         },
         {
+          "type": "function",
           "order": 2,
-          "label": "Pay invoice",
-          "function": "INVOICE_PAY",
-          "callbackData": "INVOICE_PAY:",
-          "translationKey": "ButtonInvoicePay",
+          "label": "Compare Bills",
+          "function": "HELLO_CERILLION",
+          "callbackData": "HELLO_CERILLION",
+          "translationKey": "ButtonHelloCerillion",
           "submenuId": null
         },
         {
+          "type": "function",
           "order": 3,
-          "label": "Compare bills",
-          "function": "INVOICE_COMPARE",
-          "callbackData": "INVOICE_COMPARE:",
-          "translationKey": "ButtonInvoiceCompare",
+          "label": "Pay Invoice",
+          "function": "HELLO_CERILLION",
+          "callbackData": "HELLO_CERILLION",
+          "translationKey": "ButtonHelloCerillion",
           "submenuId": null
         },
         {
+          "type": "function",
           "order": 4,
+          "label": "Up",
+          "function": "BUSINESS_MENU_UP",
+          "callbackData": "BUSINESS_MENU_UP",
+          "translationKey": "BusinessMenuUp",
+          "submenuId": null
+        },
+        {
+          "type": "function",
+          "order": 5,
           "label": "Back to menu",
           "function": "MENU",
           "callbackData": "MENU",
-          "translationKey": "ButtonBackToMenu",
+          "translationKey": "ButtonMenu",
+          "submenuId": null
+        },
+        {
+          "type": "function",
+          "order": 6,
+          "label": "Invoice History",
+          "function": "invoice-history",
+          "callbackData": "invoice-history",
+          "translationKey": null,
+          "submenuId": null
+        }
+      ]
+    },
+    {
+      "id": "my-order-sub-menu",
+      "name": "My Order Sub-Menu",
+      "parentId": "home",
+      "items": [
+        {
+          "type": "function",
+          "order": 1,
+          "label": "Order History",
+          "function": "order-history",
+          "callbackData": "order-history",
+          "translationKey": null,
+          "submenuId": null
+        },
+        {
+          "type": "function",
+          "order": 2,
+          "label": "Home",
+          "function": "MENU",
+          "callbackData": "MENU",
+          "translationKey": "ButtonMenu",
+          "submenuId": null
+        }
+      ]
+    },
+    {
+      "id": "my-tickets",
+      "name": "My Tickets",
+      "parentId": "home",
+      "items": [
+        {
+          "type": "function",
+          "order": 1,
+          "label": "Hello World",
+          "function": "HELLO_CERILLION",
+          "callbackData": "HELLO_CERILLION",
+          "translationKey": null,
+          "submenuId": null
+        },
+        {
+          "type": "function",
+          "order": 2,
+          "label": "Menu",
+          "function": "MENU",
+          "callbackData": "MENU",
+          "translationKey": null,
           "submenuId": null
         }
       ]
