@@ -113,17 +113,35 @@ public class LoginMenuDefinition {
         return menuDefinition.sortedItems().stream()
                 .map(item -> {
                     if (item.isSubMenu()) {
-                        LoginMenuItem settings = new LoginMenuItem();
-                        settings.setOrder(item.order());
-                        settings.setLabel(item.label() == null || item.label().isBlank() ? "Settings" : item.label());
-                        settings.setFunction(LoginMenuFunction.SETTINGS.name());
-                        settings.setTranslationKey(item.translationKey() == null || item.translationKey().isBlank()
+                        String label = item.label() == null || item.label().isBlank() ? "Settings" : item.label();
+                        String translation = item.translationKey() == null || item.translationKey().isBlank()
                                 ? "ButtonSettings"
-                                : item.translationKey());
-                        settings.setCallbackData(item.callbackData() == null || item.callbackData().isBlank()
+                                : item.translationKey();
+                        String callback = item.callbackData() == null || item.callbackData().isBlank()
                                 ? "SETTINGS_MENU"
-                                : item.callbackData());
-                        return settings;
+                                : item.callbackData();
+                        return new LoginMenuItem(
+                                item.type() == null || item.type().isBlank() ? "submenu" : item.type(),
+                                item.order(),
+                                label,
+                                LoginMenuFunction.SETTINGS.name(),
+                                callback,
+                                translation,
+                                item.submenuId(),
+                                item.weblink(),
+                                item.url(),
+                                item.authenticated(),
+                                item.context(),
+                                item.useTranslation(),
+                                item.accountContextEnabled(),
+                                item.accountContextKey(),
+                                item.accountContextLabel(),
+                                item.serviceContextEnabled(),
+                                item.serviceContextKey(),
+                                item.serviceContextLabel(),
+                                item.menuContextEnabled(),
+                                item.menuContextKey(),
+                                item.menuContextLabel());
                     }
                     if (item.isAction()) {
                         return toLoginMenuItem(item);
@@ -144,34 +162,84 @@ public class LoginMenuDefinition {
     }
 
     private static LoginMenuItem copy(LoginMenuItem source) {
-        LoginMenuItem item = new LoginMenuItem();
-        item.setOrder(source.getOrder());
-        item.setLabel(source.getLabel());
-        item.setFunction(source.getFunction());
-        item.setTranslationKey(source.getTranslationKey());
-        item.setCallbackData(source.getCallbackData());
-        return item;
+        return new LoginMenuItem(
+                source.type(),
+                source.order(),
+                source.label(),
+                source.function(),
+                source.callbackData(),
+                source.translationKey(),
+                source.submenuId(),
+                source.weblink(),
+                source.url(),
+                source.authenticated(),
+                source.context(),
+                source.useTranslation(),
+                source.accountContextEnabled(),
+                source.accountContextKey(),
+                source.accountContextLabel(),
+                source.serviceContextEnabled(),
+                source.serviceContextKey(),
+                source.serviceContextLabel(),
+                source.menuContextEnabled(),
+                source.menuContextKey(),
+                source.menuContextLabel());
     }
 
     public static LoginMenuItem toLoginMenuItem(BusinessMenuItem source) {
-        LoginMenuItem item = new LoginMenuItem();
-        item.setOrder(source.order());
         if (source.isSubMenu()) {
-            item.setLabel(source.label() == null || source.label().isBlank() ? "Settings" : source.label());
-            item.setFunction(SETTINGS.name());
-            item.setTranslationKey(source.translationKey() == null || source.translationKey().isBlank()
+            String label = source.label() == null || source.label().isBlank() ? "Settings" : source.label();
+            String translation = source.translationKey() == null || source.translationKey().isBlank()
                     ? "ButtonSettings"
-                    : source.translationKey());
-            item.setCallbackData(source.callbackData() == null || source.callbackData().isBlank()
+                    : source.translationKey();
+            String callback = source.callbackData() == null || source.callbackData().isBlank()
                     ? "SETTINGS_MENU"
-                    : source.callbackData());
-            return item;
+                    : source.callbackData();
+            return new LoginMenuItem(
+                    source.type() == null || source.type().isBlank() ? "submenu" : source.type(),
+                    source.order(),
+                    label,
+                    SETTINGS.name(),
+                    callback,
+                    translation,
+                    source.submenuId(),
+                    source.weblink(),
+                    source.url(),
+                    source.authenticated(),
+                    source.context(),
+                    source.useTranslation(),
+                    source.accountContextEnabled(),
+                    source.accountContextKey(),
+                    source.accountContextLabel(),
+                    source.serviceContextEnabled(),
+                    source.serviceContextKey(),
+                    source.serviceContextLabel(),
+                    source.menuContextEnabled(),
+                    source.menuContextKey(),
+                    source.menuContextLabel());
         }
-        item.setLabel(source.label());
-        item.setFunction(source.function());
-        item.setTranslationKey(source.translationKey());
-        item.setCallbackData(source.callbackData());
-        return item;
+        return new LoginMenuItem(
+                source.type(),
+                source.order(),
+                source.label(),
+                source.function(),
+                source.callbackData(),
+                source.translationKey(),
+                source.submenuId(),
+                source.weblink(),
+                source.url(),
+                source.authenticated(),
+                source.context(),
+                source.useTranslation(),
+                source.accountContextEnabled(),
+                source.accountContextKey(),
+                source.accountContextLabel(),
+                source.serviceContextEnabled(),
+                source.serviceContextKey(),
+                source.serviceContextLabel(),
+                source.menuContextEnabled(),
+                source.menuContextKey(),
+                source.menuContextLabel());
     }
 
     public Stream<LoginMenuItem> allItems() {

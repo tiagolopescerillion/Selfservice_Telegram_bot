@@ -1,56 +1,83 @@
 package com.selfservice.application.config.menu;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class LoginMenuItem {
-    private int order;
-    private String label;
-    private String function;
-    private String translationKey;
-    private String callbackData;
+public record LoginMenuItem(
+        String type,
+        int order,
+        String label,
+        String function,
+        String callbackData,
+        String translationKey,
+        String submenuId,
+        String weblink,
+        String url,
+        Boolean authenticated,
+        String context,
+        Boolean useTranslation,
+        Boolean accountContextEnabled,
+        String accountContextKey,
+        String accountContextLabel,
+        Boolean serviceContextEnabled,
+        String serviceContextKey,
+        String serviceContextLabel,
+        Boolean menuContextEnabled,
+        String menuContextKey,
+        String menuContextLabel) {
 
-    public int getOrder() {
-        return order;
+    @JsonIgnore
+    public boolean isSubMenu() {
+        return submenuId != null && !submenuId.isBlank();
     }
 
-    public void setOrder(int order) {
-        this.order = order;
+    @JsonIgnore
+    public boolean isFunctionMenu() {
+        return isSubMenu() && function != null && !function.isBlank();
     }
 
-    public String getLabel() {
-        return label;
+    @JsonIgnore
+    public boolean isWeblink() {
+        return weblink != null && !weblink.isBlank();
     }
 
-    public void setLabel(String label) {
-        this.label = label;
+    @JsonIgnore
+    public boolean isAction() {
+        return !isSubMenu() && !isWeblink() && function != null && !function.isBlank();
     }
 
-    public String getFunction() {
-        return function;
+    @JsonIgnore
+    public boolean isAuthenticatedLink() {
+        return Boolean.TRUE.equals(authenticated);
     }
 
-    public void setFunction(String function) {
-        this.function = function;
+    @JsonIgnore
+    public String linkContext() {
+        if (context == null || context.isBlank()) {
+            return "noContext";
+        }
+        return context;
     }
 
-    public String getTranslationKey() {
-        return translationKey;
+    @JsonIgnore
+    public boolean requiresAccountContext() {
+        return "account".equalsIgnoreCase(linkContext());
     }
 
-    public void setTranslationKey(String translationKey) {
-        this.translationKey = translationKey;
-    }
-
-    public String getCallbackData() {
-        return callbackData;
-    }
-
-    public void setCallbackData(String callbackData) {
-        this.callbackData = callbackData;
+    @JsonIgnore
+    public boolean requiresServiceContext() {
+        return "service".equalsIgnoreCase(linkContext());
     }
 
     public LoginMenuFunction resolvedFunction() {
         return LoginMenuFunction.fromString(function);
     }
+
+    // Compatibility getters
+    public int getOrder() { return order; }
+    public String getLabel() { return label; }
+    public String getFunction() { return function; }
+    public String getCallbackData() { return callbackData; }
+    public String getTranslationKey() { return translationKey; }
 }
