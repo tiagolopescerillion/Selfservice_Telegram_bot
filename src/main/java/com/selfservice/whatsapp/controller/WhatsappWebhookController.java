@@ -224,6 +224,17 @@ public class WhatsappWebhookController {
                 || lower.equals(WhatsappService.INTERACTIVE_ID_SETTINGS.toLowerCase())
                 || lower.equals("settings");
 
+        int loginMenuDepth = sessionService.getLoginMenuDepth(userId, menuConfigurationProvider.getLoginRootMenuId());
+        boolean inLoginSubMenu = loginMenuDepth > 1;
+
+        if (!hasValidToken && inLoginSubMenu && (isMenuSelection
+                || lower.equals(WhatsappService.COMMAND_MENU)
+                || lower.equals("menu"))) {
+            whatsappService.goHomeLoginMenu(userId);
+            sendLoginPrompt(from, sessionKey);
+            return;
+        }
+
         if (isMenuSelection && selectionContext == WhatsappSessionService.SelectionContext.NONE) {
             if (hasValidToken && ensureAccountSelected(sessionKey, userId)) {
                 sendBusinessMenu(from, userId);
