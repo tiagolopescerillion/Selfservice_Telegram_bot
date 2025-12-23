@@ -763,6 +763,10 @@ public class TelegramWebhookController {
         String trimmedLabel = contextLabel == null || contextLabel.isBlank() ? null : contextLabel.trim();
         boolean storeContext = matchedItem.contextDirectives() != null && matchedItem.contextDirectives().menuContextEnabled();
 
+        if (execResult.objectContextEnabled()) {
+            userSessionService.resetObjectContextIfLabelMismatch(chatId, execResult.objectContextLabel());
+        }
+
         if (options.isEmpty()) {
             String message = trimmedLabel == null ? "No records found" : "No " + trimmedLabel + " found.";
             telegramService.sendMessage(chatId, message);
@@ -783,7 +787,7 @@ public class TelegramWebhookController {
             if (execResult.objectContextEnabled()
                     && execResult.contextValues() != null && !execResult.contextValues().isEmpty()) {
                 String ctxValue = execResult.contextValues().get(0);
-                userSessionService.updateContext(chatId, null, null, ctxValue);
+                userSessionService.updateContext(chatId, null, null, ctxValue, execResult.objectContextLabel());
                 AccountSummary acc = userSessionService.getSelectedAccount(chatId);
                 ServiceSummary svc = userSessionService.getSelectedService(chatId);
                 contextTraceLogger.logContext(acc == null ? "<none>" : acc.accountId(),
@@ -823,6 +827,10 @@ public class TelegramWebhookController {
                 ? matchedItem.contextDirectives().resolvedLabel()
                 : null;
         String trimmedLabel = contextLabel == null || contextLabel.isBlank() ? null : contextLabel.trim();
+
+        if (execResult.objectContextEnabled()) {
+            userSessionService.resetObjectContextIfLabelMismatch(chatId, execResult.objectContextLabel());
+        }
 
         if (options.size() == 1) {
             String contextMessage = null;

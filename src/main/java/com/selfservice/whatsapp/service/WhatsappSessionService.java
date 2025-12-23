@@ -10,6 +10,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Service
@@ -575,6 +576,20 @@ public class WhatsappSessionService {
             }
             return new ContextState(accountValue, serviceValue, objectValue, objectLabelValue);
         });
+    }
+
+    public boolean resetObjectContextIfLabelMismatch(String userId, String newObjectLabel) {
+        ContextState state = contextStateByUser.get(userId);
+        if (state == null || state.objectContext() == null || state.objectContext().isBlank()) {
+            return false;
+        }
+        String existingLabel = state.objectLabel() == null ? null : state.objectLabel().trim();
+        String incomingLabel = newObjectLabel == null ? null : newObjectLabel.trim();
+        if (Objects.equals(existingLabel, incomingLabel)) {
+            return false;
+        }
+        updateContext(userId, null, null, "", "");
+        return true;
     }
 
     public ContextState getContextState(String userId) {

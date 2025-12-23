@@ -1072,6 +1072,10 @@ public class WhatsappWebhookController {
         String trimmedLabel = contextLabel == null || contextLabel.isBlank() ? null : contextLabel.trim();
         boolean storeContext = matchedItem.contextDirectives() != null && matchedItem.contextDirectives().menuContextEnabled();
 
+        if (execResult.objectContextEnabled()) {
+            sessionService.resetObjectContextIfLabelMismatch(userId, execResult.objectContextLabel());
+        }
+
         if (options.isEmpty()) {
             String message = trimmedLabel == null ? "No records found" : "No " + trimmedLabel + " found.";
             whatsappService.sendText(to, message);
@@ -1136,6 +1140,10 @@ public class WhatsappWebhookController {
                 : null;
         String trimmedLabel = contextLabel == null || contextLabel.isBlank() ? null : contextLabel.trim();
 
+        if (execResult.objectContextEnabled()) {
+            sessionService.resetObjectContextIfLabelMismatch(userId, execResult.objectContextLabel());
+        }
+
         if (options.size() == 1) {
             String contextMessage = storeContext
                     ? buildFunctionMenuSelectionMessage(trimmedLabel, options.get(0))
@@ -1148,7 +1156,7 @@ public class WhatsappWebhookController {
             if (execResult.objectContextEnabled()
                     && execResult.contextValues() != null && !execResult.contextValues().isEmpty()) {
                 String ctxValue = execResult.contextValues().get(0);
-                sessionService.updateContext(userId, null, null, ctxValue);
+                sessionService.updateContext(userId, null, null, ctxValue, execResult.objectContextLabel());
                 AccountSummary acc = sessionService.getSelectedAccount(userId);
                 ServiceSummary svc = sessionService.getSelectedService(userId);
                 contextTraceLogger.logContext(acc == null ? "<none>" : acc.accountId(),
