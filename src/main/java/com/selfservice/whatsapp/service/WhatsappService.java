@@ -123,13 +123,14 @@ public class WhatsappService {
             sendText(to, message);
             return;
         }
+
         List<Map<String, Object>> rows = new ArrayList<>();
         int index = 1;
         for (String label : buttonLabels) {
             if (!StringUtils.hasText(label)) {
                 continue;
             }
-            rows.add(buildListRow("CARD:" + index++, label));
+            rows.add(buildListRow(String.valueOf(index++), label));
         }
 
         if (rows.isEmpty()) {
@@ -138,7 +139,17 @@ public class WhatsappService {
         }
 
         String title = (message == null || message.isBlank()) ? "Select an option" : message;
-        sendInteractiveList(to, title, title, rows);
+        boolean sent = false;
+        if (whatsappProperties.isInteractiveUxEnabled()) {
+            sent = sendInteractiveList(to, title, title, rows);
+        }
+        if (!sent || whatsappProperties.isBasicUxEnabled() || shouldSendFallbackText()) {
+            StringBuilder prompt = new StringBuilder(title).append('\n');
+            for (int i = 0; i < buttonLabels.size(); i++) {
+                prompt.append(i + 1).append(") ").append(buttonLabels.get(i)).append('\n');
+            }
+            sendText(to, prompt.toString());
+        }
     }
 
     public List<LoginMenuItem> loginSettingsMenuOptions(String userId) {

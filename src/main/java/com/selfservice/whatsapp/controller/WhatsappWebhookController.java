@@ -179,7 +179,11 @@ public class WhatsappWebhookController {
     private void handleCommand(String from, String body) {
         String sessionKey = "wa-" + from;
         String userId = from;
-        String lower = body.toLowerCase();
+        String cleanedBody = body == null ? "" : body.trim();
+        if (cleanedBody.toUpperCase().startsWith("CARD:")) {
+            cleanedBody = cleanedBody.substring("CARD:".length()).trim();
+        }
+        String lower = cleanedBody.toLowerCase();
         String optInYesText = whatsappService.translate(userId, WhatsappService.KEY_OPT_IN_YES).toLowerCase();
         String optInNoText = whatsappService.translate(userId, WhatsappService.KEY_OPT_IN_NO).toLowerCase();
         String menuText = whatsappService.translate(userId, WhatsappService.KEY_BUTTON_MENU).toLowerCase();
@@ -194,7 +198,7 @@ public class WhatsappWebhookController {
         List<LoginMenuItem> loginMenuOptions = whatsappService.loginMenuOptions(userId);
         LoginMenuItem selectedLoginItem = (!hasValidToken
                 && selectionContext == WhatsappSessionService.SelectionContext.NONE)
-                ? parseLoginMenuSelection(body, loginMenuOptions)
+                ? parseLoginMenuSelection(cleanedBody, loginMenuOptions)
                 : null;
         LoginMenuFunction selectedLoginFunction = selectedLoginItem == null ? null : selectedLoginItem.resolvedFunction();
 
@@ -270,7 +274,7 @@ public class WhatsappWebhookController {
 
         if (selectionContext == WhatsappSessionService.SelectionContext.SETTINGS) {
             List<LoginMenuItem> settingsOptions = whatsappService.loginSettingsMenuOptions(userId);
-            LoginMenuItem settingsSelection = parseLoginMenuSelection(body, settingsOptions);
+            LoginMenuItem settingsSelection = parseLoginMenuSelection(cleanedBody, settingsOptions);
             if (settingsSelection == null && lower.equals(menuText)) {
                 settingsSelection = settingsOptions.stream()
                         .filter(item -> item.resolvedFunction() == LoginMenuFunction.MENU)
@@ -584,7 +588,7 @@ public class WhatsappWebhookController {
         boolean showChangeAccountOption = sessionService.getAccounts(userId).size() > 1;
         int numeric = parseIndex(lower);
         WhatsappSessionService.PendingFunctionSelection pendingMenuSelection =
-                sessionService.consumePendingFunctionMenu(userId, body);
+                sessionService.consumePendingFunctionMenu(userId, cleanedBody);
         if (pendingMenuSelection != null) {
             String contextMessage = null;
             if (pendingMenuSelection.menu().objectContextEnabled()
@@ -1120,11 +1124,6 @@ public class WhatsappWebhookController {
                 execResult.contextValues(), storeContext, directives.accountContextEnabled(),
                 directives.serviceContextEnabled(), execResult.objectContextEnabled(), execResult.objectContextLabel());
         String header = buildContextualPrompt(userId, trimmedLabel);
-        StringBuilder prompt = new StringBuilder(header).append("\n");
-        for (int i = 0; i < options.size(); i++) {
-            prompt.append(i + 1).append(") ").append(options.get(i)).append("\n");
-        }
-        whatsappService.sendText(to, prompt.toString());
         whatsappService.sendCardMessage(to, header, options);
         return true;
     }
@@ -1181,11 +1180,6 @@ public class WhatsappWebhookController {
                 storeContext, accountContext, serviceContext, execResult.objectContextEnabled(),
                 execResult.objectContextLabel());
         String header = buildContextualPrompt(userId, trimmedLabel);
-        StringBuilder prompt = new StringBuilder(header).append("\n");
-        for (int i = 0; i < options.size(); i++) {
-            prompt.append(i + 1).append(") ").append(options.get(i)).append("\n");
-        }
-        whatsappService.sendText(to, prompt.toString());
         whatsappService.sendCardMessage(to, header, options);
         return true;
     }
