@@ -1056,9 +1056,27 @@ public class WhatsappWebhookController {
     }
 
     private int parseIndex(String text) {
+        if (text == null) {
+            return -1;
+        }
+        String trimmed = text.trim();
+        if (trimmed.isEmpty()) {
+            return -1;
+        }
+        StringBuilder digits = new StringBuilder();
+        for (char c : trimmed.toCharArray()) {
+            if (Character.isDigit(c)) {
+                digits.append(c);
+            } else {
+                break;
+            }
+        }
+        if (digits.length() == 0) {
+            return -1;
+        }
         try {
-            return Integer.parseInt(text.trim());
-        } catch (Exception ex) {
+            return Integer.parseInt(digits.toString());
+        } catch (NumberFormatException ex) {
             return -1;
         }
     }
