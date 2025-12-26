@@ -610,6 +610,38 @@ public class WhatsappWebhookController {
                         whatsappService.sendLoggedInMenu(from, selected, sessionService.getAccounts(userId).size() > 1);
                     }
                 }
+                case TelegramService.CALLBACK_OPT_IN_PROMPT -> {
+                    whatsappService.sendOptInPrompt(from);
+                }
+                case TelegramService.CALLBACK_CHANGE_LANGUAGE -> {
+                    sessionService.setAwaitingLanguageSelection(userId, true);
+                    whatsappService.sendLanguageMenu(from);
+                }
+                case TelegramService.CALLBACK_CHANGE_ACCOUNT -> {
+                    List<AccountSummary> accounts = sessionService.getAccounts(userId);
+                    if (accounts.isEmpty()) {
+                        sessionService.clearSelectedAccount(userId);
+                        whatsappService.sendText(from, whatsappService.translate(from, "NoStoredAccounts"));
+                        sendLoginPrompt(from, sessionKey);
+                    } else {
+                        sessionService.clearSelectedAccount(userId);
+                        whatsappService.sendText(from, whatsappService.translate(from, "ChooseAccountToContinue"));
+                        whatsappService.sendAccountPage(from, accounts, 0);
+                    }
+                }
+                case TelegramService.CALLBACK_LOGOUT -> {
+                    String refreshToken = sessionService.getRefreshToken(userId);
+                    String idToken = sessionService.getIdToken(userId);
+                    try {
+                        oauthSessionService.logout(refreshToken, idToken);
+                    } catch (Exception ex) {
+                        log.warn("Logout failed for WhatsApp user {}", sessionKey, ex);
+                    }
+                    sessionService.clearSession(userId);
+                    monitoringService.markLoggedOut("WhatsApp", userId);
+                    whatsappService.sendText(from, whatsappService.translate(from, "LoggedOutMessage"));
+                    sendLoginPrompt(from, sessionKey);
+                }
                 case TelegramService.CALLBACK_TROUBLE_TICKET -> {
                     if (ensureAccountSelected(sessionKey, userId)) {
                         AccountSummary selected = sessionService.getSelectedAccount(userId);
