@@ -46,6 +46,7 @@ public class TelegramService {
     public static final String KEY_BUTTON_INVOICE_HISTORY = "ButtonInvoiceHistory";
     public static final String KEY_BUTTON_CHANGE_ACCOUNT = "ButtonChangeAccount";
     public static final String KEY_BUTTON_CHANGE_LANGUAGE = "ButtonChangeLanguage";
+    public static final String KEY_BUTTON_HOME = "ButtonHome";
     public static final String KEY_BUTTON_SETTINGS = "ButtonSettings";
     public static final String KEY_BUTTON_OPT_IN = "ButtonOptIn";
     public static final String KEY_OPT_IN_YES = "OptInYes";
@@ -70,6 +71,7 @@ public class TelegramService {
     public static final String CALLBACK_CHANGE_ACCOUNT = "CHANGE_ACCOUNT";
     public static final String CALLBACK_LANGUAGE_MENU = "LANGUAGE_MENU";
     public static final String CALLBACK_SETTINGS_MENU = "SETTINGS_MENU";
+    public static final String CALLBACK_HOME = "HOME";
     public static final String CALLBACK_LOGIN_MENU_PREFIX = "LOGIN_MENU:";
     public static final String CALLBACK_LANGUAGE_PREFIX = "LANGUAGE:";
     public static final String CALLBACK_LOGOUT = "LOGOUT";
@@ -304,6 +306,9 @@ public class TelegramService {
         }
         if (function == LoginMenuFunction.SETTINGS) {
             return CALLBACK_SETTINGS_MENU;
+        }
+        if (function == LoginMenuFunction.HOME) {
+            return CALLBACK_HOME;
         }
         return item.getFunction();
     }

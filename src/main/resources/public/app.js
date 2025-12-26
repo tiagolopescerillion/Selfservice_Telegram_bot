@@ -85,6 +85,13 @@ const BASE_FUNCTION_OPTIONS = [
     description: "Lets the user pick a language."
   },
   {
+    id: "HOME",
+    label: "Home",
+    callbackData: "HOME",
+    translationKey: "ButtonHome",
+    description: "Returns to the root menu."
+  },
+  {
     id: "CHANGE_ACCOUNT",
     label: "Select a different account",
     callbackData: "CHANGE_ACCOUNT",

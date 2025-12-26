@@ -216,6 +216,8 @@ public class WhatsappWebhookController {
         boolean isSettingsSelection = selectedLoginFunction == LoginMenuFunction.SETTINGS
                 || lower.equals(WhatsappService.INTERACTIVE_ID_SETTINGS.toLowerCase())
                 || lower.equals("settings");
+        boolean isHomeSelection = selectedLoginFunction == LoginMenuFunction.HOME
+                || lower.equals(TelegramService.CALLBACK_HOME.toLowerCase());
 
         if (selectionContext == WhatsappSessionService.SelectionContext.OPT_IN) {
             int choice = parseIndex(lower);
@@ -260,6 +262,11 @@ public class WhatsappWebhookController {
                 if (selectionFunction == LoginMenuFunction.CHANGE_LANGUAGE) {
                     sessionService.setAwaitingLanguageSelection(userId, true);
                     whatsappService.sendLanguageMenu(from);
+                    return;
+                }
+                if (selectionFunction == LoginMenuFunction.HOME) {
+                    whatsappService.goHomeLoginMenu(userId);
+                    sendLoginPrompt(from, sessionKey);
                     return;
                 }
                 if (selectionFunction == LoginMenuFunction.SETTINGS) {
@@ -347,6 +354,11 @@ public class WhatsappWebhookController {
         }
 
         if (!hasValidToken) {
+            if (isHomeSelection) {
+                whatsappService.goHomeLoginMenu(userId);
+                sendLoginPrompt(from, sessionKey);
+                return;
+            }
             if (isChangeLanguage) {
                 sessionService.setAwaitingLanguageSelection(userId, true);
                 whatsappService.sendLanguageMenu(from);
@@ -579,6 +591,11 @@ public class WhatsappWebhookController {
             }
 
             switch (item.function()) {
+                case TelegramService.CALLBACK_HOME -> {
+                    whatsappService.goHomeBusinessMenu(userId);
+                    AccountSummary selected = sessionService.getSelectedAccount(userId);
+                    whatsappService.sendLoggedInMenu(from, selected, sessionService.getAccounts(userId).size() > 1);
+                }
                 case TelegramService.CALLBACK_HELLO_WORLD -> {
                     if (ensureAccountSelected(sessionKey, userId)) {
                         AccountSummary selected = sessionService.getSelectedAccount(userId);
