@@ -12,7 +12,6 @@ import com.selfservice.application.config.menu.LoginMenuFunction;
 import com.selfservice.application.config.menu.LoginMenuItem;
 import com.selfservice.application.service.TranslationService;
 import com.selfservice.telegrambot.service.TelegramService;
-import com.selfservice.whatsapp.config.WhatsappProperties;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -37,7 +36,6 @@ public class WhatsappService {
 
     public static final String KEY_OPT_IN_YES = "OptInYes";
     public static final String KEY_OPT_IN_NO = "OptInNo";
-    public static final String KEY_BUTTON_MENU = "ButtonMenu";
 
 
     private static final Logger log = LoggerFactory.getLogger(WhatsappService.class);
@@ -47,14 +45,13 @@ public class WhatsappService {
     public static final String COMMAND_CHANGE_ACCOUNT = "change account";
     public static final String COMMAND_HOME = "home";
     public static final String COMMAND_UP = "up";
-    public static final String COMMAND_MENU = "menu";
-
     public static final String INTERACTIVE_ID_DIGITAL_LOGIN = "DIGITAL_LOGIN";
     public static final String INTERACTIVE_ID_CRM_LOGIN = "CRM_LOGIN";
     public static final String INTERACTIVE_ID_CHANGE_LANGUAGE = "CHANGE_LANGUAGE";
     public static final String INTERACTIVE_ID_OPT_IN = "OPT_IN";
     public static final String INTERACTIVE_ID_SETTINGS = "SETTINGS";
-    public static final String INTERACTIVE_ID_MENU = "MENU";
+    private static final int WHATSAPP_ROW_TITLE_LIMIT = 24;
+    private static final int WHATSAPP_HEADER_TEXT_LIMIT = 60;
 
     private final RestTemplate restTemplate = new RestTemplate();
     private final String phoneNumberId;
@@ -63,7 +60,6 @@ public class WhatsappService {
     private final WhatsappSessionService sessionService;
     private final BusinessMenuConfigurationProvider menuConfigurationProvider;
     private final LoginMenuProperties loginMenuProperties;
-    private final WhatsappProperties whatsappProperties;
 
     public WhatsappService(
             @Value("${whatsapp.phone-number-id:}") String phoneNumberId,
@@ -71,16 +67,13 @@ public class WhatsappService {
             TranslationService translationService,
             WhatsappSessionService sessionService,
             BusinessMenuConfigurationProvider menuConfigurationProvider,
-            LoginMenuProperties loginMenuProperties,
-            WhatsappProperties whatsappProperties) {
+            LoginMenuProperties loginMenuProperties) {
         this.phoneNumberId = phoneNumberId == null ? "" : phoneNumberId.trim();
         this.accessToken = accessToken == null ? "" : accessToken.trim();
         this.translationService = translationService;
         this.sessionService = sessionService;
         this.menuConfigurationProvider = menuConfigurationProvider;
         this.loginMenuProperties = loginMenuProperties;
-        this.whatsappProperties = whatsappProperties;
-
         if (!this.phoneNumberId.isBlank()) {
             log.info("WhatsApp phone-number-id configured");
         }
@@ -123,13 +116,14 @@ public class WhatsappService {
             sendText(to, message);
             return;
         }
+
         List<Map<String, Object>> rows = new ArrayList<>();
         int index = 1;
         for (String label : buttonLabels) {
             if (!StringUtils.hasText(label)) {
                 continue;
             }
-            rows.add(buildListRow("CARD:" + index++, label));
+            rows.add(buildListRow(String.valueOf(index++), label));
         }
 
         if (rows.isEmpty()) {
@@ -138,7 +132,14 @@ public class WhatsappService {
         }
 
         String title = (message == null || message.isBlank()) ? "Select an option" : message;
-        sendInteractiveList(to, title, title, rows);
+        boolean sent = sendInteractiveList(to, title, title, rows);
+        if (!sent) {
+            StringBuilder prompt = new StringBuilder(title).append('\n');
+            for (int i = 0; i < buttonLabels.size(); i++) {
+                prompt.append(i + 1).append(") ").append(buttonLabels.get(i)).append('\n');
+            }
+            sendText(to, prompt.toString());
+        }
     }
 
     public List<LoginMenuItem> loginSettingsMenuOptions(String userId) {
@@ -166,9 +167,15 @@ public class WhatsappService {
             return translate(to, translationKey);
         }
         if (item.getLabel() != null && !item.getLabel().isBlank()) {
-            return item.getLabel();
+            String label = item.getLabel().trim();
+            if (!looksLikeUrl(label)) {
+                return label;
+            }
         }
         LoginMenuFunction function = item.resolvedFunction();
+        if (function == LoginMenuFunction.DIGITAL_LOGIN) {
+            return "Self Service Login";
+        }
         return function == null ? "" : function.name();
     }
 
@@ -205,12 +212,6 @@ public class WhatsappService {
 
     private boolean shouldDisplayLoginMenuItem(LoginMenuItem item, String userId, int menuDepth) {
         if (hasFunction(item, TelegramService.CALLBACK_LOGOUT) && !isLoggedIn(userId)) {
-            return false;
-        }
-        if (hasFunction(item, TelegramService.CALLBACK_MENU) && menuDepth < 1) {
-            return false;
-        }
-        if (hasFunction(item, TelegramService.CALLBACK_BUSINESS_MENU_UP) && menuDepth < 2) {
             return false;
         }
         if ((hasFunction(item, TelegramService.CALLBACK_CHANGE_ACCOUNT) || hasFunction(item, "CHANGE_ACCOUNT"))
@@ -253,36 +254,7 @@ public class WhatsappService {
     public void sendLoginMenu(String to) {
         sessionService.setSelectionContext(to, WhatsappSessionService.SelectionContext.NONE);
         List<LoginMenuItem> options = loginMenuOptions(to);
-
-        boolean textSent = false;
-        if (whatsappProperties.isBasicUxEnabled() || shouldSendFallbackText()) {
-            sendLoginMenuText(to, options);
-            textSent = true;
-        }
-
-        boolean cardsSent = false;
-        if (whatsappProperties.isInteractiveUxEnabled()) {
-            cardsSent = sendLoginMenuCards(to, options);
-        }
-
-        if (!cardsSent && !textSent) {
-            // Interactive-only mode still needs a visible response if cards cannot be sent.
-            sendLoginMenuText(to, options);
-        }
-    }
-
-    private void sendLoginMenuText(String to, List<LoginMenuItem> options) {
-        StringBuilder menu = new StringBuilder();
-        int index = 1;
-        for (LoginMenuItem option : options) {
-            menu.append(index)
-                    .append(") ")
-                    .append(resolveLoginMenuLabel(to, option))
-                    .append("\n");
-            index++;
-        }
-        menu.append("\n").append(translate(to, "PleaseChooseSignIn"));
-        sendText(to, menu.toString());
+        sendLoginMenuCards(to, options);
     }
 
     private boolean sendLoginMenuCards(String to, List<LoginMenuItem> options) {
@@ -314,9 +286,14 @@ public class WhatsappService {
         String prompt = translate(to, "OptInPrompt");
         String yes = translate(to, KEY_OPT_IN_YES);
         String no = translate(to, KEY_OPT_IN_NO);
-        String backToMenu = translate(to, KEY_BUTTON_MENU);
         sessionService.setSelectionContext(to, WhatsappSessionService.SelectionContext.OPT_IN);
-        sendText(to, String.format("%s\n\n1) %s\n2) %s\n3) %s", prompt, yes, no, backToMenu));
+        sendInteractiveList(to,
+                prompt,
+                prompt,
+                List.of(
+                        buildListRow("1", yes),
+                        buildListRow("2", no)
+                ));
     }
 
     public void sendOptInAccepted(String to) {
@@ -329,26 +306,15 @@ public class WhatsappService {
 
     public void sendLanguageMenu(String to) {
         sessionService.setSelectionContext(to, WhatsappSessionService.SelectionContext.NONE);
-        if (whatsappProperties.isBasicUxEnabled() || shouldSendFallbackText()) {
-            StringBuilder menu = new StringBuilder();
-            menu.append(translate(to, "ChooseLanguagePrompt")).append("\n")
-                    .append("1) ").append(translate(to, "LanguageEnglish")).append("\n")
-                    .append("2) ").append(translate(to, "LanguageFrench")).append("\n")
-                    .append("3) ").append(translate(to, "LanguagePortuguese")).append("\n")
-                    .append("4) ").append(translate(to, "LanguageRussian"));
-            sendText(to, menu.toString());
-        }
-        if (whatsappProperties.isInteractiveUxEnabled()) {
-            sendInteractiveList(to,
-                    translate(to, "ChooseLanguagePrompt"),
-                    translate(to, "ChooseLanguagePrompt"),
-                    List.of(
-                            buildListRow("1", translate(to, "LanguageEnglish")),
-                            buildListRow("2", translate(to, "LanguageFrench")),
-                            buildListRow("3", translate(to, "LanguagePortuguese")),
-                            buildListRow("4", translate(to, "LanguageRussian"))
-                    ));
-        }
+        sendInteractiveList(to,
+                translate(to, "ChooseLanguagePrompt"),
+                translate(to, "ChooseLanguagePrompt"),
+                List.of(
+                        buildListRow("1", translate(to, "LanguageEnglish")),
+                        buildListRow("2", translate(to, "LanguageFrench")),
+                        buildListRow("3", translate(to, "LanguagePortuguese")),
+                        buildListRow("4", translate(to, "LanguageRussian"))
+                ));
     }
 
     public void sendSettingsMenu(String to) {
@@ -358,31 +324,14 @@ public class WhatsappService {
             goToLoginMenu(to, settingsMenuId);
         }
         List<LoginMenuItem> options = loginSettingsMenuOptions(to);
-        StringBuilder menu = new StringBuilder();
-        menu.append(translate(to, "SettingsMenuPrompt")).append("\n\n");
-        int index = 1;
+        List<Map<String, Object>> rows = new ArrayList<>();
         for (LoginMenuItem option : options) {
-            menu.append(index)
-                    .append(") ")
-                    .append(resolveLoginMenuLabel(to, option))
-                    .append("\n");
-            index++;
+            rows.add(buildListRow(callbackId(option), resolveLoginMenuLabel(to, option)));
         }
-
-        if (whatsappProperties.isBasicUxEnabled() || shouldSendFallbackText()) {
-            sendText(to, menu.toString());
-        }
-
-        if (whatsappProperties.isInteractiveUxEnabled()) {
-            List<Map<String, Object>> rows = new ArrayList<>();
-            for (LoginMenuItem option : options) {
-                rows.add(buildListRow(callbackId(option), resolveLoginMenuLabel(to, option)));
-            }
-            sendInteractiveList(to,
-                    translate(to, "SettingsMenuPrompt"),
-                    translate(to, "SettingsMenuPrompt"),
-                    rows);
-        }
+        sendInteractiveList(to,
+                translate(to, "SettingsMenuPrompt"),
+                translate(to, "SettingsMenuPrompt"),
+                rows);
     }
 
     public void sendLoggedInMenu(String to, AccountSummary selectedAccount, boolean showChangeAccountOption) {
@@ -392,18 +341,13 @@ public class WhatsappService {
     public void sendLoggedInMenu(String to, AccountSummary selectedAccount, boolean showChangeAccountOption, String greeting) {
         String menuId = resolveCurrentMenuId(to);
         List<BusinessMenuItem> menuItems = menuConfigurationProvider.getMenuItems(menuId);
-        StringBuilder body = new StringBuilder();
         sessionService.setSelectionContext(to, WhatsappSessionService.SelectionContext.NONE);
-        appendParagraph(body, greeting);
-        if (selectedAccount != null) {
-            appendParagraph(body, format(to, "AccountSelected", selectedAccount.accountId()));
-        }
-        appendParagraph(body, translate(to, "LoginWelcome"));
-        if (!body.toString().endsWith("\n\n")) {
-            body.append("\n");
-        }
 
-        int index = 1;
+        boolean hasGreeting = greeting != null && !greeting.isBlank();
+        String storedContext = sessionService.getMenuContext(to);
+
+        String combinedContext = hasGreeting ? greeting : storedContext;
+        boolean contextContainsChoice = combinedContext != null && combinedContext.contains("Choose an option");
         boolean loggedIn = isLoggedIn(to);
         boolean hasAlternateAccount = hasAlternateAccount(to);
         int menuDepth = sessionService.getBusinessMenuDepth(to, menuConfigurationProvider.getRootMenuId());
@@ -418,39 +362,34 @@ public class WhatsappService {
                 log.warn("User {} attempted to render missing submenu {}", to, item.submenuId());
                 continue;
             }
-            body.append(index).append(") ")
-                    .append(resolveMenuLabel(to, item))
-                    .append("\n");
-            index++;
         }
 
-        body.append(translate(to, "WhatsappMenuInstruction"));
-        if (whatsappProperties.isBasicUxEnabled() || shouldSendFallbackText()) {
-            sendText(to, body.toString());
-        }
-
-        if (whatsappProperties.isInteractiveUxEnabled()) {
-            List<Map<String, Object>> rows = new ArrayList<>();
-            int rowIndex = 1;
-            for (BusinessMenuItem item : menuItems) {
-                if (!showChangeAccountOption && isChangeAccountItem(item)) {
-                    continue;
-                }
-                if (!shouldDisplayBusinessMenuItem(item, menuDepth, hasAlternateAccount, loggedIn)) {
-                    continue;
-                }
-                if (item.isSubMenu() && !menuConfigurationProvider.menuExists(item.submenuId())) {
-                    continue;
-                }
-                rows.add(buildListRow(String.valueOf(rowIndex), resolveMenuLabel(to, item)));
-                rowIndex++;
+        List<Map<String, Object>> rows = new ArrayList<>();
+        int rowIndex = 1;
+        for (BusinessMenuItem item : menuItems) {
+            if (!showChangeAccountOption && isChangeAccountItem(item)) {
+                continue;
             }
-
-            sendInteractiveList(to,
-                    translate(to, "LoginWelcome"),
-                    translate(to, "WhatsappMenuInstruction"),
-                    rows);
+            if (!shouldDisplayBusinessMenuItem(item, menuDepth, hasAlternateAccount, loggedIn)) {
+                continue;
+            }
+            if (item.isSubMenu() && !menuConfigurationProvider.menuExists(item.submenuId())) {
+                continue;
+            }
+            rows.add(buildListRow(String.valueOf(rowIndex), resolveMenuLabel(to, item)));
+            rowIndex++;
         }
+
+        String header = combinedContext != null && !combinedContext.isBlank()
+                ? combinedContext
+                : translate(to, "LoginWelcome");
+        if (!contextContainsChoice && header.equals(combinedContext)) {
+            header = header + "\n" + translate(to, "LoginWelcome");
+        }
+        sendInteractiveList(to,
+                header,
+                translate(to, "WhatsappMenuInstruction"),
+                rows);
     }
 
     private boolean isChangeAccountItem(BusinessMenuItem item) {
@@ -473,34 +412,8 @@ public class WhatsappService {
         return TelegramService.CALLBACK_LOGOUT.equalsIgnoreCase(item.function());
     }
 
-    private boolean isBackToMenuItem(BusinessMenuItem item) {
-        if (item == null) {
-            return false;
-        }
-        if (TelegramService.CALLBACK_MENU.equalsIgnoreCase(item.callbackData())) {
-            return true;
-        }
-        return TelegramService.CALLBACK_MENU.equalsIgnoreCase(item.function());
-    }
-
-    private boolean isMenuUpItem(BusinessMenuItem item) {
-        if (item == null) {
-            return false;
-        }
-        if (TelegramService.CALLBACK_BUSINESS_MENU_UP.equalsIgnoreCase(item.callbackData())) {
-            return true;
-        }
-        return TelegramService.CALLBACK_BUSINESS_MENU_UP.equalsIgnoreCase(item.function());
-    }
-
     private boolean shouldDisplayBusinessMenuItem(BusinessMenuItem item, int menuDepth, boolean hasAlternateAccount, boolean loggedIn) {
         if (isLogoutItem(item) && !loggedIn) {
-            return false;
-        }
-        if (isBackToMenuItem(item) && menuDepth < 1) {
-            return false;
-        }
-        if (isMenuUpItem(item) && menuDepth < 2) {
             return false;
         }
         if (isChangeAccountItem(item) && !hasAlternateAccount) {
@@ -543,39 +456,19 @@ public class WhatsappService {
         }
         int end = Math.min(accounts.size(), safeStart + 5);
 
-        StringBuilder body = new StringBuilder();
-        if (header != null && !header.isBlank()) {
-            appendParagraph(body, header);
-        }
-        body.append(buildPagedPrompt(to, TelegramKey.SELECT_ACCOUNT_PROMPT.toString(), safeStart, end, accounts.size()))
-                .append("\n");
+        sessionService.setSelectionContext(to, WhatsappSessionService.SelectionContext.ACCOUNT, safeStart);
+        List<Map<String, Object>> rows = new ArrayList<>();
         for (int i = safeStart; i < end; i++) {
             AccountSummary summary = accounts.get(i);
-            body.append(i + 1).append(") ").append(summary.displayLabel()).append("\n");
+            rows.add(buildListRow(String.valueOf(i + 1), summary.displayLabel()));
         }
         if (end < accounts.size()) {
-            body.append(translate(to, "WhatsappMoreAccountsInstruction").formatted(end + 1));
+            rows.add(buildListRow("0", "More accounts"));
         }
-        body.append(translate(to, "WhatsappAccountSelectionInstruction"));
-        sessionService.setSelectionContext(to, WhatsappSessionService.SelectionContext.ACCOUNT, safeStart);
-        if (whatsappProperties.isBasicUxEnabled() || shouldSendFallbackText()) {
-            sendText(to, body.toString());
-        }
-
-        if (whatsappProperties.isInteractiveUxEnabled()) {
-            List<Map<String, Object>> rows = new ArrayList<>();
-            for (int i = safeStart; i < end; i++) {
-                AccountSummary summary = accounts.get(i);
-                rows.add(buildListRow(String.valueOf(i + 1), summary.displayLabel()));
-            }
-            if (end < accounts.size()) {
-                rows.add(buildListRow(String.valueOf(end + 1), "More accounts"));
-            }
-            sendInteractiveList(to,
-                    translate(to, "SelectAccountPrompt"),
-                    translate(to, "WhatsappAccountSelectionInstruction"),
-                    rows);
-        }
+        String title = buildPagedPrompt(to, TelegramKey.SELECT_ACCOUNT_PROMPT.toString(), safeStart, end, accounts.size());
+        String instruction = translate(to, "WhatsappAccountSelectionInstruction");
+        String combinedTitle = (header == null || header.isBlank()) ? title : header + "\n" + title;
+        sendInteractiveList(to, combinedTitle, instruction, rows);
     }
 
     public void sendServicePage(String to, List<ServiceSummary> services, int startIndex) {
@@ -590,8 +483,8 @@ public class WhatsappService {
         }
         int end = Math.min(services.size(), safeStart + 5);
 
-        StringBuilder body = new StringBuilder();
-        body.append(buildPagedPrompt(to, "SelectServicePrompt", safeStart, end, services.size())).append("\n");
+        sessionService.setSelectionContext(to, WhatsappSessionService.SelectionContext.SERVICE, safeStart);
+        List<Map<String, Object>> rows = new ArrayList<>();
         for (int i = safeStart; i < end; i++) {
             ServiceSummary service = services.get(i);
             String name = (service.productName() == null || service.productName().isBlank())
@@ -600,38 +493,15 @@ public class WhatsappService {
             String number = (service.accessNumber() == null || service.accessNumber().isBlank())
                     ? translate(to, "NoAccessNumber")
                     : service.accessNumber().strip();
-            body.append(i + 1).append(") ")
-                    .append(format(to, "ServiceButtonLabel", name, number)).append("\n");
+            rows.add(buildListRow(String.valueOf(i + 1), format(to, "ServiceButtonLabel", name, number)));
         }
         if (end < services.size()) {
-            body.append(translate(to, "WhatsappMoreServicesInstruction").formatted(end + 1));
+            rows.add(buildListRow("0", "More services"));
         }
-        body.append(translate(to, "WhatsappServiceSelectionInstruction"));
-        sessionService.setSelectionContext(to, WhatsappSessionService.SelectionContext.SERVICE, safeStart);
-        if (whatsappProperties.isBasicUxEnabled() || shouldSendFallbackText()) {
-            sendText(to, body.toString());
-        }
-
-        if (whatsappProperties.isInteractiveUxEnabled()) {
-            List<Map<String, Object>> rows = new ArrayList<>();
-            for (int i = safeStart; i < end; i++) {
-                ServiceSummary service = services.get(i);
-                String name = (service.productName() == null || service.productName().isBlank())
-                        ? translate(to, "UnknownService")
-                        : service.productName().strip();
-                String number = (service.accessNumber() == null || service.accessNumber().isBlank())
-                        ? translate(to, "NoAccessNumber")
-                        : service.accessNumber().strip();
-                rows.add(buildListRow(String.valueOf(i + 1), format(to, "ServiceButtonLabel", name, number)));
-            }
-            if (end < services.size()) {
-                rows.add(buildListRow(String.valueOf(end + 1), "More services"));
-            }
-            sendInteractiveList(to,
-                    translate(to, "SelectServicePrompt"),
-                    translate(to, "WhatsappServiceSelectionInstruction"),
-                    rows);
-        }
+        sendInteractiveList(to,
+                buildPagedPrompt(to, "SelectServicePrompt", safeStart, end, services.size()),
+                translate(to, "WhatsappServiceSelectionInstruction"),
+                rows);
     }
 
     public void sendInvoicePage(String to, List<InvoiceSummary> invoices, int startIndex) {
@@ -646,45 +516,24 @@ public class WhatsappService {
         }
         int end = Math.min(invoices.size(), safeStart + 5);
 
-        StringBuilder body = new StringBuilder();
-        body.append(buildPagedPrompt(to, "SelectInvoicePrompt", safeStart, end, invoices.size())).append("\n");
+        sessionService.setSelectionContext(to, WhatsappSessionService.SelectionContext.INVOICE, safeStart);
+        List<Map<String, Object>> rows = new ArrayList<>();
         for (int i = safeStart; i < end; i++) {
             InvoiceSummary invoice = invoices.get(i);
             String id = safeText(invoice.id(), translate(to, "UnknownValue"));
             String date = safeText(invoice.billDate(), translate(to, "UnknownValue"));
             String total = safeText(invoice.totalAmount(), translate(to, "UnknownValue"));
             String unpaid = safeText(invoice.unpaidAmount(), translate(to, "UnknownValue"));
-            body.append(i + 1).append(") ")
-                    .append(format(to, "InvoiceButtonLabel", id, date, total, unpaid)).append("\n");
+            rows.add(buildListRow(String.valueOf(i + 1),
+                    format(to, "InvoiceButtonLabel", id, date, total, unpaid)));
         }
         if (end < invoices.size()) {
-            body.append(translate(to, "WhatsappMoreInvoicesInstruction").formatted(end + 1));
+            rows.add(buildListRow("0", "More invoices"));
         }
-        body.append(translate(to, "WhatsappInvoiceSelectionInstruction"));
-        sessionService.setSelectionContext(to, WhatsappSessionService.SelectionContext.INVOICE, safeStart);
-        if (whatsappProperties.isBasicUxEnabled() || shouldSendFallbackText()) {
-            sendText(to, body.toString());
-        }
-
-        if (whatsappProperties.isInteractiveUxEnabled()) {
-            List<Map<String, Object>> rows = new ArrayList<>();
-            for (int i = safeStart; i < end; i++) {
-                InvoiceSummary invoice = invoices.get(i);
-                String id = safeText(invoice.id(), translate(to, "UnknownValue"));
-                String date = safeText(invoice.billDate(), translate(to, "UnknownValue"));
-                String total = safeText(invoice.totalAmount(), translate(to, "UnknownValue"));
-                String unpaid = safeText(invoice.unpaidAmount(), translate(to, "UnknownValue"));
-                rows.add(buildListRow(String.valueOf(i + 1),
-                        format(to, "InvoiceButtonLabel", id, date, total, unpaid)));
-            }
-            if (end < invoices.size()) {
-                rows.add(buildListRow(String.valueOf(end + 1), "More invoices"));
-            }
-            sendInteractiveList(to,
-                    translate(to, "SelectInvoicePrompt"),
-                    translate(to, "WhatsappInvoiceSelectionInstruction"),
-                    rows);
-        }
+        sendInteractiveList(to,
+                buildPagedPrompt(to, "SelectInvoicePrompt", safeStart, end, invoices.size()),
+                translate(to, "WhatsappInvoiceSelectionInstruction"),
+                rows);
     }
 
     public void sendInvoiceActions(String to, InvoiceSummary invoice) {
@@ -693,31 +542,15 @@ public class WhatsappService {
             return;
         }
         List<BusinessMenuItem> actions = invoiceActions(to);
-        StringBuilder body = new StringBuilder();
-        body.append(format(to, "InvoiceActionsPrompt", invoice.id())).append("\n");
-        for (int i = 0; i < actions.size(); i++) {
-            body.append(i + 1).append(") ")
-                    .append(resolveMenuLabel(to, actions.get(i)))
-                    .append("\n");
-        }
-        body.append(translate(to, "InvoiceActionsInstruction"));
-
         sessionService.setSelectionContext(to, WhatsappSessionService.SelectionContext.INVOICE_ACTION);
-
-        if (whatsappProperties.isBasicUxEnabled() || shouldSendFallbackText()) {
-            sendText(to, body.toString());
+        List<Map<String, Object>> rows = new ArrayList<>();
+        for (int i = 0; i < actions.size(); i++) {
+            rows.add(buildListRow(String.valueOf(i + 1), resolveMenuLabel(to, actions.get(i))));
         }
-
-        if (whatsappProperties.isInteractiveUxEnabled()) {
-            List<Map<String, Object>> rows = new ArrayList<>();
-            for (int i = 0; i < actions.size(); i++) {
-                rows.add(buildListRow(String.valueOf(i + 1), resolveMenuLabel(to, actions.get(i))));
-            }
-            sendInteractiveList(to,
-                    format(to, "InvoiceActionsPrompt", invoice.id()),
-                    translate(to, "InvoiceActionsInstruction"),
-                    rows);
-        }
+        sendInteractiveList(to,
+                format(to, "InvoiceActionsPrompt", invoice.id()),
+                translate(to, "InvoiceActionsInstruction"),
+                rows);
     }
 
     public List<BusinessMenuItem> invoiceActions(String userId) {
@@ -730,9 +563,7 @@ public class WhatsappService {
                     fallbackAction(2, translate(userId, "ButtonInvoicePay"),
                             TelegramService.CALLBACK_INVOICE_PAY_PREFIX),
                     fallbackAction(3, translate(userId, "ButtonInvoiceCompare"),
-                            TelegramService.CALLBACK_INVOICE_COMPARE_PREFIX),
-                    fallbackAction(4, translate(userId, TelegramService.KEY_BUTTON_BACK_TO_MENU),
-                            TelegramService.CALLBACK_MENU));
+                            TelegramService.CALLBACK_INVOICE_COMPARE_PREFIX));
         }
         return actions;
     }
@@ -788,42 +619,22 @@ public class WhatsappService {
         }
         int end = Math.min(tickets.size(), safeStart + 5);
 
-        StringBuilder body = new StringBuilder();
-        body.append(buildPagedPrompt(to, "SelectTicketPrompt", safeStart, end, tickets.size())).append("\n");
+        sessionService.setSelectionContext(to, WhatsappSessionService.SelectionContext.TICKET, safeStart);
+        List<Map<String, Object>> rows = new ArrayList<>();
         for (int i = safeStart; i < end; i++) {
             TroubleTicketSummary ticket = tickets.get(i);
             String status = (ticket.status() == null || ticket.status().isBlank())
                     ? translate(to, "UnknownValue")
                     : ticket.status().strip();
-            body.append(i + 1).append(") ")
-                    .append(format(to, "TicketButtonLabel", ticket.id(), status)).append("\n");
+            rows.add(buildListRow(String.valueOf(i + 1), format(to, "TicketButtonLabel", ticket.id(), status)));
         }
         if (end < tickets.size()) {
-            body.append(translate(to, "WhatsappMoreTicketsInstruction").formatted(end + 1));
+            rows.add(buildListRow("0", "More tickets"));
         }
-        body.append(translate(to, "WhatsappTicketSelectionInstruction"));
-        sessionService.setSelectionContext(to, WhatsappSessionService.SelectionContext.TICKET, safeStart);
-        if (whatsappProperties.isBasicUxEnabled() || shouldSendFallbackText()) {
-            sendText(to, body.toString());
-        }
-
-        if (whatsappProperties.isInteractiveUxEnabled()) {
-            List<Map<String, Object>> rows = new ArrayList<>();
-            for (int i = safeStart; i < end; i++) {
-                TroubleTicketSummary ticket = tickets.get(i);
-                String status = (ticket.status() == null || ticket.status().isBlank())
-                        ? translate(to, "UnknownValue")
-                        : ticket.status().strip();
-                rows.add(buildListRow(String.valueOf(i + 1), format(to, "TicketButtonLabel", ticket.id(), status)));
-            }
-            if (end < tickets.size()) {
-                rows.add(buildListRow(String.valueOf(end + 1), "More tickets"));
-            }
-            sendInteractiveList(to,
-                    translate(to, "SelectTicketPrompt"),
-                    translate(to, "WhatsappTicketSelectionInstruction"),
-                    rows);
-        }
+        sendInteractiveList(to,
+                buildPagedPrompt(to, "SelectTicketPrompt", safeStart, end, tickets.size()),
+                translate(to, "WhatsappTicketSelectionInstruction"),
+                rows);
     }
 
     public List<BusinessMenuItem> currentMenuItems(String userId) {
@@ -858,10 +669,16 @@ public class WhatsappService {
 
     public void goHomeBusinessMenu(String userId) {
         sessionService.resetBusinessMenu(userId, menuConfigurationProvider.getRootMenuId());
+        sessionService.clearMenuContext(userId);
+        sessionService.clearPendingFunctionMenu(userId);
     }
 
     public void goHomeLoginMenu(String userId) {
         sessionService.resetLoginMenu(userId, menuConfigurationProvider.getLoginRootMenuId());
+        sessionService.setSelectionContext(userId, WhatsappSessionService.SelectionContext.NONE);
+        sessionService.setAwaitingLanguageSelection(userId, false);
+        sessionService.clearMenuContext(userId);
+        sessionService.clearPendingFunctionMenu(userId);
     }
 
     public boolean goUpBusinessMenu(String userId) {
@@ -899,26 +716,19 @@ public class WhatsappService {
             return translate(userId, translationKey);
         }
         if (item.label() != null && !item.label().isBlank()) {
-            return item.label();
+            String label = item.label().trim();
+            if (!looksLikeUrl(label)) {
+                return label;
+            }
         }
         if (item.isWeblink() && item.weblink() != null && !item.weblink().isBlank()) {
-            return item.weblink();
+            String link = item.weblink().trim();
+            if (!looksLikeUrl(link)) {
+                return link;
+            }
+            return "Open link";
         }
         return item.function();
-    }
-
-    private void appendParagraph(StringBuilder target, String text) {
-        if (text == null) {
-            return;
-        }
-        String trimmed = text.strip();
-        if (trimmed.isEmpty()) {
-            return;
-        }
-        if (target.length() > 0) {
-            target.append("\n\n");
-        }
-        target.append(trimmed);
     }
 
     private String safeText(String value, String fallback) {
@@ -960,10 +770,6 @@ public class WhatsappService {
 
     private boolean isConfigured() {
         return !phoneNumberId.isBlank() && !accessToken.isBlank();
-    }
-
-    private boolean shouldSendFallbackText() {
-        return whatsappProperties.getUxMode() == WhatsappProperties.WhatsappUxMode.TEST;
     }
 
     private String resolveWeblinkUrl(String userId, BusinessMenuItem item) {
@@ -1034,8 +840,32 @@ public class WhatsappService {
     private Map<String, Object> buildListRow(String id, String title) {
         return Map.of(
                 "id", id,
-                "title", title
+                "title", normalizeRowTitle(title)
         );
+    }
+
+    private String normalizeRowTitle(String title) {
+        String value = safeText(title, "Option");
+        if (value.length() <= WHATSAPP_ROW_TITLE_LIMIT) {
+            return value;
+        }
+        return value.substring(0, WHATSAPP_ROW_TITLE_LIMIT);
+    }
+
+    private String normalizeHeaderText(String title) {
+        String value = safeText(title, "");
+        if (value.length() <= WHATSAPP_HEADER_TEXT_LIMIT) {
+            return value;
+        }
+        return value.substring(0, WHATSAPP_HEADER_TEXT_LIMIT);
+    }
+
+    private boolean looksLikeUrl(String value) {
+        if (value == null) {
+            return false;
+        }
+        String trimmed = value.trim().toLowerCase();
+        return trimmed.startsWith("http://") || trimmed.startsWith("https://");
     }
 
     private boolean sendInteractiveList(String to, String title, String instruction, List<Map<String, Object>> rows) {
@@ -1047,22 +877,32 @@ public class WhatsappService {
             return false;
         }
 
+        String headerText = normalizeHeaderText(title);
+        String instructionText = safeText(instruction, "");
+        if (!headerText.isBlank()
+                && !instructionText.isBlank()
+                && headerText.strip().equals(instructionText.strip())) {
+            instructionText = "·";
+        }
+        Map<String, Object> interactive = new java.util.HashMap<>();
+        interactive.put("type", "list");
+        if (!headerText.isBlank()) {
+            interactive.put("header", Map.of("type", "text", "text", headerText));
+        }
+        interactive.put("body", Map.of("text", instructionText));
+        interactive.put("action", Map.of(
+                "button", "Select",
+                "sections", List.of(Map.of(
+                        "title", "Options",
+                        "rows", rows
+                ))
+        ));
+
         Map<String, Object> payload = Map.of(
                 "messaging_product", "whatsapp",
                 "to", to,
                 "type", "interactive",
-                "interactive", Map.of(
-                        "type", "list",
-                        "header", Map.of("type", "text", "text", title),
-                        "body", Map.of("text", instruction),
-                        "action", Map.of(
-                                "button", "Select",
-                                "sections", List.of(Map.of(
-                                        "title", "Options",
-                                        "rows", rows
-                                ))
-                        )
-                )
+                "interactive", interactive
         );
 
         return postToWhatsapp(payload);
@@ -1076,7 +916,6 @@ public class WhatsappService {
         BUTTON_SETTINGS("ButtonSettings"),
         BUTTON_LOGOUT("ButtonLogout"),
         BUTTON_BUSINESS_MENU_HOME("BusinessMenuHome"),
-        BUTTON_BUSINESS_MENU_UP("BusinessMenuUp"),
         SELECT_ACCOUNT_PROMPT("SelectAccountPrompt"),
         BUTTON_CHANGE_ACCOUNT("ButtonChangeAccount");
 

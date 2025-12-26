@@ -117,54 +117,98 @@
                 </button>
               </div>
               <form id="serviceForm" class="card hidden" autocomplete="off">
-                <div class="two-col-grid">
-                  <label>
-                    Service name
-                    <input
-                      id="serviceNameInput"
-                      type="text"
-                      required
-                      placeholder="Product"
-                    />
-                  </label>
-                  <label>
-                    API name
-                    <select id="serviceApiSelect" required></select>
-                  </label>
+                <div class="service-form__stack">
+                  <div class="service-form__row">
+                    <label class="form-field">
+                      Service Name
+                      <input
+                        id="serviceNameInput"
+                        type="text"
+                        required
+                      />
+                    </label>
+                    <label class="form-field">
+                      API Name
+                      <select id="serviceApiSelect" required></select>
+                    </label>
+                    <label class="form-field">
+                      Service Type
+                      <select id="serviceResponseTemplate">
+                        <option value="EXISTING">Existing</option>
+                        <option value="JSON">JSON</option>
+                        <option value="MESSAGE">Message</option>
+                        <option value="CARD">List of Objects</option>
+                      </select>
+                    </label>
+                  </div>
+
+                  <div class="service-form__context">
+                    <div class="service-context-row">
+                      <label class="form-field">
+                        Account Context
+                        <input
+                          id="serviceAccountContextField"
+                          type="text"
+                        />
+                      </label>
+                      <p class="hint">Adds <code>field=value</code> with the selected account when present.</p>
+                    </div>
+                    <div class="service-context-row">
+                      <label class="form-field">
+                        Service Context
+                        <input
+                          id="serviceServiceContextField"
+                          type="text"
+                        />
+                      </label>
+                      <p class="hint">Adds <code>field=value</code> with the selected service when present.</p>
+                    </div>
+                    <div class="service-context-row">
+                      <label class="form-field">
+                        Object Context
+                        <input
+                          id="serviceObjectContextField"
+                          type="text"
+                        />
+                      </label>
+                      <p class="hint">Adds <code>field=value</code> with the selected object (from outputs) when present.</p>
+                    </div>
+                  </div>
+
+                  <div class="service-form__field">
+                    <label for="serviceQueryParamsInput">Query Parameters</label>
+                    <textarea
+                      id="serviceQueryParamsInput"
+                      class="service-query-textarea"
+                      rows="5"
+                    ></textarea>
+                  </div>
+
+                  <div class="service-form__outputs">
+                    <div class="service-form__outputs-header">
+                      <div>Output field / Label</div>
+                      <button id="addOutputFieldButton" class="secondary" type="button">Add field</button>
+                    </div>
+                    <div id="outputFieldsContainer" class="output-fields"></div>
+                    <div class="service-form__outputs-footer">
+                      <button id="addOutputFieldButtonSecondary" class="secondary" type="button">
+                        Add another output
+                      </button>
+                    </div>
+                    <p class="hint">
+                      Mark one output as <strong>Object Context</strong> to reuse its value later. Output values are
+                      still combined for query parameters when calling your APIs.
+                    </p>
+                  </div>
                 </div>
-                <label>
-                  Query parameters
-                  <textarea
-                    id="serviceQueryParamsInput"
-                    rows="3"
-                    placeholder="key=value&limit=10"
-                  ></textarea>
-                </label>
-                <label>
-                  Response template
-                  <select id="serviceResponseTemplate">
-                    <option value="EXISTING">Existing</option>
-                    <option value="JSON">JSON</option>
-                    <option value="MESSAGE">Message</option>
-                    <option value="CARD">Card</option>
-                  </select>
-                </label>
-                <label>
-                  Output (comma-separated JSON paths)
-                  <input
-                    id="serviceOutputInput"
-                    type="text"
-                    placeholder="items[0].id,items[0].status"
-                  />
-                </label>
                 <div class="toolbar toolbar--end">
-                  <button id="saveServiceButton" type="submit">Publish service</button>
+                  <button id="saveServiceButton" type="submit">Save changes</button>
                   <button id="cancelServiceButton" class="secondary" type="button">
                     Cancel
                   </button>
                 </div>
               </form>
-              <div id="serviceList" class="config-tree"></div>
+              <div id="serviceList" class="service-card-list"></div>
               <p id="serviceBuilderStatus" class="hint" aria-live="polite"></p>
             </section>
           </section>
@@ -259,73 +303,13 @@
                     <select id="menuFunctionSelect" name="function"></select>
                   </label>
                   <label class="checkbox">
-                    <input type="checkbox" id="useTranslationInput" />
+                    <input type="checkbox" id="useTranslationInput" checked />
                     <span>Use built-in translation</span>
                   </label>
                   <p class="hint">
                     Keeps the original multilingual text for this function. Turn
                     it off to always display the custom label.
                   </p>
-                  <div id="contextFields" class="context-fields">
-                    <div class="context-row">
-                      <label class="checkbox">
-                        <input type="checkbox" id="menuContextToggle" />
-                        <span>Menu context</span>
-                      </label>
-                      <div class="context-row__inputs">
-                        <input
-                          id="menuContextKeyInput"
-                          type="text"
-                          placeholder="Query key (e.g. menuContext)"
-                        />
-                        <input
-                          id="menuContextLabelInput"
-                          type="text"
-                          placeholder="Display label"
-                        />
-                      </div>
-                    </div>
-                    <div class="context-row">
-                      <label class="checkbox">
-                        <input type="checkbox" id="serviceContextToggle" />
-                        <span>Service context</span>
-                      </label>
-                      <div class="context-row__inputs">
-                        <input
-                          id="serviceContextKeyInput"
-                          type="text"
-                          placeholder="Query key (e.g. serviceId)"
-                        />
-                        <input
-                          id="serviceContextLabelInput"
-                          type="text"
-                          placeholder="Display label"
-                        />
-                      </div>
-                    </div>
-                    <div class="context-row">
-                      <label class="checkbox">
-                        <input type="checkbox" id="accountContextToggle" />
-                        <span>Account context</span>
-                      </label>
-                      <div class="context-row__inputs">
-                        <input
-                          id="accountContextKeyInput"
-                          type="text"
-                          placeholder="Query key (e.g. accountId)"
-                        />
-                        <input
-                          id="accountContextLabelInput"
-                          type="text"
-                          placeholder="Display label"
-                        />
-                      </div>
-                    </div>
-                    <p class="hint">
-                      When enabled, the provided label is prefixed to results and the key/value are added to
-                      the API call.
-                    </p>
-                  </div>
                 </div>
                 <div id="submenuFields" class="conditional-field hidden">
                   <label>

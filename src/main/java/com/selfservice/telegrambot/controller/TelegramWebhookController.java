@@ -13,6 +13,7 @@ import com.selfservice.application.service.InvoiceService;
 import com.selfservice.application.service.TroubleTicketService;
 import com.selfservice.application.service.OperationsMonitoringService;
 import com.selfservice.application.service.ServiceFunctionExecutor;
+import com.selfservice.application.service.ContextTraceLogger;
 import com.selfservice.application.config.menu.LoginMenuFunction;
 import com.selfservice.application.config.menu.LoginMenuItem;
 import com.selfservice.application.config.menu.BusinessMenuConfigurationProvider;
@@ -45,6 +46,7 @@ public class TelegramWebhookController {
     private final ConnectorsProperties connectorsProperties;
     private final BusinessMenuConfigurationProvider menuConfigurationProvider;
     private final ServiceFunctionExecutor serviceFunctionExecutor;
+    private final ContextTraceLogger contextTraceLogger;
 
     public TelegramWebhookController(TelegramService telegramService,
             KeycloakAuthService keycloakAuthService,
@@ -56,7 +58,8 @@ public class TelegramWebhookController {
             OperationsMonitoringService monitoringService,
             ConnectorsProperties connectorsProperties,
             BusinessMenuConfigurationProvider menuConfigurationProvider,
-            ServiceFunctionExecutor serviceFunctionExecutor) {
+            ServiceFunctionExecutor serviceFunctionExecutor,
+            ContextTraceLogger contextTraceLogger) {
         this.telegramService = telegramService;
         this.keycloakAuthService = keycloakAuthService;
         this.productService = productService;
@@ -69,6 +72,7 @@ public class TelegramWebhookController {
         this.connectorsProperties = connectorsProperties;
         this.menuConfigurationProvider = menuConfigurationProvider;
         this.serviceFunctionExecutor = serviceFunctionExecutor;
+        this.contextTraceLogger = contextTraceLogger;
 
     }
 
@@ -143,8 +147,8 @@ public class TelegramWebhookController {
                 text = TelegramService.CALLBACK_OPT_IN_PROMPT;
             } else if (text.equals(telegramService.translate(chatId, TelegramService.KEY_BUTTON_SETTINGS))) {
                 text = TelegramService.CALLBACK_SETTINGS_MENU;
-            } else if (text.equals(telegramService.translate(chatId, TelegramService.KEY_BUTTON_MENU))) {
-                text = TelegramService.CALLBACK_MENU;
+            } else if (text.equals(telegramService.translate(chatId, TelegramService.KEY_BUTTON_HOME))) {
+                text = TelegramService.CALLBACK_HOME;
             } else if (text.equalsIgnoreCase(telegramService.translate(chatId, TelegramService.KEY_OPT_IN_YES))) {
                 text = TelegramService.CALLBACK_OPT_IN_ACCEPT;
             } else if (text.equalsIgnoreCase(telegramService.translate(chatId, TelegramService.KEY_OPT_IN_NO))) {
@@ -175,8 +179,8 @@ public class TelegramWebhookController {
                     text = TelegramService.CALLBACK_LANGUAGE_MENU;
                 } else if (function == LoginMenuFunction.SETTINGS) {
                     text = TelegramService.CALLBACK_SETTINGS_MENU;
-                } else if (function == LoginMenuFunction.MENU) {
-                    text = TelegramService.CALLBACK_MENU;
+                } else if (function == LoginMenuFunction.HOME) {
+                    text = TelegramService.CALLBACK_HOME;
                 }
             }
 
@@ -200,34 +204,21 @@ public class TelegramWebhookController {
                 return ResponseEntity.ok().build();
             }
 
+            if (text.equals(TelegramService.CALLBACK_HOME)) {
+                if (hasValidToken && ensureAccountSelected(chatId)) {
+                    telegramService.goHomeBusinessMenu(chatId);
+                    AccountSummary selected = userSessionService.getSelectedAccount(chatId);
+                    telegramService.sendLoggedInMenu(chatId, selected,
+                            userSessionService.getAccounts(chatId).size() > 1);
+                } else {
+                    telegramService.goHomeLoginMenu(chatId);
+                    telegramService.sendLoginMenu(chatId, oauthSessionService.buildAuthUrl(chatId));
+                }
+                return ResponseEntity.ok().build();
+            }
+
             if (text.equals(TelegramService.CALLBACK_SETTINGS_MENU)) {
                 telegramService.sendSettingsMenu(chatId);
-                return ResponseEntity.ok().build();
-            }
-
-            if (text.equals(TelegramService.CALLBACK_MENU)) {
-                telegramService.goHomeBusinessMenu(chatId);
-                telegramService.goHomeLoginMenu(chatId);
-                if (hasValidToken && ensureAccountSelected(chatId)) {
-                    AccountSummary selected = userSessionService.getSelectedAccount(chatId);
-                    telegramService.sendLoggedInMenu(chatId, selected,
-                            userSessionService.getAccounts(chatId).size() > 1);
-                } else {
-                    telegramService.sendLoginMenu(chatId, oauthSessionService.buildAuthUrl(chatId));
-                }
-                return ResponseEntity.ok().build();
-            }
-
-            if (text.equals(TelegramService.CALLBACK_BUSINESS_MENU_UP)) {
-                if (hasValidToken && ensureAccountSelected(chatId)) {
-                    telegramService.goUpBusinessMenu(chatId);
-                    AccountSummary selected = userSessionService.getSelectedAccount(chatId);
-                    telegramService.sendLoggedInMenu(chatId, selected,
-                            userSessionService.getAccounts(chatId).size() > 1);
-                } else {
-                    telegramService.goUpLoginMenu(chatId);
-                    telegramService.sendLoginMenu(chatId, oauthSessionService.buildAuthUrl(chatId));
-                }
                 return ResponseEntity.ok().build();
             }
 
@@ -678,17 +669,62 @@ public class TelegramWebhookController {
                         if (!ensureAccountSelected(chatId)) {
                             break;
                         }
-                        BusinessMenuItem matchedItem = menuConfigurationProvider.findMenuItemByCallback(text);
                         AccountSummary selected = userSessionService.getSelectedAccount(chatId);
                         ServiceSummary selectedService = userSessionService.getSelectedService(chatId);
+                        UserSessionService.PendingSelection pendingMenu = userSessionService
+                                .consumePendingFunctionMenu(chatId, text);
+                        if (pendingMenu != null) {
+                            String contextMessage = null;
+                            if (pendingMenu.menu().objectContextEnabled()
+                                    && pendingMenu.objectContextValue() != null
+                                    && !pendingMenu.objectContextValue().isBlank()) {
+                                AccountSummary acc = userSessionService.getSelectedAccount(chatId);
+                                ServiceSummary svc = userSessionService.getSelectedService(chatId);
+                                userSessionService.updateContext(chatId, null, null, pendingMenu.objectContextValue(),
+                                        pendingMenu.menu().objectContextLabel());
+                                contextTraceLogger.logContext(
+                                        acc == null ? "<none>" : acc.accountId(),
+                                        svc == null ? "<none>" : svc.productId(),
+                                        pendingMenu.objectContextValue());
+                                contextMessage = buildContextualPrompt(chatId, pendingMenu.menu().objectContextLabel());
+                            }
+                            if (pendingMenu.menu().storeContext()) {
+                                userSessionService.setMenuContext(chatId, contextMessage);
+                            } else {
+                                userSessionService.clearMenuContext(chatId);
+                            }
+                            if (pendingMenu.menu().submenuId() != null && !pendingMenu.menu().submenuId().isBlank()) {
+                                telegramService.goToBusinessMenu(chatId, pendingMenu.menu().submenuId());
+                            }
+                            telegramService.sendLoggedInMenu(chatId, selected,
+                                    userSessionService.getAccounts(chatId).size() > 1, contextMessage);
+                            break;
+                        }
+
+                        BusinessMenuItem matchedItem = menuConfigurationProvider.findMenuItemByCallback(text);
+                        if (matchedItem != null
+                                && (TelegramService.CALLBACK_HOME.equalsIgnoreCase(matchedItem.function())
+                                || TelegramService.CALLBACK_HOME.equalsIgnoreCase(matchedItem.callbackData()))) {
+                            telegramService.goHomeBusinessMenu(chatId);
+                            telegramService.sendLoggedInMenu(chatId, selected,
+                                    userSessionService.getAccounts(chatId).size() > 1);
+                            break;
+                        }
+                        var contextState = userSessionService.getContextState(chatId);
                         ServiceFunctionExecutor.ExecutionResult execResult = serviceFunctionExecutor
                                 .execute(text, existingToken, selected, selectedService,
-                                        matchedItem == null ? null : matchedItem.contextDirectives());
-                        if (matchedItem != null && matchedItem.isFunctionMenu() && matchedItem.submenuId() != null
-                                && !matchedItem.submenuId().isBlank()) {
-                            telegramService.goToBusinessMenu(chatId, matchedItem.submenuId());
+                                        contextState == null ? null : contextState.objectContext());
+                        if (matchedItem != null && matchedItem.isFunctionMenu()) {
+                            boolean handled = handleFunctionMenuResponse(chatId, matchedItem, execResult, selected);
+                            if (handled) {
+                                break;
+                            }
                         }
                         if (execResult.handled()) {
+                            boolean handledOptions = handleFunctionOptions(chatId, matchedItem, execResult, selected);
+                            if (handledOptions) {
+                                break;
+                            }
                             if (execResult.mode() == ServiceFunctionExecutor.ResponseMode.CARD) {
                                 telegramService.sendCardMessage(chatId, execResult.message(), execResult.buttons());
                             } else {
@@ -709,6 +745,164 @@ public class TelegramWebhookController {
         }
 
         return ResponseEntity.ok().build();
+    }
+
+    private boolean handleFunctionMenuResponse(long chatId, BusinessMenuItem matchedItem,
+            ServiceFunctionExecutor.ExecutionResult execResult, AccountSummary selectedAccount) {
+        if (!execResult.handled()) {
+            return false;
+        }
+        List<String> options = execResult.options() == null ? List.of() : execResult.options();
+        String contextLabel = matchedItem.contextDirectives() == null
+                ? null
+                : matchedItem.contextDirectives().resolvedLabel();
+        String trimmedLabel = contextLabel == null || contextLabel.isBlank() ? null : contextLabel.trim();
+        boolean storeContext = matchedItem.contextDirectives() != null && matchedItem.contextDirectives().menuContextEnabled();
+
+        if (execResult.objectContextEnabled()) {
+            userSessionService.resetObjectContextIfLabelMismatch(chatId, execResult.objectContextLabel());
+        }
+
+        if (options.isEmpty()) {
+            String message = trimmedLabel == null ? "No records found" : "No " + trimmedLabel + " found.";
+            telegramService.sendMessage(chatId, message);
+            telegramService.sendLoggedInMenu(chatId, selectedAccount,
+                    userSessionService.getAccounts(chatId).size() > 1);
+            return true;
+        }
+
+        if (options.size() == 1) {
+            String contextMessage = storeContext
+                    ? buildFunctionMenuSelectionMessage(trimmedLabel, options.get(0))
+                    : null;
+            if (storeContext) {
+                userSessionService.setMenuContext(chatId, contextMessage);
+            } else {
+                userSessionService.clearMenuContext(chatId);
+            }
+            if (execResult.objectContextEnabled()
+                    && execResult.contextValues() != null && !execResult.contextValues().isEmpty()) {
+                String ctxValue = execResult.contextValues().get(0);
+                userSessionService.updateContext(chatId, null, null, ctxValue, execResult.objectContextLabel());
+                AccountSummary acc = userSessionService.getSelectedAccount(chatId);
+                ServiceSummary svc = userSessionService.getSelectedService(chatId);
+                contextTraceLogger.logContext(acc == null ? "<none>" : acc.accountId(),
+                        svc == null ? "<none>" : svc.productId(),
+                        ctxValue == null ? "<none>" : ctxValue);
+            } else {
+                userSessionService.updateContext(chatId, null, null, null);
+            }
+            userSessionService.clearPendingFunctionMenu(chatId);
+            if (matchedItem.submenuId() != null && !matchedItem.submenuId().isBlank()) {
+                telegramService.goToBusinessMenu(chatId, matchedItem.submenuId());
+            }
+            telegramService.sendLoggedInMenu(chatId, selectedAccount,
+                    userSessionService.getAccounts(chatId).size() > 1, contextMessage);
+            return true;
+        }
+
+        userSessionService.clearMenuContext(chatId);
+        BusinessMenuItem.ContextDirectives directives = matchedItem.contextDirectives();
+        userSessionService.setPendingFunctionMenu(chatId, matchedItem.submenuId(), trimmedLabel, options,
+                execResult.contextValues(), storeContext, directives.accountContextEnabled(),
+                directives.serviceContextEnabled(), execResult.objectContextEnabled(), execResult.objectContextLabel());
+        String prompt = buildContextualPrompt(chatId, trimmedLabel);
+        telegramService.sendCardMessage(chatId, prompt, options);
+        return true;
+    }
+
+    private boolean handleFunctionOptions(long chatId, BusinessMenuItem matchedItem,
+            ServiceFunctionExecutor.ExecutionResult execResult, AccountSummary selectedAccount) {
+        List<String> options = execResult.options() == null ? List.of() : execResult.options();
+        if (options.isEmpty()) {
+            return false;
+        }
+        boolean storeContext = matchedItem != null && matchedItem.contextDirectives() != null
+                && matchedItem.contextDirectives().menuContextEnabled();
+        String contextLabel = matchedItem != null && matchedItem.contextDirectives() != null
+                ? matchedItem.contextDirectives().resolvedLabel()
+                : null;
+        String trimmedLabel = contextLabel == null || contextLabel.isBlank() ? null : contextLabel.trim();
+
+        if (execResult.objectContextEnabled()) {
+            userSessionService.resetObjectContextIfLabelMismatch(chatId, execResult.objectContextLabel());
+        }
+
+        if (options.size() == 1) {
+            String contextMessage = null;
+            if (execResult.objectContextEnabled()
+                    && execResult.contextValues() != null && !execResult.contextValues().isEmpty()) {
+                String ctxValue = execResult.contextValues().get(0);
+                userSessionService.updateContext(chatId, null, null, ctxValue, execResult.objectContextLabel());
+                AccountSummary acc = userSessionService.getSelectedAccount(chatId);
+                ServiceSummary svc = userSessionService.getSelectedService(chatId);
+                contextTraceLogger.logContext(acc == null ? "<none>" : acc.accountId(),
+                        svc == null ? "<none>" : svc.productId(),
+                        ctxValue == null ? "<none>" : ctxValue);
+                contextMessage = buildContextualPrompt(chatId, execResult.objectContextLabel());
+            } else {
+                userSessionService.updateContext(chatId, null, null, null);
+            }
+            if (storeContext) {
+                userSessionService.setMenuContext(chatId, contextMessage);
+            } else {
+                userSessionService.clearMenuContext(chatId);
+            }
+            userSessionService.clearPendingFunctionMenu(chatId);
+            telegramService.sendLoggedInMenu(chatId, selectedAccount,
+                    userSessionService.getAccounts(chatId).size() > 1, contextMessage);
+            return true;
+        }
+
+        userSessionService.clearMenuContext(chatId);
+        BusinessMenuItem.ContextDirectives directives = matchedItem == null ? null : matchedItem.contextDirectives();
+        boolean accountContext = directives != null && directives.accountContextEnabled();
+        boolean serviceContext = directives != null && directives.serviceContextEnabled();
+        userSessionService.setPendingFunctionMenu(chatId,
+                matchedItem == null ? null : matchedItem.submenuId(), trimmedLabel, options, execResult.contextValues(),
+                storeContext, accountContext, serviceContext, execResult.objectContextEnabled(),
+                execResult.objectContextLabel());
+        String prompt = buildContextualPrompt(chatId, trimmedLabel);
+        if (execResult.mode() == ServiceFunctionExecutor.ResponseMode.CARD) {
+            telegramService.sendCardMessage(chatId, prompt, options);
+        } else {
+            StringBuilder builder = new StringBuilder(prompt).append("\n");
+            for (int i = 0; i < options.size(); i++) {
+                builder.append(i + 1).append(") ").append(options.get(i)).append('\n');
+            }
+            telegramService.sendMessage(chatId, builder.toString());
+        }
+        return true;
+    }
+
+    private String buildFunctionMenuSelectionMessage(String contextLabel, String selection) {
+        String resolvedSelection = selection == null ? "" : selection.trim();
+        if (contextLabel == null || contextLabel.isBlank()) {
+            return resolvedSelection + " Selected. Select an option.";
+        }
+        return contextLabel.trim() + " " + resolvedSelection + " Selected. Select an option.";
+    }
+
+    private String buildContextualPrompt(long chatId, String objectLabel) {
+        var contextState = userSessionService.getContextState(chatId);
+        StringBuilder header = new StringBuilder();
+        if (contextState != null) {
+            if (contextState.accountContext() != null && !contextState.accountContext().isBlank()) {
+                header.append("Account ").append(contextState.accountContext().trim()).append('\n');
+            }
+            if (contextState.serviceContext() != null && !contextState.serviceContext().isBlank()) {
+                header.append("Access Number ").append(contextState.serviceContext().trim()).append('\n');
+            }
+            if (contextState.objectContext() != null && !contextState.objectContext().isBlank()) {
+                String label = (contextState.objectLabel() != null && !contextState.objectLabel().isBlank())
+                        ? contextState.objectLabel().trim()
+                        : (objectLabel == null || objectLabel.isBlank() ? "Object" : objectLabel.trim());
+                header.append(label).append(' ').append(contextState.objectContext().trim()).append(" selected")
+                        .append('\n');
+            }
+        }
+        header.append("Choose an option");
+        return header.toString();
     }
 
     private String extractDisplayName(Map<String, Object> chat) {

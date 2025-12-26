@@ -44,17 +44,15 @@ public class TelegramService {
     public static final String KEY_BUTTON_SELECT_SERVICE = "ButtonSelectService";
     public static final String KEY_BUTTON_MY_ISSUES = "ButtonMyIssues";
     public static final String KEY_BUTTON_INVOICE_HISTORY = "ButtonInvoiceHistory";
-    public static final String KEY_BUTTON_BACK_TO_MENU = "ButtonBackToMenu";
     public static final String KEY_BUTTON_CHANGE_ACCOUNT = "ButtonChangeAccount";
     public static final String KEY_BUTTON_CHANGE_LANGUAGE = "ButtonChangeLanguage";
-    public static final String KEY_BUTTON_MENU = "ButtonMenu";
+    public static final String KEY_BUTTON_HOME = "ButtonHome";
     public static final String KEY_BUTTON_SETTINGS = "ButtonSettings";
     public static final String KEY_BUTTON_OPT_IN = "ButtonOptIn";
     public static final String KEY_OPT_IN_YES = "OptInYes";
     public static final String KEY_OPT_IN_NO = "OptInNo";
     public static final String KEY_BUTTON_LOGOUT = "ButtonLogout";
     public static final String KEY_BUTTON_BUSINESS_MENU_HOME = "BusinessMenuHome";
-    public static final String KEY_BUTTON_BUSINESS_MENU_UP = "BusinessMenuUp";
     public static final String KEY_SHOW_MORE = "ShowMore";
     public static final String KEY_SELECT_ACCOUNT_PROMPT = "SelectAccountPrompt";
 
@@ -72,8 +70,8 @@ public class TelegramService {
     public static final String CALLBACK_SELECT_SERVICE = "SELECT_SERVICE";
     public static final String CALLBACK_CHANGE_ACCOUNT = "CHANGE_ACCOUNT";
     public static final String CALLBACK_LANGUAGE_MENU = "LANGUAGE_MENU";
-    public static final String CALLBACK_MENU = "MENU";
     public static final String CALLBACK_SETTINGS_MENU = "SETTINGS_MENU";
+    public static final String CALLBACK_HOME = "HOME";
     public static final String CALLBACK_LOGIN_MENU_PREFIX = "LOGIN_MENU:";
     public static final String CALLBACK_LANGUAGE_PREFIX = "LANGUAGE:";
     public static final String CALLBACK_LOGOUT = "LOGOUT";
@@ -85,7 +83,6 @@ public class TelegramService {
     public static final String CALLBACK_INVOICE_PAY_PREFIX = "INVOICE_PAY:";
     public static final String CALLBACK_INVOICE_COMPARE_PREFIX = "INVOICE_COMPARE:";
     public static final String CALLBACK_BUSINESS_MENU_HOME = "BUSINESS_MENU_HOME";
-    public static final String CALLBACK_BUSINESS_MENU_UP = "BUSINESS_MENU_UP";
     public static final String CALLBACK_BUSINESS_MENU_PREFIX = "BUSINESS_MENU:";
     public static final String CALLBACK_OPT_IN_PROMPT = "OPT_IN_PROMPT";
     public static final String CALLBACK_OPT_IN_ACCEPT = "OPT_IN_ACCEPT";
@@ -270,12 +267,6 @@ public class TelegramService {
         if (hasFunction(item, CALLBACK_LOGOUT) && !isLoggedIn(chatId)) {
             return false;
         }
-        if (hasFunction(item, CALLBACK_MENU) && menuDepth < 1) {
-            return false;
-        }
-        if (hasFunction(item, CALLBACK_BUSINESS_MENU_UP) && menuDepth < 2) {
-            return false;
-        }
         if ((hasFunction(item, CALLBACK_CHANGE_ACCOUNT) || hasFunction(item, "CHANGE_ACCOUNT")) && !hasAlternateAccount(chatId)) {
             return false;
         }
@@ -316,10 +307,10 @@ public class TelegramService {
         if (function == LoginMenuFunction.SETTINGS) {
             return CALLBACK_SETTINGS_MENU;
         }
-        if (function == LoginMenuFunction.MENU) {
-            return CALLBACK_MENU;
+        if (function == LoginMenuFunction.HOME) {
+            return CALLBACK_HOME;
         }
-        return CALLBACK_MENU;
+        return item.getFunction();
     }
 
     public void sendLoginMenu(long chatId, String loginUrl) {
@@ -361,9 +352,6 @@ public class TelegramService {
         keyboard.add(List.of(
                 Map.of("text", translate(chatId, KEY_OPT_IN_YES), "callback_data", CALLBACK_OPT_IN_ACCEPT),
                 Map.of("text", translate(chatId, KEY_OPT_IN_NO), "callback_data", CALLBACK_OPT_IN_DECLINE)));
-        keyboard.add(List.of(Map.of(
-                "text", translate(chatId, KEY_BUTTON_MENU),
-                "callback_data", CALLBACK_MENU)));
 
         Map<String, Object> replyMarkup = Map.of("inline_keyboard", keyboard);
 
@@ -422,11 +410,25 @@ public class TelegramService {
         Map<String, Object> replyMarkup = Map.of("inline_keyboard", keyboard);
 
         StringBuilder menuText = new StringBuilder();
-        appendParagraph(menuText, greeting);
-        if (selectedAccount != null) {
-            appendParagraph(menuText, format(chatId, "AccountSelected", selectedAccount.accountId()));
+        boolean hasGreeting = greeting != null && !greeting.isBlank();
+        String storedContext = userSessionService.getMenuContext(chatId);
+        boolean appendedContext = false;
+
+        if (hasGreeting) {
+            appendParagraph(menuText, greeting);
+            appendedContext = true;
+        } else if (storedContext != null && !storedContext.isBlank()) {
+            appendParagraph(menuText, storedContext);
+            appendedContext = true;
         }
-        appendParagraph(menuText, translate(chatId, "LoginWelcome"));
+
+        String combinedContext = hasGreeting ? greeting : storedContext;
+        boolean contextContainsChoice = combinedContext != null && combinedContext.contains("Choose an option");
+        if (!contextContainsChoice) {
+            appendParagraph(menuText, translate(chatId, "LoginWelcome"));
+        } else if (!appendedContext) {
+            appendParagraph(menuText, translate(chatId, "LoginWelcome"));
+        }
 
         Map<String, Object> body = Map.of(
                 "chat_id", chatId,
@@ -454,9 +456,6 @@ public class TelegramService {
         keyboard.add(List.of(Map.of(
                 "text", translate(chatId, "LanguageRussian"),
                 "callback_data", CALLBACK_LANGUAGE_PREFIX + "ru")));
-        keyboard.add(List.of(Map.of(
-                "text", translate(chatId, KEY_BUTTON_MENU),
-                "callback_data", CALLBACK_MENU)));
 
         Map<String, Object> replyMarkup = Map.of("inline_keyboard", keyboard);
 
@@ -545,34 +544,8 @@ public class TelegramService {
         return CALLBACK_LOGOUT.equalsIgnoreCase(item.function());
     }
 
-    private boolean isBackToMenuItem(BusinessMenuItem item) {
-        if (item == null) {
-            return false;
-        }
-        if (CALLBACK_MENU.equalsIgnoreCase(item.callbackData())) {
-            return true;
-        }
-        return CALLBACK_MENU.equalsIgnoreCase(item.function());
-    }
-
-    private boolean isMenuUpItem(BusinessMenuItem item) {
-        if (item == null) {
-            return false;
-        }
-        if (CALLBACK_BUSINESS_MENU_UP.equalsIgnoreCase(item.callbackData())) {
-            return true;
-        }
-        return CALLBACK_BUSINESS_MENU_UP.equalsIgnoreCase(item.function());
-    }
-
     private boolean shouldDisplayBusinessMenuItem(BusinessMenuItem item, int menuDepth, boolean hasAlternateAccount, boolean loggedIn) {
         if (isLogoutItem(item) && !loggedIn) {
-            return false;
-        }
-        if (isBackToMenuItem(item) && menuDepth < 1) {
-            return false;
-        }
-        if (isMenuUpItem(item) && menuDepth < 2) {
             return false;
         }
         if (isChangeAccountItem(item) && !hasAlternateAccount) {
@@ -684,6 +657,8 @@ public class TelegramService {
 
     public void goHomeBusinessMenu(long chatId) {
         userSessionService.resetBusinessMenu(chatId, menuConfigurationProvider.getRootMenuId());
+        userSessionService.clearMenuContext(chatId);
+        userSessionService.clearPendingFunctionMenu(chatId);
     }
 
     public void goHomeLoginMenu(long chatId) {
@@ -691,7 +666,12 @@ public class TelegramService {
     }
 
     public boolean goUpBusinessMenu(long chatId) {
-        return userSessionService.goUpBusinessMenu(chatId, menuConfigurationProvider.getRootMenuId());
+        boolean moved = userSessionService.goUpBusinessMenu(chatId, menuConfigurationProvider.getRootMenuId());
+        if (moved) {
+            userSessionService.clearMenuContext(chatId);
+            userSessionService.clearPendingFunctionMenu(chatId);
+        }
+        return moved;
     }
 
     public boolean goUpLoginMenu(long chatId) {
@@ -736,19 +716,11 @@ public class TelegramService {
         int end = Math.min(accounts.size(), safeStart + 5);
 
         List<List<Map<String, Object>>> rows = new ArrayList<>();
-        List<Map<String, Object>> currentRow = new ArrayList<>();
         for (int i = safeStart; i < end; i++) {
             AccountSummary summary = accounts.get(i);
-            currentRow.add(Map.of(
+            rows.add(List.of(Map.of(
                     "text", summary.displayLabel(),
-                    "callback_data", CALLBACK_ACCOUNT_PREFIX + i));
-            if (currentRow.size() == 2) {
-                rows.add(List.copyOf(currentRow));
-                currentRow = new ArrayList<>();
-            }
-        }
-        if (!currentRow.isEmpty()) {
-            rows.add(List.copyOf(currentRow));
+                    "callback_data", CALLBACK_ACCOUNT_PREFIX + i)));
         }
 
         if (end < accounts.size()) {
@@ -801,7 +773,6 @@ public class TelegramService {
         int end = Math.min(services.size(), safeStart + 5);
 
         List<List<Map<String, Object>>> rows = new ArrayList<>();
-        List<Map<String, Object>> currentRow = new ArrayList<>();
         for (int i = safeStart; i < end; i++) {
             ServiceSummary service = services.get(i);
             String name = (service.productName() == null || service.productName().isBlank())
@@ -812,16 +783,9 @@ public class TelegramService {
                     : service.accessNumber().strip();
 
             String buttonText = format(chatId, "ServiceButtonLabel", name, number);
-            currentRow.add(Map.of(
+            rows.add(List.of(Map.of(
                     "text", buttonText,
-                    "callback_data", CALLBACK_SERVICE_PREFIX + i));
-            if (currentRow.size() == 2) {
-                rows.add(List.copyOf(currentRow));
-                currentRow = new ArrayList<>();
-            }
-        }
-        if (!currentRow.isEmpty()) {
-            rows.add(List.copyOf(currentRow));
+                    "callback_data", CALLBACK_SERVICE_PREFIX + i)));
         }
 
         if (end < services.size()) {
@@ -859,22 +823,14 @@ public class TelegramService {
         int end = Math.min(invoices.size(), safeStart + 5);
 
         List<List<Map<String, Object>>> rows = new ArrayList<>();
-        List<Map<String, Object>> currentRow = new ArrayList<>();
         for (int i = safeStart; i < end; i++) {
             InvoiceSummary invoice = invoices.get(i);
             String label = format(chatId, "InvoiceButtonLabel", safeValue(chatId, invoice.id()),
                     safeValue(chatId, invoice.billDate()), safeValue(chatId, invoice.totalAmount()),
                     safeValue(chatId, invoice.unpaidAmount()));
-            currentRow.add(Map.of(
+            rows.add(List.of(Map.of(
                     "text", label,
-                    "callback_data", CALLBACK_INVOICE_PREFIX + i));
-            if (currentRow.size() == 2) {
-                rows.add(List.copyOf(currentRow));
-                currentRow = new ArrayList<>();
-            }
-        }
-        if (!currentRow.isEmpty()) {
-            rows.add(List.copyOf(currentRow));
+                    "callback_data", CALLBACK_INVOICE_PREFIX + i)));
         }
 
         if (end < invoices.size()) {
@@ -882,10 +838,6 @@ public class TelegramService {
                     "text", translate(chatId, KEY_SHOW_MORE),
                     "callback_data", CALLBACK_SHOW_MORE_INVOICES_PREFIX + end)));
         }
-
-        rows.add(List.of(Map.of(
-                "text", translate(chatId, KEY_BUTTON_BACK_TO_MENU),
-                "callback_data", CALLBACK_MENU)));
 
         String url = baseUrl + "/sendMessage";
         HttpHeaders headers = new HttpHeaders();
@@ -917,8 +869,7 @@ public class TelegramService {
             actions = List.of(
                     fallbackAction(1, translate(chatId, "ButtonInvoiceViewPdf"), CALLBACK_INVOICE_VIEW_PDF_PREFIX),
                     fallbackAction(2, translate(chatId, "ButtonInvoicePay"), CALLBACK_INVOICE_PAY_PREFIX),
-                    fallbackAction(3, translate(chatId, "ButtonInvoiceCompare"), CALLBACK_INVOICE_COMPARE_PREFIX),
-                    fallbackAction(4, translate(chatId, KEY_BUTTON_BACK_TO_MENU), CALLBACK_MENU));
+                    fallbackAction(3, translate(chatId, "ButtonInvoiceCompare"), CALLBACK_INVOICE_COMPARE_PREFIX));
         }
 
         for (BusinessMenuItem action : actions) {
@@ -999,22 +950,14 @@ public class TelegramService {
         int end = Math.min(tickets.size(), safeStart + 5);
 
         List<List<Map<String, Object>>> rows = new ArrayList<>();
-        List<Map<String, Object>> currentRow = new ArrayList<>();
         for (int i = safeStart; i < end; i++) {
             TroubleTicketSummary ticket = tickets.get(i);
             String status = (ticket.status() == null || ticket.status().isBlank())
                     ? translate(chatId, "UnknownValue")
                     : ticket.status().strip();
-            currentRow.add(Map.of(
+            rows.add(List.of(Map.of(
                     "text", format(chatId, "TicketButtonLabel", ticket.id(), status),
-                    "callback_data", CALLBACK_TROUBLE_TICKET_PREFIX + ticket.id()));
-            if (currentRow.size() == 2) {
-                rows.add(List.copyOf(currentRow));
-                currentRow = new ArrayList<>();
-            }
-        }
-        if (!currentRow.isEmpty()) {
-            rows.add(List.copyOf(currentRow));
+                    "callback_data", CALLBACK_TROUBLE_TICKET_PREFIX + ticket.id())));
         }
 
         if (end < tickets.size()) {

@@ -10,6 +10,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Service
@@ -62,6 +63,11 @@ public class UserSessionService {
     private final Map<Long, List<String>> menuPathByChat = new ConcurrentHashMap<>();
     private final Map<Long, List<String>> loginMenuPathByChat = new ConcurrentHashMap<>();
     private final Map<Long, Boolean> optInByChat = new ConcurrentHashMap<>();
+    private final Map<Long, String> menuContextByChat = new ConcurrentHashMap<>();
+    private final Map<Long, PendingFunctionMenu> pendingFunctionMenusByChat = new ConcurrentHashMap<>();
+    private final Map<Long, ContextState> contextStateByChat = new ConcurrentHashMap<>();
+
+    public record ContextState(String accountContext, String serviceContext, String objectContext, String objectLabel) { }
 
     public void save(long chatId, String accessToken, String refreshToken, String idToken, long expiresInSeconds,
             String exchangeId) {
@@ -174,6 +180,7 @@ public class UserSessionService {
             return new TokenInfo(existing.accessToken, existing.refreshToken, existing.idToken, existing.expiryEpochMs, existing.accounts,
                     matched, existing.exchangeId);
         });
+        updateContext(chatId, account.accountId(), null, null);
         clearServices(chatId);
         clearTroubleTickets(chatId);
         clearInvoices(chatId);
@@ -195,6 +202,7 @@ public class UserSessionService {
         clearTroubleTickets(chatId);
         clearInvoices(chatId);
         clearSelectedService(chatId);
+        updateContext(chatId, null, null, null);
     }
 
     public void saveServices(long chatId, List<ServiceSummary> services) {
@@ -238,6 +246,7 @@ public class UserSessionService {
                 .orElse(null);
         if (matched != null) {
             selectedServiceByChat.put(chatId, matched);
+            updateContext(chatId, null, matched.productId(), null);
         }
     }
 
@@ -324,6 +333,9 @@ public class UserSessionService {
         languageByChat.remove(chatId);
         menuPathByChat.remove(chatId);
         optInByChat.remove(chatId);
+        menuContextByChat.remove(chatId);
+        pendingFunctionMenusByChat.remove(chatId);
+        contextStateByChat.remove(chatId);
     }
 
     public String getRefreshToken(long chatId) {
@@ -364,6 +376,8 @@ public class UserSessionService {
 
     public void resetBusinessMenu(long chatId, String rootMenuId) {
         menuPathByChat.put(chatId, new ArrayList<>(List.of(rootMenuId)));
+        clearMenuContext(chatId);
+        clearPendingFunctionMenu(chatId);
     }
 
     public void resetLoginMenu(long chatId, String rootMenuId) {
@@ -424,6 +438,10 @@ public class UserSessionService {
             }
             return path;
         });
+        if (moved[0]) {
+            clearMenuContext(chatId);
+            clearPendingFunctionMenu(chatId);
+        }
         return moved[0];
     }
 
@@ -441,6 +459,113 @@ public class UserSessionService {
         });
         return moved[0];
     }
+
+    public void setMenuContext(long chatId, String contextMessage) {
+        if (contextMessage == null || contextMessage.isBlank()) {
+            menuContextByChat.remove(chatId);
+            return;
+        }
+        menuContextByChat.put(chatId, contextMessage);
+    }
+
+    public String getMenuContext(long chatId) {
+        return menuContextByChat.get(chatId);
+    }
+
+    public void clearMenuContext(long chatId) {
+        menuContextByChat.remove(chatId);
+    }
+
+    public void updateContext(long chatId, String accountContext, String serviceContext, String objectContext) {
+        updateContext(chatId, accountContext, serviceContext, objectContext, null);
+    }
+
+    public void updateContext(long chatId, String accountContext, String serviceContext, String objectContext,
+                              String objectLabel) {
+        contextStateByChat.compute(chatId, (id, existing) -> {
+            String accountValue = accountContext == null ? (existing == null ? null : existing.accountContext())
+                    : (accountContext.isBlank() ? null : accountContext);
+            String serviceValue = serviceContext == null ? (existing == null ? null : existing.serviceContext())
+                    : (serviceContext.isBlank() ? null : serviceContext);
+            String objectValue = objectContext == null ? (existing == null ? null : existing.objectContext())
+                    : (objectContext.isBlank() ? null : objectContext);
+            String objectLabelValue = objectLabel == null ? (existing == null ? null : existing.objectLabel())
+                    : (objectLabel.isBlank() ? null : objectLabel);
+            if (objectValue == null) {
+                objectLabelValue = null;
+            }
+            if (accountValue == null && serviceValue == null && objectValue == null) {
+                return null;
+            }
+            return new ContextState(accountValue, serviceValue, objectValue, objectLabelValue);
+        });
+    }
+
+    public boolean resetObjectContextIfLabelMismatch(long chatId, String newObjectLabel) {
+        ContextState state = contextStateByChat.get(chatId);
+        if (state == null || state.objectContext() == null || state.objectContext().isBlank()) {
+            return false;
+        }
+        String existingLabel = state.objectLabel() == null ? null : state.objectLabel().trim();
+        String incomingLabel = newObjectLabel == null ? null : newObjectLabel.trim();
+        if (Objects.equals(existingLabel, incomingLabel)) {
+            return false;
+        }
+        updateContext(chatId, null, null, "", "");
+        return true;
+    }
+
+    public ContextState getContextState(long chatId) {
+        return contextStateByChat.get(chatId);
+    }
+
+    public void setPendingFunctionMenu(long chatId, String submenuId, String contextLabel, List<String> options,
+                                       List<String> contextValues, boolean storeContext, boolean accountContext,
+                                       boolean serviceContext, boolean objectContextEnabled, String objectContextLabel) {
+        if (options == null || options.isEmpty()) {
+            pendingFunctionMenusByChat.remove(chatId);
+            return;
+        }
+        pendingFunctionMenusByChat.put(chatId,
+                new PendingFunctionMenu(submenuId, contextLabel, List.copyOf(options),
+                        contextValues == null ? List.of() : List.copyOf(contextValues), storeContext,
+                        accountContext, serviceContext, objectContextEnabled, objectContextLabel));
+    }
+
+    public PendingSelection consumePendingFunctionMenu(long chatId, String selection) {
+        PendingFunctionMenu pending = pendingFunctionMenusByChat.get(chatId);
+        if (pending == null || selection == null || selection.isBlank()) {
+            return null;
+        }
+        String matchedOption = null;
+        String matchedContext = null;
+        for (int i = 0; i < pending.options().size(); i++) {
+            String option = pending.options().get(i);
+            if (option != null && option.equalsIgnoreCase(selection.trim())) {
+                matchedOption = option;
+                if (pending.contextValues().size() > i) {
+                    matchedContext = pending.contextValues().get(i);
+                }
+                break;
+            }
+        }
+        if (matchedOption == null) {
+            return null;
+        }
+        pendingFunctionMenusByChat.remove(chatId);
+        return new PendingSelection(pending, matchedOption, matchedContext);
+    }
+
+    public void clearPendingFunctionMenu(long chatId) {
+        pendingFunctionMenusByChat.remove(chatId);
+    }
+
+    public record PendingFunctionMenu(String submenuId, String contextLabel, List<String> options,
+                                      List<String> contextValues, boolean storeContext,
+                                      boolean accountContext, boolean serviceContext, boolean objectContextEnabled,
+                                      String objectContextLabel) { }
+
+    public record PendingSelection(PendingFunctionMenu menu, String selection, String objectContextValue) { }
 
     public int getBusinessMenuDepth(long chatId, String rootMenuId) {
         List<String> path = ensureMenuPath(chatId, rootMenuId);

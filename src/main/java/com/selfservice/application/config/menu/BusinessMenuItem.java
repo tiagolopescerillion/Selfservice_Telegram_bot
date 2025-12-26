@@ -72,16 +72,7 @@ public record BusinessMenuItem(
 
     @JsonIgnore
     public ContextDirectives contextDirectives() {
-        return new ContextDirectives(
-                Boolean.TRUE.equals(menuContextEnabled),
-                sanitize(menuContextKey),
-                sanitize(menuContextLabel),
-                Boolean.TRUE.equals(serviceContextEnabled),
-                sanitize(serviceContextKey),
-                sanitize(serviceContextLabel),
-                Boolean.TRUE.equals(accountContextEnabled),
-                sanitize(accountContextKey),
-                sanitize(accountContextLabel));
+        return new ContextDirectives(false, null, null, false, null, null, false, null, null);
     }
 
     private String sanitize(String value) {
