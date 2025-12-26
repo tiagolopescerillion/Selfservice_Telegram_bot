@@ -878,12 +878,18 @@ public class WhatsappService {
         }
 
         String headerText = normalizeHeaderText(title);
+        String instructionText = safeText(instruction, "");
+        if (!headerText.isBlank()
+                && !instructionText.isBlank()
+                && headerText.strip().equals(instructionText.strip())) {
+            instructionText = " ";
+        }
         Map<String, Object> interactive = new java.util.HashMap<>();
         interactive.put("type", "list");
         if (!headerText.isBlank()) {
             interactive.put("header", Map.of("type", "text", "text", headerText));
         }
-        interactive.put("body", Map.of("text", safeText(instruction, "")));
+        interactive.put("body", Map.of("text", instructionText));
         interactive.put("action", Map.of(
                 "button", "Select",
                 "sections", List.of(Map.of(
