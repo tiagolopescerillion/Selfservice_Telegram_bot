@@ -882,7 +882,7 @@ public class WhatsappService {
         if (!headerText.isBlank()
                 && !instructionText.isBlank()
                 && headerText.strip().equals(instructionText.strip())) {
-            instructionText = " ";
+            instructionText = "·";
         }
         Map<String, Object> interactive = new java.util.HashMap<>();
         interactive.put("type", "list");
