@@ -611,7 +611,6 @@ function addOutputFieldRow(field = { field: "", label: "", objectContext: false 
   const fieldInput = document.createElement("input");
   fieldInput.type = "text";
   fieldInput.value = field.field || "";
-  fieldInput.placeholder = "items[0].id";
   fieldLabel.append(fieldInput);
 
   const labelLabel = document.createElement("label");
@@ -619,7 +618,6 @@ function addOutputFieldRow(field = { field: "", label: "", objectContext: false 
   const labelInput = document.createElement("input");
   labelInput.type = "text";
   labelInput.value = field.label || "";
-  labelInput.placeholder = "Invoice ID";
   labelLabel.append(labelInput);
 
   const actions = document.createElement("div");
