@@ -55,6 +55,7 @@ public class WhatsappService {
     public static final String INTERACTIVE_ID_SETTINGS = "SETTINGS";
     public static final String INTERACTIVE_ID_MENU = "MENU";
     private static final int WHATSAPP_ROW_TITLE_LIMIT = 24;
+    private static final int WHATSAPP_HEADER_TEXT_LIMIT = 60;
 
     private final RestTemplate restTemplate = new RestTemplate();
     private final String phoneNumberId;
@@ -891,6 +892,14 @@ public class WhatsappService {
         return value.substring(0, WHATSAPP_ROW_TITLE_LIMIT);
     }
 
+    private String normalizeHeaderText(String title) {
+        String value = safeText(title, "");
+        if (value.length() <= WHATSAPP_HEADER_TEXT_LIMIT) {
+            return value;
+        }
+        return value.substring(0, WHATSAPP_HEADER_TEXT_LIMIT);
+    }
+
     private boolean looksLikeUrl(String value) {
         if (value == null) {
             return false;
@@ -908,22 +917,26 @@ public class WhatsappService {
             return false;
         }
 
+        String headerText = normalizeHeaderText(title);
+        Map<String, Object> interactive = new java.util.HashMap<>();
+        interactive.put("type", "list");
+        if (!headerText.isBlank()) {
+            interactive.put("header", Map.of("type", "text", "text", headerText));
+        }
+        interactive.put("body", Map.of("text", safeText(instruction, "")));
+        interactive.put("action", Map.of(
+                "button", "Select",
+                "sections", List.of(Map.of(
+                        "title", "Options",
+                        "rows", rows
+                ))
+        ));
+
         Map<String, Object> payload = Map.of(
                 "messaging_product", "whatsapp",
                 "to", to,
                 "type", "interactive",
-                "interactive", Map.of(
-                        "type", "list",
-                        "header", Map.of("type", "text", "text", title),
-                        "body", Map.of("text", instruction),
-                        "action", Map.of(
-                                "button", "Select",
-                                "sections", List.of(Map.of(
-                                        "title", "Options",
-                                        "rows", rows
-                                ))
-                        )
-                )
+                "interactive", interactive
         );
 
         return postToWhatsapp(payload);
