@@ -852,7 +852,7 @@ function applyMenusToStore(menuType, menus) {
           type: ITEM_TYPES.FUNCTION_MENU,
           function: functionId,
           submenuId: submenu.id,
-          useTranslation: item.useTranslation ?? Boolean(item.translationKey),
+          useTranslation: item.useTranslation ?? true,
           ...context
         });
         return;
@@ -895,7 +895,7 @@ function applyMenusToStore(menuType, menus) {
           label: item.label ?? meta.label,
           type: "function",
           function: functionId,
-          useTranslation: item.useTranslation ?? Boolean(item.translationKey),
+          useTranslation: item.useTranslation ?? true,
           submenuId: null,
           ...context
         });
@@ -1181,7 +1181,7 @@ function renderItemDetails(container, menuId, item, index) {
     translationToggle.className = "checkbox";
     const translationCheckbox = document.createElement("input");
     translationCheckbox.type = "checkbox";
-    translationCheckbox.checked = Boolean(item.useTranslation);
+    translationCheckbox.checked = item.useTranslation !== false;
     translationCheckbox.addEventListener("change", (event) => {
       menusById.get(menuId).items[index].useTranslation = event.target.checked;
       updatePreview();
@@ -1192,7 +1192,7 @@ function renderItemDetails(container, menuId, item, index) {
 
     const translationHint = document.createElement("p");
     translationHint.className = "hint";
-    translationHint.textContent = "Keeps the original multilingual text for this function.";
+    translationHint.textContent = "Translates the menu item name using the language files when available.";
 
     container.append(functionWrapper, translationToggle, translationHint);
 
@@ -1543,7 +1543,7 @@ function serializeStore(store) {
             label: item.label,
             function: item.function,
             callbackData: meta.callbackData || item.function,
-            translationKey: item.useTranslation && meta.translationKey ? meta.translationKey : null,
+            translationKey: item.useTranslation ? item.label : null,
             submenuId: item.submenuId,
             ...serializeContextFields(item)
           };
@@ -1585,7 +1585,7 @@ function serializeStore(store) {
             label: item.label,
             function: item.function,
             callbackData: meta.callbackData || item.function,
-            translationKey: item.useTranslation && meta.translationKey ? meta.translationKey : null,
+            translationKey: item.useTranslation ? item.label : null,
             submenuId: null,
             ...serializeContextFields(item)
           };
@@ -1609,7 +1609,7 @@ function buildLegacyLoginSections(loginMenus) {
         label: item.label,
         function: item.function,
         callbackData: meta.callbackData || item.function,
-        translationKey: item.useTranslation && meta.translationKey ? meta.translationKey : null
+        translationKey: item.useTranslation ? item.label : null
       });
     });
 
@@ -1625,7 +1625,7 @@ function buildLegacyLoginSections(loginMenus) {
         label: item.label,
         function: item.function,
         callbackData: meta.callbackData || item.function,
-        translationKey: item.useTranslation && meta.translationKey ? meta.translationKey : null
+        translationKey: item.useTranslation ? item.label : null
       });
     });
 
@@ -1814,7 +1814,7 @@ function addMenuItem(event) {
   addItemForm.reset();
   resetContextForm();
   itemTypeSelect.value = "function";
-  useTranslationInput.checked = false;
+  useTranslationInput.checked = true;
   toggleAddFormFields();
   renderAll();
 }
