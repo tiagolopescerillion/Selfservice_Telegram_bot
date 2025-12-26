@@ -54,6 +54,7 @@ public class WhatsappService {
     public static final String INTERACTIVE_ID_OPT_IN = "OPT_IN";
     public static final String INTERACTIVE_ID_SETTINGS = "SETTINGS";
     public static final String INTERACTIVE_ID_MENU = "MENU";
+    private static final int WHATSAPP_ROW_TITLE_LIMIT = 24;
 
     private final RestTemplate restTemplate = new RestTemplate();
     private final String phoneNumberId;
@@ -169,9 +170,15 @@ public class WhatsappService {
             return translate(to, translationKey);
         }
         if (item.getLabel() != null && !item.getLabel().isBlank()) {
-            return item.getLabel();
+            String label = item.getLabel().trim();
+            if (!looksLikeUrl(label)) {
+                return label;
+            }
         }
         LoginMenuFunction function = item.resolvedFunction();
+        if (function == LoginMenuFunction.DIGITAL_LOGIN) {
+            return "Self Service Login";
+        }
         return function == null ? "" : function.name();
     }
 
@@ -748,10 +755,17 @@ public class WhatsappService {
             return translate(userId, translationKey);
         }
         if (item.label() != null && !item.label().isBlank()) {
-            return item.label();
+            String label = item.label().trim();
+            if (!looksLikeUrl(label)) {
+                return label;
+            }
         }
         if (item.isWeblink() && item.weblink() != null && !item.weblink().isBlank()) {
-            return item.weblink();
+            String link = item.weblink().trim();
+            if (!looksLikeUrl(link)) {
+                return link;
+            }
+            return "Open link";
         }
         return item.function();
     }
@@ -865,8 +879,24 @@ public class WhatsappService {
     private Map<String, Object> buildListRow(String id, String title) {
         return Map.of(
                 "id", id,
-                "title", title
+                "title", normalizeRowTitle(title)
         );
+    }
+
+    private String normalizeRowTitle(String title) {
+        String value = safeText(title, "Option");
+        if (value.length() <= WHATSAPP_ROW_TITLE_LIMIT) {
+            return value;
+        }
+        return value.substring(0, WHATSAPP_ROW_TITLE_LIMIT);
+    }
+
+    private boolean looksLikeUrl(String value) {
+        if (value == null) {
+            return false;
+        }
+        String trimmed = value.trim().toLowerCase();
+        return trimmed.startsWith("http://") || trimmed.startsWith("https://");
     }
 
     private boolean sendInteractiveList(String to, String title, String instruction, List<Map<String, Object>> rows) {
