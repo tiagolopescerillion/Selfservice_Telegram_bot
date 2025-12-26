@@ -2877,8 +2877,7 @@ function defaultConnectorTemplate(key) {
         "  callback-url: ${app.public-base-url}/webhook/whatsapp  # Public webhook endpoint for WhatsApp callbacks",
         "  verify-token: YOUR_WHATSAPP_VERIFY_TOKEN               # Verification token configured in Meta App settings",
         "  phone-number-id: YOUR_PHONE_NUMBER_ID                  # WhatsApp Business phone number ID",
-        "  access-token: YOUR_WHATSAPP_ACCESS_TOKEN               # WhatsApp Graph API access token",
-        "  ux-mode: TEST  # UX mode: BASIC (plain text), PRODUCTION (interactive cards), TEST (show both)"
+        "  access-token: YOUR_WHATSAPP_ACCESS_TOKEN               # WhatsApp Graph API access token"
       ].join("\n");
     case "messenger":
       return [

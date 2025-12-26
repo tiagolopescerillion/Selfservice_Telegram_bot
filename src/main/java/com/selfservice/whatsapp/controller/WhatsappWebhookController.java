@@ -180,9 +180,6 @@ public class WhatsappWebhookController {
         String sessionKey = "wa-" + from;
         String userId = from;
         String cleanedBody = body == null ? "" : body.trim();
-        if (cleanedBody.toUpperCase().startsWith("CARD:")) {
-            cleanedBody = cleanedBody.substring("CARD:".length()).trim();
-        }
         String lower = cleanedBody.toLowerCase();
         String optInYesText = whatsappService.translate(userId, WhatsappService.KEY_OPT_IN_YES).toLowerCase();
         String optInNoText = whatsappService.translate(userId, WhatsappService.KEY_OPT_IN_NO).toLowerCase();
