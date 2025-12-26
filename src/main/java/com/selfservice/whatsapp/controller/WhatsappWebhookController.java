@@ -613,7 +613,7 @@ public class WhatsappWebhookController {
                 case TelegramService.CALLBACK_OPT_IN_PROMPT -> {
                     whatsappService.sendOptInPrompt(from);
                 }
-                case TelegramService.CALLBACK_CHANGE_LANGUAGE -> {
+                case TelegramService.CALLBACK_LANGUAGE_MENU -> {
                     sessionService.setAwaitingLanguageSelection(userId, true);
                     whatsappService.sendLanguageMenu(from);
                 }
