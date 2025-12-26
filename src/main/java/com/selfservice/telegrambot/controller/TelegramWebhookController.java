@@ -147,8 +147,6 @@ public class TelegramWebhookController {
                 text = TelegramService.CALLBACK_OPT_IN_PROMPT;
             } else if (text.equals(telegramService.translate(chatId, TelegramService.KEY_BUTTON_SETTINGS))) {
                 text = TelegramService.CALLBACK_SETTINGS_MENU;
-            } else if (text.equals(telegramService.translate(chatId, TelegramService.KEY_BUTTON_MENU))) {
-                text = TelegramService.CALLBACK_MENU;
             } else if (text.equalsIgnoreCase(telegramService.translate(chatId, TelegramService.KEY_OPT_IN_YES))) {
                 text = TelegramService.CALLBACK_OPT_IN_ACCEPT;
             } else if (text.equalsIgnoreCase(telegramService.translate(chatId, TelegramService.KEY_OPT_IN_NO))) {
@@ -179,8 +177,6 @@ public class TelegramWebhookController {
                     text = TelegramService.CALLBACK_LANGUAGE_MENU;
                 } else if (function == LoginMenuFunction.SETTINGS) {
                     text = TelegramService.CALLBACK_SETTINGS_MENU;
-                } else if (function == LoginMenuFunction.MENU) {
-                    text = TelegramService.CALLBACK_MENU;
                 }
             }
 
@@ -206,32 +202,6 @@ public class TelegramWebhookController {
 
             if (text.equals(TelegramService.CALLBACK_SETTINGS_MENU)) {
                 telegramService.sendSettingsMenu(chatId);
-                return ResponseEntity.ok().build();
-            }
-
-            if (text.equals(TelegramService.CALLBACK_MENU)) {
-                telegramService.goHomeBusinessMenu(chatId);
-                telegramService.goHomeLoginMenu(chatId);
-                if (hasValidToken && ensureAccountSelected(chatId)) {
-                    AccountSummary selected = userSessionService.getSelectedAccount(chatId);
-                    telegramService.sendLoggedInMenu(chatId, selected,
-                            userSessionService.getAccounts(chatId).size() > 1);
-                } else {
-                    telegramService.sendLoginMenu(chatId, oauthSessionService.buildAuthUrl(chatId));
-                }
-                return ResponseEntity.ok().build();
-            }
-
-            if (text.equals(TelegramService.CALLBACK_BUSINESS_MENU_UP)) {
-                if (hasValidToken && ensureAccountSelected(chatId)) {
-                    telegramService.goUpBusinessMenu(chatId);
-                    AccountSummary selected = userSessionService.getSelectedAccount(chatId);
-                    telegramService.sendLoggedInMenu(chatId, selected,
-                            userSessionService.getAccounts(chatId).size() > 1);
-                } else {
-                    telegramService.goUpLoginMenu(chatId);
-                    telegramService.sendLoginMenu(chatId, oauthSessionService.buildAuthUrl(chatId));
-                }
                 return ResponseEntity.ok().build();
             }
 

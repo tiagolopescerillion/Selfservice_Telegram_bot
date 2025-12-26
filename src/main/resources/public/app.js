@@ -92,20 +92,6 @@ const BASE_FUNCTION_OPTIONS = [
     description: "Allows the user to switch to another available account."
   },
   {
-    id: "MENU",
-    label: "Back to menu",
-    callbackData: "MENU",
-    translationKey: "ButtonMenu",
-    description: "Returns to the previous menu."
-  },
-  {
-    id: "BUSINESS_MENU_UP",
-    label: "Menu Up",
-    callbackData: "BUSINESS_MENU_UP",
-    translationKey: "BusinessMenuUp",
-    description: "Navigates up one menu level."
-  },
-  {
     id: "LOGOUT",
     label: "Logout",
     callbackData: "LOGOUT",
@@ -118,14 +104,8 @@ const FUNCTION_RULES = {
   LOGOUT: {
     note: "Logout menu option will be displayed in the menus, when user is logged in",
   },
-  MENU: {
-    note: "Back to Menu option will be displayed in the menu level 2 and above",
-  },
   CHANGE_ACCOUNT: {
     note: "Select a Different Account option will be displayed when users have access to more than one account",
-  },
-  BUSINESS_MENU_UP: {
-    note: "Menu Up option will be displayed in the menus of level 3 and above",
   },
 };
 
@@ -149,8 +129,7 @@ const DEFAULT_STRUCTURE = [
     parentId: ROOT_MENU_ID,
     items: [
       { label: "Consent management", type: "function", function: "OPT_IN", useTranslation: true },
-      { label: "Language settings", type: "function", function: "CHANGE_LANGUAGE", useTranslation: true },
-      { label: "Back to menu", type: "function", function: "MENU", useTranslation: true }
+      { label: "Language settings", type: "function", function: "CHANGE_LANGUAGE", useTranslation: true }
     ]
   }
 ];
@@ -172,8 +151,7 @@ const DEFAULT_LOGIN_STRUCTURE = [
     parentId: LOGIN_ROOT_MENU_ID,
     items: [
       { label: "Consent management", type: "function", function: "OPT_IN", useTranslation: true },
-      { label: "Language settings", type: "function", function: "CHANGE_LANGUAGE", useTranslation: true },
-      { label: "Back to menu", type: "function", function: "MENU", useTranslation: true }
+      { label: "Language settings", type: "function", function: "CHANGE_LANGUAGE", useTranslation: true }
     ]
   }
 ];

@@ -36,7 +36,6 @@ public class WhatsappService {
 
     public static final String KEY_OPT_IN_YES = "OptInYes";
     public static final String KEY_OPT_IN_NO = "OptInNo";
-    public static final String KEY_BUTTON_MENU = "ButtonMenu";
 
 
     private static final Logger log = LoggerFactory.getLogger(WhatsappService.class);
@@ -46,14 +45,11 @@ public class WhatsappService {
     public static final String COMMAND_CHANGE_ACCOUNT = "change account";
     public static final String COMMAND_HOME = "home";
     public static final String COMMAND_UP = "up";
-    public static final String COMMAND_MENU = "menu";
-
     public static final String INTERACTIVE_ID_DIGITAL_LOGIN = "DIGITAL_LOGIN";
     public static final String INTERACTIVE_ID_CRM_LOGIN = "CRM_LOGIN";
     public static final String INTERACTIVE_ID_CHANGE_LANGUAGE = "CHANGE_LANGUAGE";
     public static final String INTERACTIVE_ID_OPT_IN = "OPT_IN";
     public static final String INTERACTIVE_ID_SETTINGS = "SETTINGS";
-    public static final String INTERACTIVE_ID_MENU = "MENU";
     private static final int WHATSAPP_ROW_TITLE_LIMIT = 24;
     private static final int WHATSAPP_HEADER_TEXT_LIMIT = 60;
 
@@ -218,12 +214,6 @@ public class WhatsappService {
         if (hasFunction(item, TelegramService.CALLBACK_LOGOUT) && !isLoggedIn(userId)) {
             return false;
         }
-        if (hasFunction(item, TelegramService.CALLBACK_MENU) && menuDepth < 1) {
-            return false;
-        }
-        if (hasFunction(item, TelegramService.CALLBACK_BUSINESS_MENU_UP) && menuDepth < 2) {
-            return false;
-        }
         if ((hasFunction(item, TelegramService.CALLBACK_CHANGE_ACCOUNT) || hasFunction(item, "CHANGE_ACCOUNT"))
                 && !hasAlternateAccount(userId)) {
             return false;
@@ -296,15 +286,13 @@ public class WhatsappService {
         String prompt = translate(to, "OptInPrompt");
         String yes = translate(to, KEY_OPT_IN_YES);
         String no = translate(to, KEY_OPT_IN_NO);
-        String backToMenu = translate(to, KEY_BUTTON_MENU);
         sessionService.setSelectionContext(to, WhatsappSessionService.SelectionContext.OPT_IN);
         sendInteractiveList(to,
                 prompt,
                 prompt,
                 List.of(
                         buildListRow("1", yes),
-                        buildListRow("2", no),
-                        buildListRow("3", backToMenu)
+                        buildListRow("2", no)
                 ));
     }
 
@@ -424,34 +412,8 @@ public class WhatsappService {
         return TelegramService.CALLBACK_LOGOUT.equalsIgnoreCase(item.function());
     }
 
-    private boolean isBackToMenuItem(BusinessMenuItem item) {
-        if (item == null) {
-            return false;
-        }
-        if (TelegramService.CALLBACK_MENU.equalsIgnoreCase(item.callbackData())) {
-            return true;
-        }
-        return TelegramService.CALLBACK_MENU.equalsIgnoreCase(item.function());
-    }
-
-    private boolean isMenuUpItem(BusinessMenuItem item) {
-        if (item == null) {
-            return false;
-        }
-        if (TelegramService.CALLBACK_BUSINESS_MENU_UP.equalsIgnoreCase(item.callbackData())) {
-            return true;
-        }
-        return TelegramService.CALLBACK_BUSINESS_MENU_UP.equalsIgnoreCase(item.function());
-    }
-
     private boolean shouldDisplayBusinessMenuItem(BusinessMenuItem item, int menuDepth, boolean hasAlternateAccount, boolean loggedIn) {
         if (isLogoutItem(item) && !loggedIn) {
-            return false;
-        }
-        if (isBackToMenuItem(item) && menuDepth < 1) {
-            return false;
-        }
-        if (isMenuUpItem(item) && menuDepth < 2) {
             return false;
         }
         if (isChangeAccountItem(item) && !hasAlternateAccount) {
@@ -601,9 +563,7 @@ public class WhatsappService {
                     fallbackAction(2, translate(userId, "ButtonInvoicePay"),
                             TelegramService.CALLBACK_INVOICE_PAY_PREFIX),
                     fallbackAction(3, translate(userId, "ButtonInvoiceCompare"),
-                            TelegramService.CALLBACK_INVOICE_COMPARE_PREFIX),
-                    fallbackAction(4, translate(userId, TelegramService.KEY_BUTTON_BACK_TO_MENU),
-                            TelegramService.CALLBACK_MENU));
+                            TelegramService.CALLBACK_INVOICE_COMPARE_PREFIX));
         }
         return actions;
     }
@@ -950,7 +910,6 @@ public class WhatsappService {
         BUTTON_SETTINGS("ButtonSettings"),
         BUTTON_LOGOUT("ButtonLogout"),
         BUTTON_BUSINESS_MENU_HOME("BusinessMenuHome"),
-        BUTTON_BUSINESS_MENU_UP("BusinessMenuUp"),
         SELECT_ACCOUNT_PROMPT("SelectAccountPrompt"),
         BUTTON_CHANGE_ACCOUNT("ButtonChangeAccount");
 

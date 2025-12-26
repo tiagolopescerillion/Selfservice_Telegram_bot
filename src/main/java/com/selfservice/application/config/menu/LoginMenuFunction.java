@@ -7,8 +7,7 @@ public enum LoginMenuFunction {
     CRM_LOGIN,
     OPT_IN,
     CHANGE_LANGUAGE,
-    SETTINGS,
-    MENU;
+    SETTINGS;
 
     public static LoginMenuFunction fromString(String value) {
         if (value == null || value.isBlank()) {
