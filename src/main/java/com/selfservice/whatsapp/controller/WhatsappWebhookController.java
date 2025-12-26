@@ -610,10 +610,10 @@ public class WhatsappWebhookController {
                         whatsappService.sendLoggedInMenu(from, selected, sessionService.getAccounts(userId).size() > 1);
                     }
                 }
-                case TelegramService.CALLBACK_OPT_IN_PROMPT -> {
+                case TelegramService.CALLBACK_OPT_IN_PROMPT, "OPT_IN" -> {
                     whatsappService.sendOptInPrompt(from);
                 }
-                case TelegramService.CALLBACK_LANGUAGE_MENU -> {
+                case TelegramService.CALLBACK_LANGUAGE_MENU, "CHANGE_LANGUAGE" -> {
                     sessionService.setAwaitingLanguageSelection(userId, true);
                     whatsappService.sendLanguageMenu(from);
                 }
