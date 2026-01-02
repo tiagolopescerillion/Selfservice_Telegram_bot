@@ -244,110 +244,108 @@
 
             </div>
             <div class="content-dashboard">
-            
               <div id="serviceForm" class="content-dashboard-section card hidden">
 
-    <div class="content-section-title">New Service</div>
-              <form autocomplete="off">
-                <div class="service-form__stack">
-                  <div class="service-form__row">
-                    <label class="form-field">
-                      Service Name
-                      <input
-                        id="serviceNameInput"
-                        type="text"
-                        required
-                      />
-                    </label>
-                    <label class="form-field">
-                      API Name
-                      <select id="serviceApiSelect" required></select>
-                    </label>
-                    <label class="form-field">
-                      Service Type
-                      <select id="serviceResponseTemplate">
-                        <option value="EXISTING">Existing</option>
-                        <option value="JSON">JSON</option>
-                        <option value="MESSAGE">Message</option>
-                        <option value="CARD">List of Objects</option>
-                      </select>
-                    </label>
-                  </div>
-
-                  <div class="service-form__context">
-                    <div class="service-context-row">
+                <div class="content-section-title">New Service</div>
+                <form autocomplete="off">
+                  <div class="service-form__stack">
+                    <div class="service-form__row">
                       <label class="form-field">
-                        Account Context
+                        Service Name
                         <input
-                          id="serviceAccountContextField"
+                          id="serviceNameInput"
                           type="text"
+                          required
                         />
                       </label>
-                      <p class="hint">Adds <code>field=value</code> with the selected account when present.</p>
-                    </div>
-                    <div class="service-context-row">
                       <label class="form-field">
-                        Service Context
-                        <input
-                          id="serviceServiceContextField"
-                          type="text"
-                        />
+                        API Name
+                        <select id="serviceApiSelect" required></select>
                       </label>
-                      <p class="hint">Adds <code>field=value</code> with the selected service when present.</p>
-                    </div>
-                    <div class="service-context-row">
                       <label class="form-field">
-                        Object Context
-                        <input
-                          id="serviceObjectContextField"
-                          type="text"
-                        />
+                        Service Type
+                        <select id="serviceResponseTemplate">
+                          <option value="EXISTING">Existing</option>
+                          <option value="JSON">JSON</option>
+                          <option value="MESSAGE">Message</option>
+                          <option value="CARD">List of Objects</option>
+                        </select>
                       </label>
-                      <p class="hint">Adds <code>field=value</code> with the selected object (from outputs) when present.</p>
                     </div>
-                  </div>
 
-                  <div class="service-form__field">
-                    <label for="serviceQueryParamsInput">Query Parameters</label>
-                    <textarea
-                      id="serviceQueryParamsInput"
-                      class="service-query-textarea"
-                      rows="5"
-                    ></textarea>
-                  </div>
+                    <div class="service-form__context">
+                      <div class="service-context-row">
+                        <label class="form-field">
+                          Account Context
+                          <input
+                            id="serviceAccountContextField"
+                            type="text"
+                          />
+                        </label>
+                        <p class="hint">Adds <code>field=value</code> with the selected account when present.</p>
+                      </div>
+                      <div class="service-context-row">
+                        <label class="form-field">
+                          Service Context
+                          <input
+                            id="serviceServiceContextField"
+                            type="text"
+                          />
+                        </label>
+                        <p class="hint">Adds <code>field=value</code> with the selected service when present.</p>
+                      </div>
+                      <div class="service-context-row">
+                        <label class="form-field">
+                          Object Context
+                          <input
+                            id="serviceObjectContextField"
+                            type="text"
+                          />
+                        </label>
+                        <p class="hint">Adds <code>field=value</code> with the selected object (from outputs) when present.</p>
+                      </div>
+                    </div>
 
-                  <div class="service-form__outputs">
-                    <div class="service-form__outputs-header">
-                      <div>Output field / Label</div>
-                      <button id="addOutputFieldButton" class="secondary" type="button">Add field</button>
+                    <div class="service-form__field">
+                      <label for="serviceQueryParamsInput">Query Parameters</label>
+                      <textarea
+                        id="serviceQueryParamsInput"
+                        class="service-query-textarea"
+                        rows="5"
+                      ></textarea>
                     </div>
-                    <div id="outputFieldsContainer" class="output-fields"></div>
-                    <div class="service-form__outputs-footer">
-                      <button id="addOutputFieldButtonSecondary" class="secondary" type="button">
-                        Add another output
-                      </button>
+
+                    <div class="service-form__outputs">
+                      <div class="service-form__outputs-header">
+                        <div>Output field / Label</div>
+                        <button id="addOutputFieldButton" class="secondary" type="button">Add field</button>
+                      </div>
+                      <div id="outputFieldsContainer" class="output-fields"></div>
+                      <div class="service-form__outputs-footer">
+                        <button id="addOutputFieldButtonSecondary" class="secondary" type="button">
+                          Add another output
+                        </button>
+                      </div>
+                      <p class="hint">
+                        Mark one output as <strong>Object Context</strong> to reuse its value later. Output values are
+                        still combined for query parameters when calling your APIs.
+                      </p>
                     </div>
-                    <p class="hint">
-                      Mark one output as <strong>Object Context</strong> to reuse its value later. Output values are
-                      still combined for query parameters when calling your APIs.
-                    </p>
                   </div>
-                </div>
-                <div class="toolbar toolbar--end">
-                  <button id="saveServiceButton" type="submit">Save changes</button>
-                  <button id="cancelServiceButton" class="secondary" type="button">
-                    Cancel
-                  </button>
-                </div>
-              </form>
+                  <div class="toolbar toolbar--end">
+                    <button id="saveServiceButton" type="submit">Save changes</button>
+                    <button id="cancelServiceButton" class="secondary" type="button">
+                      Cancel
+                    </button>
+                  </div>
+                </form>
               </div>
 
-
-              <div class="content-dashboard-section">
-                   <div class="content-section-title">Registered Services</div>
-                   <div id="serviceList" class="serviceList"></div>
+              <div class="content-dashboard-section content-dashboard-title">
+                <div class="content-section-title">Registered Services</div>
+                <p id="serviceBuilderStatus" class="hint" aria-live="polite"></p>
+                <div id="serviceList" class="content-list"></div>
               </div>
-              <p id="serviceBuilderStatus" class="hint" aria-live="polite"></p>
             </div>
           </section>
 
