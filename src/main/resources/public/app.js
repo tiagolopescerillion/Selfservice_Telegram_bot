@@ -829,7 +829,7 @@ function applyMenusToStore(menuType, menus) {
       const functionId = item.function || item.id;
       const isWeblink =
         explicitType === ITEM_TYPES.WEBLINK ||
-        (!explicitType || explicitType === ITEM_TYPES.WEBLINK)
+          (!explicitType || explicitType === ITEM_TYPES.WEBLINK)
           ? Boolean(item?.weblink)
           : explicitType === ITEM_TYPES.WEBLINK;
 
@@ -1013,12 +1013,12 @@ function normalizeIncomingConfig(raw) {
     ? raw.menus
     : Array.isArray(raw?.menu)
       ? [
-          {
-            id: ROOT_MENU_ID,
-            name: "Home",
-            parentId: null,
-            items: raw.menu
-          }
+        {
+          id: ROOT_MENU_ID,
+          name: "Home",
+          parentId: null,
+          items: raw.menu
+        }
       ]
       : null;
   const businessMenus = normalizeMenuTree(businessSource, DEFAULT_STRUCTURE, ROOT_MENU_ID);
@@ -1026,11 +1026,11 @@ function normalizeIncomingConfig(raw) {
 
   console.info(
     "Normalized menus", {
-      businessMenusCount: businessMenus.length,
-      loginMenusCount: loginMenus.length,
-      businessMenus,
-      loginMenus
-    }
+    businessMenusCount: businessMenus.length,
+    loginMenusCount: loginMenus.length,
+    businessMenus,
+    loginMenus
+  }
   );
 
   applyMenusToStore(MENU_TYPES.BUSINESS, businessMenus);
@@ -1454,8 +1454,8 @@ function resetContextForm() {
   });
   [menuContextKeyInput, menuContextLabelInput, serviceContextKeyInput, serviceContextLabelInput,
     accountContextKeyInput, accountContextLabelInput].forEach((input) => {
-    if (input) input.value = "";
-  });
+      if (input) input.value = "";
+    });
   syncContextInputStates();
 }
 
@@ -1537,17 +1537,17 @@ function serializeStore(store) {
         items: menu.items.map((item, index) => {
           if (item.type === ITEM_TYPES.FUNCTION_MENU) {
             const meta = functionDictionary[item.function] || {};
-          return {
-            order: index + 1,
-            type: ITEM_TYPES.FUNCTION_MENU,
-            label: item.label,
-            function: item.function,
-            callbackData: meta.callbackData || item.function,
-            translationKey: item.useTranslation ? item.label : null,
-            submenuId: item.submenuId,
-            ...serializeContextFields(item)
-          };
-        }
+            return {
+              order: index + 1,
+              type: ITEM_TYPES.FUNCTION_MENU,
+              label: item.label,
+              function: item.function,
+              callbackData: meta.callbackData || item.function,
+              translationKey: item.useTranslation ? item.label : null,
+              submenuId: item.submenuId,
+              ...serializeContextFields(item)
+            };
+          }
 
           if (item.type === ITEM_TYPES.SUBMENU) {
             return {
@@ -1935,61 +1935,74 @@ function renderApiList() {
     return;
   }
 
-  apiRegistryEntries.forEach((api, index) => {
-    const row = document.createElement("div");
-    row.className = "config-entry config-entry--inline";
 
-    const nameField = document.createElement("input");
-    nameField.type = "text";
-    nameField.value = api?.name || "";
-    nameField.placeholder = "API name";
-    nameField.dataset.previousName = api?.name || "";
-    nameField.addEventListener("input", (event) => {
-      const previous = nameField.dataset.previousName || apiRegistryEntries[index].name;
-      const nextName = event.target.value;
-      apiRegistryEntries[index].name = nextName;
-      if (previous && previous !== nextName) {
-        serviceBuilderEntries = serviceBuilderEntries.map((svc) =>
-          svc.apiName === previous ? { ...svc, apiName: nextName } : svc
-        );
-        nameField.dataset.previousName = nextName;
-        hydrateServiceApiOptions();
-        renderServiceList();
-      }
-    });
+apiRegistryEntries.forEach((api, index) => {
+  // Row container
+  const row = document.createElement("div");
+  row.className = "session-row-user-details"; // flex container in CSS
 
-    const urlField = document.createElement("input");
-    urlField.type = "url";
-    urlField.value = api?.url || "";
-    urlField.placeholder = "https://example.com/api";
-    urlField.addEventListener("input", (event) => {
-      apiRegistryEntries[index].url = event.target.value;
-    });
+  // --- Name field (flex: 1) ---
+  const nameField = document.createElement("input");
+  nameField.type = "text";
+  nameField.value = api?.name || "";
+  nameField.placeholder = "API name";
+  nameField.dataset.previousName = api?.name || "";
+  nameField.classList.add("field"); // will be flex: 1 in CSS
+  nameField.addEventListener("input", (event) => {
+    const previous = nameField.dataset.previousName || apiRegistryEntries[index].name;
+    const nextName = event.target.value;
+    apiRegistryEntries[index].name = nextName;
 
-    const actions = document.createElement("div");
-    actions.className = "config-entry__actions";
-
-    const deleteBtn = document.createElement("button");
-    deleteBtn.type = "button";
-    deleteBtn.textContent = "✕";
-    deleteBtn.title = "Remove";
-    deleteBtn.addEventListener("click", () => {
-      const name = apiRegistryEntries[index]?.name;
-      apiRegistryEntries.splice(index, 1);
-      if (name) {
-        serviceBuilderEntries = serviceBuilderEntries.map((svc) =>
-          svc.apiName === name ? { ...svc, apiName: "" } : svc
-        );
-      }
+    if (previous && previous !== nextName) {
+      serviceBuilderEntries = serviceBuilderEntries.map((svc) =>
+        svc.apiName === previous ? { ...svc, apiName: nextName } : svc
+      );
+      nameField.dataset.previousName = nextName;
       hydrateServiceApiOptions();
       renderServiceList();
-      renderApiList();
-    });
-
-    actions.append(deleteBtn);
-    row.append(nameField, urlField, actions);
-    apiList.append(row);
+    }
   });
+
+  // --- URL field (flex: 1) ---
+  const urlField = document.createElement("input");
+  urlField.type = "text";
+  urlField.value = api?.url || "";
+  urlField.placeholder = "https://example.com/api";
+  urlField.classList.add("field"); // will be flex: 1 in CSS
+  urlField.addEventListener("input", (event) => {
+    apiRegistryEntries[index].url = event.target.value;
+  });
+
+  // --- Actions wrapper (auto width) ---
+  const actions = document.createElement("div");
+  actions.className = "config-entry__actions"; // keep your class
+
+  // Delete button (auto width)
+  const deleteBtn = document.createElement("button");
+  deleteBtn.type = "button";
+  deleteBtn.textContent = "Delete";
+  deleteBtn.classList.add("secondary", "cta"); // cta = auto-sized button
+  deleteBtn.title = "Remove";
+  deleteBtn.addEventListener("click", () => {
+    const name = apiRegistryEntries[index]?.name;
+    apiRegistryEntries.splice(index, 1);
+    if (name) {
+      serviceBuilderEntries = serviceBuilderEntries.map((svc) =>
+        svc.apiName === name ? { ...svc, apiName: "" } : svc
+      );
+    }
+    hydrateServiceApiOptions();
+    renderServiceList();
+    renderApiList();
+  });
+
+  actions.append(deleteBtn);
+
+  // Append to row: inputs fill, actions auto-size
+  row.append(nameField, urlField, actions);
+  apiList.append(row);
+});
+
 }
 
 async function loadServiceBuilder() {
@@ -2081,20 +2094,31 @@ function renderServiceList() {
   }
 
   serviceBuilderEntries.forEach((service, index) => {
-    const card = document.createElement("div");
-    card.className = "service-card";
+    const record = document.createElement("div");
+    record.className = "list-record";
 
-    const header = document.createElement("div");
-    header.className = "service-card__header";
+    const recordRow = document.createElement("div");
+    recordRow.className = "list-record-line";
 
-    const title = document.createElement("div");
-    title.className = "service-card__title";
-    title.textContent = service.name || "Unnamed service";
-    const meta = document.createElement("div");
-    meta.className = "service-card__meta";
+
+
+    const serviceName = document.createElement("div");
+    serviceName.className = "service-card__title";
+    serviceName.textContent = `Service Name: ${service.name || "Unnamed service"}`;
+
+    const serviceAPI = document.createElement("div");
+    serviceAPI.className = "service-card__title";
+    serviceAPI.textContent = `API: ${service.apiName || ""}`;
+
     const templateLabel = service.responseTemplate === "CARD" ? "List of Objects" : service.responseTemplate;
-    meta.textContent = `API: ${service.apiName || ""} • Type: ${templateLabel}`;
-    header.append(title, meta);
+    const serviceType = document.createElement("div");
+    serviceType.className = "service-card__title";
+    serviceType.textContent = `Type: ${templateLabel}`;
+
+    recordRow.append(serviceName, serviceAPI, serviceType);
+
+    const recordRow2 = document.createElement("div");
+    recordRow2.className = "list-record-line";
 
     const queryLine = document.createElement("div");
     queryLine.className = "service-card__meta service-card__meta--query";
@@ -2139,8 +2163,11 @@ function renderServiceList() {
       });
     }
 
-    const actions = document.createElement("div");
-    actions.className = "service-card__actions";
+    recordRow2.append(queryLine, contextLine, outputsBox);
+
+    const recordRowButtons = document.createElement("div");
+    recordRowButtons.className = "toolbar toolbar--end";
+
     const editBtn = document.createElement("button");
     editBtn.type = "button";
     editBtn.textContent = "Edit";
@@ -2156,10 +2183,11 @@ function renderServiceList() {
       renderServiceList();
     });
 
-    actions.append(editBtn, deleteBtn);
+    recordRowButtons.append(editBtn, deleteBtn);
 
-    card.append(header, queryLine, contextLine, outputsBox, actions);
-    serviceList.append(card);
+    record.append(recordRow, recordRow2, recordRowButtons);
+    
+    serviceList.append(record);
   });
 }
 
@@ -2207,11 +2235,11 @@ function handleServiceFormSubmit(event) {
   serviceBuilderStatus.className = "hint";
 }
 
-function toggleNewServiceFunctionForm() {}
+function toggleNewServiceFunctionForm() { }
 
-function prefillQueryParamsFromEndpoint() {}
+function prefillQueryParamsFromEndpoint() { }
 
-function createCustomServiceFunction() {}
+function createCustomServiceFunction() { }
 
 async function persistContent(endpoint, content, statusEl) {
   if (!endpoint) {
@@ -2951,12 +2979,13 @@ function renderWeblinksList() {
 
   weblinks.forEach((link, index) => {
     const row = document.createElement("div");
-    row.className = "config-entry";
+    row.className = "session-row-user-details";
 
     const nameField = document.createElement("input");
     nameField.type = "text";
     nameField.value = link.name;
     nameField.placeholder = "URL name";
+      nameField.classList.add("field"); // will be flex: 1 in CSS
     nameField.addEventListener("input", (event) => {
       weblinks[index].name = event.target.value;
       weblinksContent = buildWeblinksYaml();
@@ -2964,28 +2993,17 @@ function renderWeblinksList() {
     });
 
     const urlField = document.createElement("input");
-    urlField.type = "url";
+    urlField.type = "text";
     urlField.value = link.url || "";
     urlField.placeholder = "https://example.com";
+          urlField.classList.add("field"); // will be flex: 1 in CSS
     urlField.addEventListener("input", (event) => {
       weblinks[index].url = event.target.value;
       weblinksContent = buildWeblinksYaml();
       renderWeblinksPreview();
     });
 
-    const authLabel = document.createElement("label");
-    authLabel.className = "checkbox";
-    const authInput = document.createElement("input");
-    authInput.type = "checkbox";
-    authInput.checked = Boolean(link.authenticated);
-    authInput.addEventListener("change", (event) => {
-      weblinks[index].authenticated = event.target.checked;
-      weblinksContent = buildWeblinksYaml();
-      renderWeblinksPreview();
-    });
-    const authText = document.createElement("span");
-    authText.textContent = "Authenticated user";
-    authLabel.append(authInput, authText);
+
 
     const contextWrapper = document.createElement("label");
     contextWrapper.textContent = "Context";
@@ -3006,10 +3024,11 @@ function renderWeblinksList() {
     contextWrapper.append(contextSelect);
 
     const actions = document.createElement("div");
-    actions.className = "menu-item-actions";
+    actions.className = "config-entry__actions";
     const deleteButton = document.createElement("button");
     deleteButton.type = "button";
-    deleteButton.textContent = "✕";
+    deleteButton.textContent = "Delete";
+    deleteButton.classList.add("secondary", "cta"); // cta = auto-sized button
     deleteButton.title = "Remove";
     deleteButton.addEventListener("click", () => {
       weblinks.splice(index, 1);
@@ -3019,8 +3038,28 @@ function renderWeblinksList() {
     });
     actions.append(deleteButton);
 
-    row.append(nameField, urlField, authLabel, contextWrapper, actions);
+
+    const authLabel = document.createElement("label");
+    authLabel.className = "checkbox";
+    const authInput = document.createElement("input");
+    authInput.type = "checkbox";
+    authInput.checked = Boolean(link.authenticated);
+    authInput.addEventListener("change", (event) => {
+      weblinks[index].authenticated = event.target.checked;
+      weblinksContent = buildWeblinksYaml();
+      renderWeblinksPreview();
+    });
+    const authText = document.createElement("span");
+    authText.textContent = "Authenticated user";
+    authLabel.append(authInput, authText);
+
+        row.append(nameField, urlField, contextSelect, authLabel, actions);
+
+
+
     weblinksList.append(row);
+  
+
   });
 }
 
@@ -3487,61 +3526,151 @@ function renderSessionList(container, sessions, emptyMessage) {
     return;
   }
 
+  const frag = document.createDocumentFragment();
+
   sessions.forEach((session) => {
+    // Row wrapper
     const row = document.createElement("div");
     row.className = "session-row";
 
+    // ---------------- Left column: user/channel details ----------------
+    const rowUserDetail = document.createElement("div");
+    rowUserDetail.className = "session-row-user-details";
+
+
+    const channelLabel = document.createElement("span");
+    channelLabel.className = "session-row__label";
+    channelLabel.textContent = "Channel";
+
     const channel = document.createElement("span");
-    channel.textContent = session.channel;
+    channel.className = "session-row__value";
+    channel.textContent = session.channel ?? "—";
+
+
+    const chatIdLabel = document.createElement("span");
+    chatIdLabel.className = "session-row__label";
+    chatIdLabel.textContent = "Chat ID";
+
 
     const chat = document.createElement("span");
-    chat.textContent = session.chatId;
+    chat.className = "session-row__value";
+    chat.textContent = session.chatId ?? "—";
 
-    const loggedIn = document.createElement("span");
-    loggedIn.className = "session-row__meta";
-    const statusDot = document.createElement("span");
-    statusDot.className = `status-dot ${session.loggedIn ? "online" : "offline"}`;
-    const statusText = document.createElement("span");
-    statusText.textContent = session.loggedIn ? "Yes" : "No";
-    loggedIn.append(statusDot, statusText);
-    if (session.loggedIn && session.username) {
-      const userLabel = document.createElement("span");
-      userLabel.className = "session-row__user";
-      userLabel.textContent = `— ${session.username}`;
-      loggedIn.append(userLabel);
-    }
 
-    const startDate = document.createElement("span");
+
+
+    const startDateLabel = document.createElement("span");
+    startDateLabel.className = "session-row__label";
+    startDateLabel.textContent = "Start Date";
+
+        const startDate = document.createElement("span");
+    startDate.className = "session-row__value";
     startDate.textContent = session.startedAt ? formatDate(session.startedAt) : "—";
 
+    const startTimeLabel = document.createElement("span");
+    startTimeLabel.className = "session-row__label";
+    startTimeLabel.textContent = "Start Time";
+
     const startTime = document.createElement("span");
+    startTime.className = "session-row__value";
     startTime.textContent = session.startedAt ? formatTime(session.startedAt) : "—";
 
-    const optInCell = document.createElement("span");
-    optInCell.className = "optin-pill";
-    optInCell.textContent = session.optIn ? "Opted in" : "Opted out";
-    optInCell.classList.add(session.optIn ? "optin-pill--yes" : "optin-pill--no");
 
-    const tokenCell = document.createElement("span");
-    tokenCell.className = "session-row__token";
-    const tokenStatus = describeToken(session.tokenState);
-    const tokenPill = document.createElement("span");
-    tokenPill.className = `token-pill ${tokenStatus.className}`;
-    tokenPill.textContent = tokenStatus.label;
-    tokenCell.append(tokenPill);
-    if (session.token) {
-      const link = document.createElement("a");
-      link.href = `data:text/plain;charset=utf-8,${encodeURIComponent(session.token)}`;
-      link.target = "_blank";
-      link.rel = "noreferrer";
-      link.textContent = "Open token";
-      link.className = "token-link";
-      tokenCell.append(link);
-    }
 
-    row.append(channel, chat, loggedIn, optInCell, tokenCell, startDate, startTime);
-    container.append(row);
+    
+
+    
+
+    rowUserDetail.append(channelLabel, channel, chatIdLabel, chat, startDateLabel, startDate,startTimeLabel, startTime);
+
+    // ---------------- Right column: session details ----------------
+    const rowSession = document.createElement("div");
+    rowSession.className = "session-row-session-details";
+
+
+    const loggedINLabel = document.createElement("span");
+    loggedINLabel.className = "session-row__label";
+    loggedINLabel.textContent = "Login";
+
+
+
+    const statusDot = document.createElement("span");
+    statusDot.className = `status-dot ${session.loggedIn ? "online" : "offline"}`;
+    statusDot.setAttribute(
+      "aria-label",
+      session.loggedIn ? "User is logged in" : "User is logged out"
+    );
+    statusDot.setAttribute("role", "img");
+
+    const statusText = document.createElement("span");
+    statusText.className = "session-row__value";
+    statusText.textContent = session.loggedIn ? "Yes" : "No";
+
+ 
+
+
+const tokenLabel = document.createElement("span");
+    tokenLabel.className = "session-row__label";
+    tokenLabel.textContent = "Token";
+
+
+const tokenDot = document.createElement("span");
+    tokenDot.className = `status-dot ${session.tokenState === "VALID" ? "online" : "offline"}`;
+    tokenDot.setAttribute(
+      "aria-label",
+      session.tokenState === "VALID" ? "Token is valid" : "Token is invalid"
+    );
+    tokenDot.setAttribute("role", "img");
+    const token = document.createElement("span");
+    token.className = "session-row__value";
+    const describedToken = describeToken(session.tokenState);
+    token.textContent = describedToken.label; 
+
+
+    const consentLabel = document.createElement("span");
+    consentLabel.className = "session-row__label";
+    consentLabel.textContent = "Consent";
+
+        const consentDot = document.createElement("span");
+    consentDot.className = `status-dot ${session.consent ? "online" : "offline"}`;
+    consentDot.setAttribute(
+      "aria-label",
+      session.consent ? "User has consented" : "User has not consented"
+    );
+    consentDot.setAttribute("role", "img");
+
+    const consent = document.createElement("span");
+    consent.className = "session-row__value";
+    consent.textContent = session.consent ? "Given" : "Not given";
+
+    const userLabel = document.createElement("span");
+    userLabel.className = "session-row__label";
+    userLabel.textContent = "User";
+
+
+let userValue = document.createElement("span");
+userValue.className = "session-row__value";
+
+if (session.loggedIn && session.username) {
+  userValue.textContent = `${session.username}`;
+} else {
+  // will cover: not logged in OR missing/empty username
+  userValue.textContent = session.loggedIn ? "No user" : "Not logged in";
+}
+``
+
+
+
+
+    rowSession.append(loggedINLabel, statusDot, statusText, tokenLabel, tokenDot, token, consentLabel, consentDot, consent, userLabel, userValue);
+
+    // ---------------- Assemble row ----------------
+    row.append(rowUserDetail, rowSession);
+    frag.append(row);
   });
+
+  container.appendChild(frag);
+
 }
 
 function describeToken(state) {
@@ -3557,7 +3686,7 @@ function describeToken(state) {
     case "NONE":
     case "NO":
     case "":
-      return { label: "NO TOKEN", className: "none" };
+      return { label: "No token", className: "none" };
     default:
       return { label: normalized, className: "none" };
   }

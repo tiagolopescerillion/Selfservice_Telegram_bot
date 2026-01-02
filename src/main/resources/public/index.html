@@ -60,25 +60,25 @@
 
       <div class="content">
         <main>
-          <section id="apiRegistryPanel" class="hidden">
-            <section class="panel panel--wide">
-              <h2>API Registration</h2>
-              <p>
-                Manage API endpoints loaded from <code>API-list-*.yml</code> files. Create new
-                entries, download a refreshed <code>API-list-local.yml</code>, and drop it into the
-                <code>CONFIGURATIONS</code> folder.
-              </p>
-              <div class="toolbar">
-                <button id="addApiButton" class="secondary" type="button">Add API</button>
-                <button id="downloadApiListButton" class="secondary" type="button">
-                  Download API-list-local.yml
-                </button>
+          <section id="apiRegistryPanel" class="content-dashboard content-dashboard--wide hidden hidden">
+            <div class="content-dashboard-section content-dashboard-title">
+              <div class="content-title">API Registration</div>
+               <div class="content-subtitle">Manage API endpoints </div>
+               <div class="content-selection">
+                  <button id="addApiButton" class="button" type="button">Add API</button>
               </div>
-              <form id="apiForm" class="card hidden" autocomplete="off">
+            </div>
+
+            <div class="content-dashboard">
+            
+              <div id="apiForm" class="content-dashboard-section card hidden">
+                          <div class="content-section-title">New API</div>
+                
+                <form autocomplete="off">
                 <div class="two-col-grid">
                   <label>
                     API name
-                    <input id="apiNameInput" type="text" required placeholder="find-user" />
+                    <input id="apiNameInput" type="text" required placeholder="API-name" />
                   </label>
                   <label>
                     API URL
@@ -86,37 +86,169 @@
                       id="apiUrlInput"
                       type="text"
                       required
-                      placeholder="https://example.com/api/v1/findUser"
+                      placeholder="API endpoint URL"
                     />
                   </label>
                 </div>
                 <div class="toolbar toolbar--end">
-                  <button id="saveApiButton" type="submit">Publish API</button>
+                  <button id="saveApiButton" type="submit">Save</button>
                   <button id="cancelApiButton" type="button" class="secondary">Cancel</button>
                 </div>
-              </form>
-              <div id="apiList" class="config-tree"></div>
-              <p id="apiRegistryStatus" class="hint" aria-live="polite"></p>
-            </section>
+                </form>
+                
+
+              </div>
+
+
+
+              <div class="content-dashboard-section content-dashboard-title">
+                <div class="content-section-title">Registered API</div>
+
+
+
+                                <p id="apiRegistryStatus" class="hint" aria-live="polite"></p>
+                <div id="apiList" class="content-list"></div>
+              </div>
+              </div>
+        
+
           </section>
 
-          <section id="serviceBuilderPanel" class="hidden">
-            <section class="panel panel--wide">
-              <h2>Service Builder</h2>
-              <p>
-                Configure services backed by registered APIs. Save updates to a downloadable
-                <code>services-local.yml</code> file and drop it into the <code>CONFIGURATIONS</code>
-                folder.
-              </p>
-              <div class="toolbar">
-                <button id="addServiceButton" class="secondary" type="button">
-                  Add Service
-                </button>
-                <button id="downloadServicesButton" class="secondary" type="button">
-                  Download services-local.yml
+          <section id="weblinksPanel" class="content-dashboard content-dashboard--wide hidden hidden">
+  
+              <div class="content-dashboard-section content-dashboard-title">
+                <div class="content-title">Web Links Registration</div>
+                <div class="content-subtitle">Manage web links and impersonation</div>
+                              <div class="content-selection">
+                <button id="addWeblinkButton" type="button" class="button">
+                  Add Weblink
                 </button>
               </div>
-              <form id="serviceForm" class="card hidden" autocomplete="off">
+              </div>
+
+              <div id="weblinksAddForm" class="content-dashboard-section card hidden">
+                <div class="content-section-title">New Weblink</div>
+              <form autocomplete="off">
+                <div class="two-col-grid">
+                  <label>
+                    Web link  name
+                    <input
+                      id="weblinkNameInput"
+                      type="text"
+                      placeholder="Web link name"
+                      required
+                    />
+                  </label>
+                  <label>
+                    Web link URL
+                    <input
+                      id="weblinkUrlInput"
+                      type="text"
+                      placeholder="https://weblink.example.com"
+                      required
+                    />
+                  </label>
+                                  <label>
+                  Context
+                  <select id="weblinkContextInput">
+                    <option value="noContext">None</option>
+                    <option value="account">Account</option>
+                    <option value="service">Service</option>
+                  </select>
+                </label>
+
+                </div>
+                                <label class="checkbox">
+                  <input id="weblinkAuthInput" type="checkbox" />
+                  <span>Authenticated user link</span>
+                </label>
+
+                <div class="toolbar toolbar--end">
+                  <button id="confirmWeblinkButton" type="submit">Save</button>
+                  <button
+                    id="cancelWeblinkButton"
+                    type="button"
+                    class="secondary"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </form>
+
+              </div>
+
+
+
+              <!-- <p class="hint">
+                If <code>weblinks-local.yml</code> is not present, the example
+                configuration is loaded instead. Edit entries below or download
+                the generated file for deployment.
+              </p> -->
+
+<div class="content-dashboard-section content-dashboard-title">
+                <div class="content-section-title">Registered Weblinks</div>
+
+
+
+                
+
+
+              <div id="weblinksList" class="content-list"></div>
+</div>
+              <div class="monitoring-config config-viewer__header">
+                <div>
+                  <div class="hint">Configuration source</div>
+                  <div id="weblinksFileName" class="config-viewer__filename">
+                    Loading...
+                  </div>
+                </div>
+
+                <div id="weblinksStatus" class="content-list"></div>
+              </div>
+
+
+
+              <!-- <div class="connector-preview">
+                <div class="connector-preview__header">
+                  <div class="hint">Generated weblinks-local.yml</div>
+                </div>
+                <pre
+                  id="weblinksPreview"
+                  class="preview config-preview"
+                  aria-live="polite"
+                ></pre>
+              </div>
+
+              <div class="download-actions">
+                <button
+                  id="weblinksDownloadButton"
+                  type="button"
+                  class="secondary"
+                >
+                  Download weblinks-local.yml
+                </button>
+              </div> -->
+            
+          </section>
+
+
+          <section id="serviceBuilderPanel" class="content-dashboard content-dashboard--wide hidden hidden">
+            <div class="content-dashboard-section content-dashboard-title">
+              <div class="content-title">Service Builder</div>
+              <div class="content-subtitle">Configure services backed by registered APIs </div>
+               <div class="content-selection">
+                                 <button id="addServiceButton" class="button" type="button">
+                  Add Service
+                </button>
+              </div>
+
+            </div>
+            <div class="content-dashboard">
+            
+              <div id="serviceForm" class="content-dashboard-section card hidden">
+
+    <div class="content-section-title">New Service</div>
+              <form autocomplete="off">
                 <div class="service-form__stack">
                   <div class="service-form__row">
                     <label class="form-field">
@@ -208,33 +340,31 @@
                   </button>
                 </div>
               </form>
-              <div id="serviceList" class="service-card-list"></div>
+              </div>
+
+
+              <div class="content-dashboard-section">
+                   <div class="content-section-title">Registered Services</div>
+                   <div id="serviceList" class="serviceList"></div>
+              </div>
               <p id="serviceBuilderStatus" class="hint" aria-live="polite"></p>
-            </section>
+            </div>
           </section>
 
-          <section id="menuConfigurationPanel">
-            <section class="panel">
-              <h2>Menu explorer</h2>
-              <p>
-                Choose a menu to edit, tweak its items, or create nested
-                sub-menus. The root menu is called
-                <strong>Home</strong> and cannot be renamed or removed.
-              </p>
-              <div class="menu-mode">
-                <label>
-                  Configure
-                  <select id="menuTypeSelect">
-                    <option value="login">Login Menu Config</option>
-                    <option value="business">Business Menu Config</option>
-                  </select>
-                </label>
-                <p class="hint">
-                  Switch between the login and business menus. Both menus share
-                  the same configuration tools, including functions, nested
-                  sub-menus, and the delete warning for cascading changes.
-                </p>
+          <section id="menuConfigurationPanel" class="content-dashboard content-dashboard--wide hidden hidden">
+            
+            <div class="content-dashboard-section content-dashboard-title">
+              <div class="content-title">User Menus</div>
+              <div class="content-subtitle">Configure user menus and associate menu items to Service Functions</div>
+              <div class="content-selection">
+                <select id="menuTypeSelect">
+                  <option value="login">Login Menu Config</option>
+                  <option value="business">Business Menu Config</option>
+                </select>
               </div>
+            </div>
+            
+
               <div class="menu-toolbar">
                 <label>
                   Edit menu
@@ -267,7 +397,7 @@
                   Reset to default
                 </button>
               </div>
-            </section>
+            
 
             <section class="panel">
               <h2>Add a menu item</h2>
@@ -374,62 +504,28 @@
             </section>
           </section>
 
-          <!-- <section id="operationsMonitoringPanel" class="hidden"> -->
+          
             <section id="operationsMonitoringPanel" class="content-dashboard content-dashboard--wide hidden hidden">
  
               <div class="content-dashboard-section content-dashboard-title">
                 <div class="content-title">Operations Monitoring</div>
                 <div class="content-subtitle">Track live chat sessions</div>
               </div>
-              <!-- <div class="monitoring-config">
-                <label>
-                  Monitoring API base URL
-                  <input
-                    id="monitoringApiBase"
-                    type="text"
-                    value="YOUR_SERVER_PUBLIC_URL"
-                    readonly
-                  />
-                </label>
-                <p class="hint">
-                  Populated from the <code>public-base-url</code> application
-                  property. Copy this value when hosting the UI separately so
-                  the Operations Monitoring API can be reached.
-                </p>
-              </div> -->
 
-              <div class="content-dashboard-section">
-                <div class="content-section-title">Ongoing Sessions</div>
-                <div class="content-subtitle">Live chats currently in progress.</div>
-              </div>
 
-              <div class="content-dashboard-section">
-                <div class="content-section-title">Sessions History</div>
-                <div class="content-subtitle">Completed Sessions</div>
-              </div>
+
 
               <div class="content-form">
                 <div class="monitoring-card">
                   <div class="monitoring-card__header">
                     <div>
                       <h3>Ongoing sessions</h3>
-                      <p class="hint">
-                        Live conversations currently in progress.
-                      </p>
                     </div>
                     <span class="pill pill--live" aria-label="Live sessions"
                       >Live</span
                     >
                   </div>
-                  <div class="list-header">
-                    <span>Channel</span>
-                    <span>Chat ID / Session ID</span>
-                    <span>Login status &amp; username</span>
-                    <span>Opt-in status</span>
-                    <span>Token</span>
-                    <span>Session start date</span>
-                    <span>Session start time</span>
-                  </div>
+
                   <div
                     id="liveSessions"
                     class="session-list scrollable-list"
@@ -440,22 +536,11 @@
                 <div class="monitoring-card">
                   <div class="monitoring-card__header">
                     <div>
-                      <h3>Recent history</h3>
-                      <p class="hint">
-                        Completed sessions move here automatically.
-                      </p>
+                      <h3>History</h3>
                     </div>
                     <span class="pill">History</span>
                   </div>
-                  <div class="list-header">
-                    <span>Channel</span>
-                    <span>Chat ID / Session ID</span>
-                    <span>Login status &amp; username</span>
-                    <span>Opt-in status</span>
-                    <span>Token</span>
-                    <span>Session start date</span>
-                    <span>Session start time</span>
-                  </div>
+
                   <div
                     id="sessionHistory"
                     class="session-list scrollable-list"
@@ -464,9 +549,9 @@
                 </div>
               </div>
             </section>
-          <!-- </section> -->
+          
 
-          <!-- <section class="hidden"> -->
+          
           <section
             id="sendMessagesPanel"
             class="content-dashboard content-dashboard--wide hidden">
@@ -845,120 +930,6 @@
                     Download messenger-local.yml
                   </button>
                 </div>
-              </div>
-            </section>
-          </section>
-
-          <section id="weblinksPanel" class="hidden">
-            <section class="panel panel--wide">
-              <div class="panel-heading">
-                <div>
-              <h2>Web Links Registration</h2>
-                  <p>
-                    Manage reusable links for menu items. Authenticated links
-                    automatically append the user's <code>exchangeId</code> when
-                    available.
-                  </p>
-                </div>
-              </div>
-
-              <div class="monitoring-config config-viewer__header">
-                <div>
-                  <div class="hint">Configuration source</div>
-                  <div id="weblinksFileName" class="config-viewer__filename">
-                    Loading...
-                  </div>
-                </div>
-                <div class="panel-actions">
-                  <button
-                    id="weblinksReloadButton"
-                    type="button"
-                    class="secondary"
-                  >
-                    Reload from file
-                  </button>
-                </div>
-                <div id="weblinksStatus" class="hint"></div>
-              </div>
-
-              <p class="hint">
-                If <code>weblinks-local.yml</code> is not present, the example
-                configuration is loaded instead. Edit entries below or download
-                the generated file for deployment.
-              </p>
-
-              <div id="weblinksList" class="config-tree"></div>
-
-              <div class="panel-actions">
-                <button id="addWeblinkButton" type="button" class="button">
-                  Add new weblink
-                </button>
-              </div>
-
-              <form id="weblinksAddForm" class="card hidden" autocomplete="off">
-                <div class="two-col-grid">
-                  <label>
-                    URL name
-                    <input
-                      id="weblinkNameInput"
-                      type="text"
-                      placeholder="Support Portal"
-                      required
-                    />
-                  </label>
-                  <label>
-                    URL
-                    <input
-                      id="weblinkUrlInput"
-                      type="url"
-                      placeholder="https://example.com"
-                      required
-                    />
-                  </label>
-                </div>
-                <label>
-                  Context
-                  <select id="weblinkContextInput">
-                    <option value="noContext">None</option>
-                    <option value="account">Account</option>
-                    <option value="service">Service</option>
-                  </select>
-                </label>
-                <label class="checkbox">
-                  <input id="weblinkAuthInput" type="checkbox" />
-                  <span>Authenticated user link</span>
-                </label>
-                <div class="toolbar toolbar--end">
-                  <button id="confirmWeblinkButton" type="submit">OK</button>
-                  <button
-                    id="cancelWeblinkButton"
-                    type="button"
-                    class="secondary"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </form>
-
-              <div class="connector-preview">
-                <div class="connector-preview__header">
-                  <div class="hint">Generated weblinks-local.yml</div>
-                </div>
-                <pre
-                  id="weblinksPreview"
-                  class="preview config-preview"
-                  aria-live="polite"
-                ></pre>
-              </div>
-
-              <div class="download-actions">
-                <button
-                  id="weblinksDownloadButton"
-                  type="button"
-                  class="secondary"
-                >
-                  Download weblinks-local.yml
-                </button>
               </div>
             </section>
           </section>
