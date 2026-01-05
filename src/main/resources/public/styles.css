@@ -1175,6 +1175,11 @@ button:disabled {
   justify-content: center;
 }
 
+.stacked-form-item__row {
+  display: flex;
+  align-items: center;
+}
+
 
 /* Inputs: share space equally */
 .session-row-user-details .field {

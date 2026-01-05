@@ -3012,34 +3012,50 @@ function renderWeblinksList() {
 
   weblinks.forEach((link, index) => {
     const row = document.createElement("div");
-    row.className = "session-row-user-details";
+    row.className = "stacked-form-item";
 
+    const fieldsRow = document.createElement("div");
+    fieldsRow.className = "stacked-form-item__fields";
+
+    const nameGroup = document.createElement("label");
+    nameGroup.className = "stacked-form-item__field";
+    const nameLabel = document.createElement("span");
+    nameLabel.textContent = "Web link Name";
+    nameLabel.className = "stacked-form-item__label";
     const nameField = document.createElement("input");
     nameField.type = "text";
     nameField.value = link.name;
     nameField.placeholder = "URL name";
-      nameField.classList.add("field"); // will be flex: 1 in CSS
+    nameField.classList.add("field");
     nameField.addEventListener("input", (event) => {
       weblinks[index].name = event.target.value;
       weblinksContent = buildWeblinksYaml();
       renderWeblinksPreview();
     });
+    nameGroup.append(nameLabel, nameField);
 
+    const urlGroup = document.createElement("label");
+    urlGroup.className = "stacked-form-item__field";
+    const urlLabel = document.createElement("span");
+    urlLabel.textContent = "Web Link URL";
+    urlLabel.className = "stacked-form-item__label";
     const urlField = document.createElement("input");
     urlField.type = "text";
     urlField.value = link.url || "";
     urlField.placeholder = "https://example.com";
-          urlField.classList.add("field"); // will be flex: 1 in CSS
+    urlField.classList.add("field");
     urlField.addEventListener("input", (event) => {
       weblinks[index].url = event.target.value;
       weblinksContent = buildWeblinksYaml();
       renderWeblinksPreview();
     });
-
-
+    urlGroup.append(urlLabel, urlField);
 
     const contextWrapper = document.createElement("label");
-    contextWrapper.textContent = "Context";
+    contextWrapper.className = "stacked-form-item__field";
+    const contextLabel = document.createElement("span");
+    contextLabel.textContent = "Context";
+    contextLabel.className = "stacked-form-item__label";
     const contextSelect = document.createElement("select");
     const currentContext = link.context || "noContext";
     [
@@ -3054,23 +3070,7 @@ function renderWeblinksList() {
       weblinksContent = buildWeblinksYaml();
       renderWeblinksPreview();
     });
-    contextWrapper.append(contextSelect);
-
-    const actions = document.createElement("div");
-    actions.className = "config-entry__actions";
-    const deleteButton = document.createElement("button");
-    deleteButton.type = "button";
-    deleteButton.textContent = "Delete";
-    deleteButton.classList.add("secondary", "cta"); // cta = auto-sized button
-    deleteButton.title = "Remove";
-    deleteButton.addEventListener("click", () => {
-      weblinks.splice(index, 1);
-      weblinksContent = buildWeblinksYaml();
-      renderWeblinksList();
-      renderWeblinksPreview();
-    });
-    actions.append(deleteButton);
-
+    contextWrapper.append(contextLabel, contextSelect);
 
     const authLabel = document.createElement("label");
     authLabel.className = "checkbox";
@@ -3086,9 +3086,27 @@ function renderWeblinksList() {
     authText.textContent = "Authenticated user";
     authLabel.append(authInput, authText);
 
-        row.append(nameField, urlField, contextSelect, authLabel, actions);
+    const authRow = document.createElement("div");
+    authRow.className = "stacked-form-item__row";
+    authRow.append(authLabel);
 
+    const actions = document.createElement("div");
+    actions.className = "stacked-form-item__actions";
+    const deleteButton = document.createElement("button");
+    deleteButton.type = "button";
+    deleteButton.textContent = "Delete";
+    deleteButton.classList.add("secondary", "cta");
+    deleteButton.title = "Remove";
+    deleteButton.addEventListener("click", () => {
+      weblinks.splice(index, 1);
+      weblinksContent = buildWeblinksYaml();
+      renderWeblinksList();
+      renderWeblinksPreview();
+    });
+    actions.append(deleteButton);
 
+    fieldsRow.append(nameGroup, urlGroup, contextWrapper);
+    row.append(fieldsRow, authRow, actions);
 
     weblinksList.append(row);
   
