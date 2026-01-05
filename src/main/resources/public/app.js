@@ -503,6 +503,22 @@ let monitoringError = null;
 const MONITORING_REFRESH_MS = 5000;
 const MONITORING_API_STORAGE_KEY = "monitoringApiBase";
 const NOTIFICATION_API_STORAGE_KEY = "notificationApiBase";
+const APIMAN_BASE_TOKEN = "${endpoints.apiman-base-url}";
+
+function stripApimanBaseToken(url) {
+  if (!url) return "";
+  if (!url.startsWith(APIMAN_BASE_TOKEN)) return url;
+  return url.slice(APIMAN_BASE_TOKEN.length);
+}
+
+function applyApimanBaseToken(url) {
+  const trimmed = (url || "").trim();
+  if (!trimmed) return "";
+  if (trimmed.includes(APIMAN_BASE_TOKEN)) return trimmed;
+  if (/^https?:\/\//i.test(trimmed)) return trimmed;
+  const normalized = trimmed.startsWith("/") ? trimmed : `/${trimmed}`;
+  return `${APIMAN_BASE_TOKEN}${normalized}`;
+}
 let monitoringIntervalId = null;
 let monitoringEndpointCache = "";
 let monitoringConfigLoaded = false;
@@ -1915,7 +1931,7 @@ function toggleApiForm(show, api = null) {
   apiForm.classList.toggle("hidden", !show);
   if (show && api) {
     apiNameInput.value = api.name || "";
-    apiUrlInput.value = api.url || "";
+    apiUrlInput.value = stripApimanBaseToken(api.url || "");
     editingApiName = api.name;
   } else if (show) {
     apiForm.reset();
@@ -1936,72 +1952,85 @@ function renderApiList() {
   }
 
 
-apiRegistryEntries.forEach((api, index) => {
-  // Row container
-  const row = document.createElement("div");
-  row.className = "session-row-user-details"; // flex container in CSS
+  apiRegistryEntries.forEach((api, index) => {
+    const row = document.createElement("div");
+    row.className = "api-registry-item";
 
-  // --- Name field (flex: 1) ---
-  const nameField = document.createElement("input");
-  nameField.type = "text";
-  nameField.value = api?.name || "";
-  nameField.placeholder = "API name";
-  nameField.dataset.previousName = api?.name || "";
-  nameField.classList.add("field"); // will be flex: 1 in CSS
-  nameField.addEventListener("input", (event) => {
-    const previous = nameField.dataset.previousName || apiRegistryEntries[index].name;
-    const nextName = event.target.value;
-    apiRegistryEntries[index].name = nextName;
+    const fieldsRow = document.createElement("div");
+    fieldsRow.className = "api-registry-item__fields";
 
-    if (previous && previous !== nextName) {
-      serviceBuilderEntries = serviceBuilderEntries.map((svc) =>
-        svc.apiName === previous ? { ...svc, apiName: nextName } : svc
-      );
-      nameField.dataset.previousName = nextName;
+    const nameGroup = document.createElement("label");
+    nameGroup.className = "api-registry-item__field";
+    const nameLabel = document.createElement("span");
+    nameLabel.textContent = "API Name";
+    nameLabel.className = "api-registry-item__label";
+    const nameField = document.createElement("input");
+    nameField.type = "text";
+    nameField.value = api?.name || "";
+    nameField.placeholder = "API name";
+    nameField.dataset.previousName = api?.name || "";
+    nameField.classList.add("field");
+    nameField.addEventListener("input", (event) => {
+      const previous = nameField.dataset.previousName || apiRegistryEntries[index].name;
+      const nextName = event.target.value;
+      apiRegistryEntries[index].name = nextName;
+
+      if (previous && previous !== nextName) {
+        serviceBuilderEntries = serviceBuilderEntries.map((svc) =>
+          svc.apiName === previous ? { ...svc, apiName: nextName } : svc
+        );
+        nameField.dataset.previousName = nextName;
+        hydrateServiceApiOptions();
+        renderServiceList();
+      }
+    });
+    nameGroup.append(nameLabel, nameField);
+
+    const urlGroup = document.createElement("label");
+    urlGroup.className = "api-registry-item__field";
+    const urlLabel = document.createElement("span");
+    urlLabel.textContent = "API URL";
+    urlLabel.className = "api-registry-item__label";
+    const urlField = document.createElement("input");
+    urlField.type = "text";
+    urlField.value = stripApimanBaseToken(api?.url || "");
+    urlField.placeholder = "/path/to/endpoint";
+    urlField.classList.add("field");
+    urlField.addEventListener("input", (event) => {
+      const displayValue = stripApimanBaseToken(event.target.value);
+      if (displayValue !== event.target.value) {
+        event.target.value = displayValue;
+      }
+      apiRegistryEntries[index].url = applyApimanBaseToken(displayValue);
+    });
+    urlGroup.append(urlLabel, urlField);
+
+    fieldsRow.append(nameGroup, urlGroup);
+
+    const actionsRow = document.createElement("div");
+    actionsRow.className = "api-registry-item__actions";
+    const deleteBtn = document.createElement("button");
+    deleteBtn.type = "button";
+    deleteBtn.textContent = "Delete";
+    deleteBtn.classList.add("secondary", "cta");
+    deleteBtn.title = "Remove";
+    deleteBtn.addEventListener("click", () => {
+      const name = apiRegistryEntries[index]?.name;
+      apiRegistryEntries.splice(index, 1);
+      if (name) {
+        serviceBuilderEntries = serviceBuilderEntries.map((svc) =>
+          svc.apiName === name ? { ...svc, apiName: "" } : svc
+        );
+      }
       hydrateServiceApiOptions();
       renderServiceList();
-    }
+      renderApiList();
+    });
+    actionsRow.append(deleteBtn);
+
+    row.append(fieldsRow, actionsRow);
+    apiList.append(row);
   });
-
-  // --- URL field (flex: 1) ---
-  const urlField = document.createElement("input");
-  urlField.type = "text";
-  urlField.value = api?.url || "";
-  urlField.placeholder = "https://example.com/api";
-  urlField.classList.add("field"); // will be flex: 1 in CSS
-  urlField.addEventListener("input", (event) => {
-    apiRegistryEntries[index].url = event.target.value;
-  });
-
-  // --- Actions wrapper (auto width) ---
-  const actions = document.createElement("div");
-  actions.className = "config-entry__actions"; // keep your class
-
-  // Delete button (auto width)
-  const deleteBtn = document.createElement("button");
-  deleteBtn.type = "button";
-  deleteBtn.textContent = "Delete";
-  deleteBtn.classList.add("secondary", "cta"); // cta = auto-sized button
-  deleteBtn.title = "Remove";
-  deleteBtn.addEventListener("click", () => {
-    const name = apiRegistryEntries[index]?.name;
-    apiRegistryEntries.splice(index, 1);
-    if (name) {
-      serviceBuilderEntries = serviceBuilderEntries.map((svc) =>
-        svc.apiName === name ? { ...svc, apiName: "" } : svc
-      );
-    }
-    hydrateServiceApiOptions();
-    renderServiceList();
-    renderApiList();
-  });
-
-  actions.append(deleteBtn);
-
-  // Append to row: inputs fill, actions auto-size
-  row.append(nameField, urlField, actions);
-  apiList.append(row);
-});
 
 }
 
@@ -2312,10 +2341,14 @@ async function saveApiRegistryFile() {
     return;
   }
   try {
+    const payload = apiRegistryEntries.map((api) => ({
+      ...api,
+      url: applyApimanBaseToken(stripApimanBaseToken(api.url || ""))
+    }));
     const response = await fetch(endpoint, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(apiRegistryEntries)
+      body: JSON.stringify(payload)
     });
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}`);
@@ -3906,12 +3939,13 @@ if (addApiButton) {
 if (cancelApiButton) {
   cancelApiButton.addEventListener("click", () => toggleApiForm(false));
 }
-if (apiForm) {
+  if (apiForm) {
   apiForm.addEventListener("submit", (event) => {
     event.preventDefault();
     const name = (apiNameInput.value || "").trim();
-    const url = (apiUrlInput.value || "").trim();
-    if (!name || !url) {
+    const displayUrl = stripApimanBaseToken(apiUrlInput.value || "");
+    const url = applyApimanBaseToken(displayUrl);
+    if (!name || !displayUrl) {
       alert("Provide both an API name and URL.");
       return;
     }

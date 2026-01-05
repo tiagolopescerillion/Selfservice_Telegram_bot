@@ -1137,6 +1137,41 @@ button:disabled {
 
 }
 
+.api-registry-item {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  border-top-color: #e5e5e5;
+  border-top-style: solid;
+  padding-top: 16px;
+  border-width: 0.5px;
+}
+
+.api-registry-item__fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+  align-items: start;
+}
+
+.api-registry-item__field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.api-registry-item__label {
+  font-weight: 600;
+  color: #0f172a;
+  font-size: 0.95rem;
+}
+
+.api-registry-item__actions {
+  display: flex;
+  justify-content: center;
+}
+
 
 /* Inputs: share space equally */
 .session-row-user-details .field {
