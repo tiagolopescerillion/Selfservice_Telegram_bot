@@ -1954,16 +1954,16 @@ function renderApiList() {
 
   apiRegistryEntries.forEach((api, index) => {
     const row = document.createElement("div");
-    row.className = "api-registry-item";
+    row.className = "stacked-form-item";
 
     const fieldsRow = document.createElement("div");
-    fieldsRow.className = "api-registry-item__fields";
+    fieldsRow.className = "stacked-form-item__fields";
 
     const nameGroup = document.createElement("label");
-    nameGroup.className = "api-registry-item__field";
+    nameGroup.className = "stacked-form-item__field";
     const nameLabel = document.createElement("span");
     nameLabel.textContent = "API Name";
-    nameLabel.className = "api-registry-item__label";
+    nameLabel.className = "stacked-form-item__label";
     const nameField = document.createElement("input");
     nameField.type = "text";
     nameField.value = api?.name || "";
@@ -1987,10 +1987,10 @@ function renderApiList() {
     nameGroup.append(nameLabel, nameField);
 
     const urlGroup = document.createElement("label");
-    urlGroup.className = "api-registry-item__field";
+    urlGroup.className = "stacked-form-item__field";
     const urlLabel = document.createElement("span");
     urlLabel.textContent = "API URL";
-    urlLabel.className = "api-registry-item__label";
+    urlLabel.className = "stacked-form-item__label";
     const urlField = document.createElement("input");
     urlField.type = "text";
     urlField.value = stripApimanBaseToken(api?.url || "");
@@ -2008,7 +2008,7 @@ function renderApiList() {
     fieldsRow.append(nameGroup, urlGroup);
 
     const actionsRow = document.createElement("div");
-    actionsRow.className = "api-registry-item__actions";
+    actionsRow.className = "stacked-form-item__actions";
     const deleteBtn = document.createElement("button");
     deleteBtn.type = "button";
     deleteBtn.textContent = "Delete";
