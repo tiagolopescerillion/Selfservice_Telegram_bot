@@ -2124,37 +2124,64 @@ function renderServiceList() {
 
   serviceBuilderEntries.forEach((service, index) => {
     const record = document.createElement("div");
-    record.className = "list-record";
+    record.className = "stacked-form-item";
 
-    const recordRow = document.createElement("div");
-    recordRow.className = "list-record-line";
+    const headerRow = document.createElement("div");
+    headerRow.className = "stacked-form-item__fields";
 
+    const nameField = document.createElement("div");
+    nameField.className = "stacked-form-item__field";
+    const nameLabel = document.createElement("span");
+    nameLabel.className = "stacked-form-item__label";
+    nameLabel.textContent = "Service Name";
+    const nameValue = document.createElement("div");
+    nameValue.className = "stacked-form-item__value";
+    nameValue.textContent = service.name || "Unnamed service";
+    nameField.append(nameLabel, nameValue);
 
+    const apiField = document.createElement("div");
+    apiField.className = "stacked-form-item__field";
+    const apiLabel = document.createElement("span");
+    apiLabel.className = "stacked-form-item__label";
+    apiLabel.textContent = "API Name";
+    const apiValue = document.createElement("div");
+    apiValue.className = "stacked-form-item__value";
+    apiValue.textContent = service.apiName || "Not set";
+    apiField.append(apiLabel, apiValue);
 
-    const serviceName = document.createElement("div");
-    serviceName.className = "service-card__title";
-    serviceName.textContent = `Service Name: ${service.name || "Unnamed service"}`;
-
-    const serviceAPI = document.createElement("div");
-    serviceAPI.className = "service-card__title";
-    serviceAPI.textContent = `API: ${service.apiName || ""}`;
-
+    const typeField = document.createElement("div");
+    typeField.className = "stacked-form-item__field";
+    const typeLabel = document.createElement("span");
+    typeLabel.className = "stacked-form-item__label";
+    typeLabel.textContent = "Service Type";
     const templateLabel = service.responseTemplate === "CARD" ? "List of Objects" : service.responseTemplate;
-    const serviceType = document.createElement("div");
-    serviceType.className = "service-card__title";
-    serviceType.textContent = `Type: ${templateLabel}`;
+    const typeValue = document.createElement("div");
+    typeValue.className = "stacked-form-item__value";
+    typeValue.textContent = templateLabel || "Not set";
+    typeField.append(typeLabel, typeValue);
 
-    recordRow.append(serviceName, serviceAPI, serviceType);
+    headerRow.append(nameField, apiField, typeField);
 
-    const recordRow2 = document.createElement("div");
-    recordRow2.className = "list-record-line";
+    const detailsRow = document.createElement("div");
+    detailsRow.className = "stacked-form-item__fields";
 
-    const queryLine = document.createElement("div");
-    queryLine.className = "service-card__meta service-card__meta--query";
-    queryLine.textContent = `Query Parameters: ${formatQueryParams(service.queryParameters) || "None"}`;
+    const queryField = document.createElement("div");
+    queryField.className = "stacked-form-item__field";
+    const queryLabel = document.createElement("span");
+    queryLabel.className = "stacked-form-item__label";
+    queryLabel.textContent = "Query Parameters";
+    const queryValue = document.createElement("div");
+    queryValue.className = "stacked-form-item__value stacked-form-item__value--multiline";
+    queryValue.textContent = formatQueryParams(service.queryParameters) || "None";
+    queryField.append(queryLabel, queryValue);
 
-    const contextLine = document.createElement("div");
-    contextLine.className = "service-card__meta service-card__meta--query";
+    const contextField = document.createElement("div");
+    contextField.className = "stacked-form-item__field";
+    const contextLabel = document.createElement("span");
+    contextLabel.className = "stacked-form-item__label";
+    contextLabel.textContent = "Context Parameters";
+    const contextValue = document.createElement("div");
+    contextValue.className = "stacked-form-item__value stacked-form-item__value--multiline";
     const contextBits = [];
     if (service.accountContextField) {
       contextBits.push(`Account → ${service.accountContextField}`);
@@ -2165,15 +2192,19 @@ function renderServiceList() {
     if (service.objectContextField) {
       contextBits.push(`Object → ${service.objectContextField}`);
     }
-    contextLine.textContent = contextBits.length
-      ? `Context Parameters: ${contextBits.join(" • ")}`
-      : "Context Parameters: none";
+    contextValue.textContent = contextBits.length ? contextBits.join(" • ") : "None";
+    contextField.append(contextLabel, contextValue);
 
-    const outputsBox = document.createElement("div");
-    outputsBox.className = "service-card__outputs";
+    const outputsField = document.createElement("div");
+    outputsField.className = "stacked-form-item__field";
+    const outputsLabel = document.createElement("span");
+    outputsLabel.className = "stacked-form-item__label";
+    outputsLabel.textContent = "Outputs";
+    const outputsValue = document.createElement("div");
+    outputsValue.className = "stacked-form-item__value stacked-form-item__value--multiline";
     const outputs = normalizeOutputFields(service.outputs);
     if (!outputs.length) {
-      outputsBox.textContent = "No output fields configured.";
+      outputsValue.textContent = "No output fields configured.";
     } else {
       outputs.forEach((output) => {
         const line = document.createElement("div");
@@ -2188,14 +2219,15 @@ function renderServiceList() {
           pill.textContent = "Object Context";
           line.append(" ", pill);
         }
-        outputsBox.append(line);
+        outputsValue.append(line);
       });
     }
+    outputsField.append(outputsLabel, outputsValue);
 
-    recordRow2.append(queryLine, contextLine, outputsBox);
+    detailsRow.append(queryField, contextField, outputsField);
 
-    const recordRowButtons = document.createElement("div");
-    recordRowButtons.className = "toolbar toolbar--end";
+    const actionsRow = document.createElement("div");
+    actionsRow.className = "stacked-form-item__actions";
 
     const editBtn = document.createElement("button");
     editBtn.type = "button";
@@ -2212,10 +2244,10 @@ function renderServiceList() {
       renderServiceList();
     });
 
-    recordRowButtons.append(editBtn, deleteBtn);
+    actionsRow.append(editBtn, deleteBtn);
 
-    record.append(recordRow, recordRow2, recordRowButtons);
-    
+    record.append(headerRow, detailsRow, actionsRow);
+
     serviceList.append(record);
   });
 }

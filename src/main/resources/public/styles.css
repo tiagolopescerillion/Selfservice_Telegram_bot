@@ -1170,6 +1170,24 @@ button:disabled {
   font-size: 0.95rem;
 }
 
+.stacked-form-item__value {
+  padding: 8px 16px;
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  background: #fff;
+  color: #0f172a;
+  min-height: 38px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.stacked-form-item__value--multiline {
+  white-space: pre-wrap;
+  align-items: flex-start;
+  flex-direction: column;
+}
+
 .stacked-form-item__actions {
   display: flex;
   justify-content: center;
