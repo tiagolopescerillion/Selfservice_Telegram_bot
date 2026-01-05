@@ -3136,17 +3136,22 @@ function syncWeblinksFromContent() {
 }
 
 async function loadWeblinksConfig() {
-  if (!weblinksStatus) return;
   const endpoint = buildAdminEndpoint("/admin/config/weblinks");
   if (!endpoint) {
-    weblinksStatus.textContent = "Set the monitoring API base URL so the Java server can be reached.";
-    weblinksStatus.className = "hint error-state";
-    weblinksFileName.textContent = "Unavailable";
+    if (weblinksStatus) {
+      weblinksStatus.textContent = "Set the monitoring API base URL so the Java server can be reached.";
+      weblinksStatus.className = "hint error-state";
+    }
+    if (weblinksFileName) {
+      weblinksFileName.textContent = "Unavailable";
+    }
     syncWeblinksFromContent();
     return;
   }
-  weblinksStatus.textContent = "Loading weblinks configuration...";
-  weblinksStatus.className = "hint";
+  if (weblinksStatus) {
+    weblinksStatus.textContent = "Loading weblinks configuration...";
+    weblinksStatus.className = "hint";
+  }
   try {
     const response = await fetch(endpoint);
     const payload = await response.json().catch(() => ({}));
@@ -3155,18 +3160,26 @@ async function loadWeblinksConfig() {
       throw new Error(reason);
     }
     weblinksFile = payload?.fileName || "weblinks-local.yml";
-    weblinksFileName.textContent = weblinksFile;
+    if (weblinksFileName) {
+      weblinksFileName.textContent = weblinksFile;
+    }
     weblinksContent = payload?.content || "";
     weblinksOriginalContent = weblinksContent;
     const timestamp = formatTimestamp(payload?.lastModified);
-    weblinksStatus.textContent = timestamp
-      ? `Last updated ${timestamp}`
-      : `Loaded ${weblinksFile}`;
-    weblinksStatus.className = "hint";
+    if (weblinksStatus) {
+      weblinksStatus.textContent = timestamp
+        ? `Last updated ${timestamp}`
+        : `Loaded ${weblinksFile}`;
+      weblinksStatus.className = "hint";
+    }
   } catch (error) {
-    weblinksStatus.textContent = `Unable to load weblinks configuration: ${error?.message || error}`;
-    weblinksStatus.className = "hint error-state";
-    weblinksFileName.textContent = "weblinks-local.yml";
+    if (weblinksStatus) {
+      weblinksStatus.textContent = `Unable to load weblinks configuration: ${error?.message || error}`;
+      weblinksStatus.className = "hint error-state";
+    }
+    if (weblinksFileName) {
+      weblinksFileName.textContent = "weblinks-local.yml";
+    }
     weblinksContent = "";
   }
   syncWeblinksFromContent();
