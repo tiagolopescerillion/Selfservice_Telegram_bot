@@ -503,6 +503,22 @@ let monitoringError = null;
 const MONITORING_REFRESH_MS = 5000;
 const MONITORING_API_STORAGE_KEY = "monitoringApiBase";
 const NOTIFICATION_API_STORAGE_KEY = "notificationApiBase";
+const APIMAN_BASE_TOKEN = "${endpoints.apiman-base-url}";
+
+function stripApimanBaseToken(url) {
+  if (!url) return "";
+  if (!url.startsWith(APIMAN_BASE_TOKEN)) return url;
+  return url.slice(APIMAN_BASE_TOKEN.length);
+}
+
+function applyApimanBaseToken(url) {
+  const trimmed = (url || "").trim();
+  if (!trimmed) return "";
+  if (trimmed.includes(APIMAN_BASE_TOKEN)) return trimmed;
+  if (/^https?:\/\//i.test(trimmed)) return trimmed;
+  const normalized = trimmed.startsWith("/") ? trimmed : `/${trimmed}`;
+  return `${APIMAN_BASE_TOKEN}${normalized}`;
+}
 let monitoringIntervalId = null;
 let monitoringEndpointCache = "";
 let monitoringConfigLoaded = false;
@@ -1915,7 +1931,7 @@ function toggleApiForm(show, api = null) {
   apiForm.classList.toggle("hidden", !show);
   if (show && api) {
     apiNameInput.value = api.name || "";
-    apiUrlInput.value = api.url || "";
+    apiUrlInput.value = stripApimanBaseToken(api.url || "");
     editingApiName = api.name;
   } else if (show) {
     apiForm.reset();
@@ -1936,72 +1952,85 @@ function renderApiList() {
   }
 
 
-apiRegistryEntries.forEach((api, index) => {
-  // Row container
-  const row = document.createElement("div");
-  row.className = "session-row-user-details"; // flex container in CSS
+  apiRegistryEntries.forEach((api, index) => {
+    const row = document.createElement("div");
+    row.className = "stacked-form-item";
 
-  // --- Name field (flex: 1) ---
-  const nameField = document.createElement("input");
-  nameField.type = "text";
-  nameField.value = api?.name || "";
-  nameField.placeholder = "API name";
-  nameField.dataset.previousName = api?.name || "";
-  nameField.classList.add("field"); // will be flex: 1 in CSS
-  nameField.addEventListener("input", (event) => {
-    const previous = nameField.dataset.previousName || apiRegistryEntries[index].name;
-    const nextName = event.target.value;
-    apiRegistryEntries[index].name = nextName;
+    const fieldsRow = document.createElement("div");
+    fieldsRow.className = "stacked-form-item__fields";
 
-    if (previous && previous !== nextName) {
-      serviceBuilderEntries = serviceBuilderEntries.map((svc) =>
-        svc.apiName === previous ? { ...svc, apiName: nextName } : svc
-      );
-      nameField.dataset.previousName = nextName;
+    const nameGroup = document.createElement("label");
+    nameGroup.className = "stacked-form-item__field";
+    const nameLabel = document.createElement("span");
+    nameLabel.textContent = "API Name";
+    nameLabel.className = "stacked-form-item__label";
+    const nameField = document.createElement("input");
+    nameField.type = "text";
+    nameField.value = api?.name || "";
+    nameField.placeholder = "API name";
+    nameField.dataset.previousName = api?.name || "";
+    nameField.classList.add("field");
+    nameField.addEventListener("input", (event) => {
+      const previous = nameField.dataset.previousName || apiRegistryEntries[index].name;
+      const nextName = event.target.value;
+      apiRegistryEntries[index].name = nextName;
+
+      if (previous && previous !== nextName) {
+        serviceBuilderEntries = serviceBuilderEntries.map((svc) =>
+          svc.apiName === previous ? { ...svc, apiName: nextName } : svc
+        );
+        nameField.dataset.previousName = nextName;
+        hydrateServiceApiOptions();
+        renderServiceList();
+      }
+    });
+    nameGroup.append(nameLabel, nameField);
+
+    const urlGroup = document.createElement("label");
+    urlGroup.className = "stacked-form-item__field";
+    const urlLabel = document.createElement("span");
+    urlLabel.textContent = "API URL";
+    urlLabel.className = "stacked-form-item__label";
+    const urlField = document.createElement("input");
+    urlField.type = "text";
+    urlField.value = stripApimanBaseToken(api?.url || "");
+    urlField.placeholder = "/path/to/endpoint";
+    urlField.classList.add("field");
+    urlField.addEventListener("input", (event) => {
+      const displayValue = stripApimanBaseToken(event.target.value);
+      if (displayValue !== event.target.value) {
+        event.target.value = displayValue;
+      }
+      apiRegistryEntries[index].url = applyApimanBaseToken(displayValue);
+    });
+    urlGroup.append(urlLabel, urlField);
+
+    fieldsRow.append(nameGroup, urlGroup);
+
+    const actionsRow = document.createElement("div");
+    actionsRow.className = "stacked-form-item__actions";
+    const deleteBtn = document.createElement("button");
+    deleteBtn.type = "button";
+    deleteBtn.textContent = "Delete";
+    deleteBtn.classList.add("secondary", "cta");
+    deleteBtn.title = "Remove";
+    deleteBtn.addEventListener("click", () => {
+      const name = apiRegistryEntries[index]?.name;
+      apiRegistryEntries.splice(index, 1);
+      if (name) {
+        serviceBuilderEntries = serviceBuilderEntries.map((svc) =>
+          svc.apiName === name ? { ...svc, apiName: "" } : svc
+        );
+      }
       hydrateServiceApiOptions();
       renderServiceList();
-    }
+      renderApiList();
+    });
+    actionsRow.append(deleteBtn);
+
+    row.append(fieldsRow, actionsRow);
+    apiList.append(row);
   });
-
-  // --- URL field (flex: 1) ---
-  const urlField = document.createElement("input");
-  urlField.type = "text";
-  urlField.value = api?.url || "";
-  urlField.placeholder = "https://example.com/api";
-  urlField.classList.add("field"); // will be flex: 1 in CSS
-  urlField.addEventListener("input", (event) => {
-    apiRegistryEntries[index].url = event.target.value;
-  });
-
-  // --- Actions wrapper (auto width) ---
-  const actions = document.createElement("div");
-  actions.className = "config-entry__actions"; // keep your class
-
-  // Delete button (auto width)
-  const deleteBtn = document.createElement("button");
-  deleteBtn.type = "button";
-  deleteBtn.textContent = "Delete";
-  deleteBtn.classList.add("secondary", "cta"); // cta = auto-sized button
-  deleteBtn.title = "Remove";
-  deleteBtn.addEventListener("click", () => {
-    const name = apiRegistryEntries[index]?.name;
-    apiRegistryEntries.splice(index, 1);
-    if (name) {
-      serviceBuilderEntries = serviceBuilderEntries.map((svc) =>
-        svc.apiName === name ? { ...svc, apiName: "" } : svc
-      );
-    }
-    hydrateServiceApiOptions();
-    renderServiceList();
-    renderApiList();
-  });
-
-  actions.append(deleteBtn);
-
-  // Append to row: inputs fill, actions auto-size
-  row.append(nameField, urlField, actions);
-  apiList.append(row);
-});
 
 }
 
@@ -2095,37 +2124,64 @@ function renderServiceList() {
 
   serviceBuilderEntries.forEach((service, index) => {
     const record = document.createElement("div");
-    record.className = "list-record";
+    record.className = "stacked-form-item";
 
-    const recordRow = document.createElement("div");
-    recordRow.className = "list-record-line";
+    const headerRow = document.createElement("div");
+    headerRow.className = "stacked-form-item__fields";
 
+    const nameField = document.createElement("div");
+    nameField.className = "stacked-form-item__field";
+    const nameLabel = document.createElement("span");
+    nameLabel.className = "stacked-form-item__label";
+    nameLabel.textContent = "Service Name";
+    const nameValue = document.createElement("div");
+    nameValue.className = "stacked-form-item__value";
+    nameValue.textContent = service.name || "Unnamed service";
+    nameField.append(nameLabel, nameValue);
 
+    const apiField = document.createElement("div");
+    apiField.className = "stacked-form-item__field";
+    const apiLabel = document.createElement("span");
+    apiLabel.className = "stacked-form-item__label";
+    apiLabel.textContent = "API Name";
+    const apiValue = document.createElement("div");
+    apiValue.className = "stacked-form-item__value";
+    apiValue.textContent = service.apiName || "Not set";
+    apiField.append(apiLabel, apiValue);
 
-    const serviceName = document.createElement("div");
-    serviceName.className = "service-card__title";
-    serviceName.textContent = `Service Name: ${service.name || "Unnamed service"}`;
-
-    const serviceAPI = document.createElement("div");
-    serviceAPI.className = "service-card__title";
-    serviceAPI.textContent = `API: ${service.apiName || ""}`;
-
+    const typeField = document.createElement("div");
+    typeField.className = "stacked-form-item__field";
+    const typeLabel = document.createElement("span");
+    typeLabel.className = "stacked-form-item__label";
+    typeLabel.textContent = "Service Type";
     const templateLabel = service.responseTemplate === "CARD" ? "List of Objects" : service.responseTemplate;
-    const serviceType = document.createElement("div");
-    serviceType.className = "service-card__title";
-    serviceType.textContent = `Type: ${templateLabel}`;
+    const typeValue = document.createElement("div");
+    typeValue.className = "stacked-form-item__value";
+    typeValue.textContent = templateLabel || "Not set";
+    typeField.append(typeLabel, typeValue);
 
-    recordRow.append(serviceName, serviceAPI, serviceType);
+    headerRow.append(nameField, apiField, typeField);
 
-    const recordRow2 = document.createElement("div");
-    recordRow2.className = "list-record-line";
+    const detailsRow = document.createElement("div");
+    detailsRow.className = "stacked-form-item__fields";
 
-    const queryLine = document.createElement("div");
-    queryLine.className = "service-card__meta service-card__meta--query";
-    queryLine.textContent = `Query Parameters: ${formatQueryParams(service.queryParameters) || "None"}`;
+    const queryField = document.createElement("div");
+    queryField.className = "stacked-form-item__field";
+    const queryLabel = document.createElement("span");
+    queryLabel.className = "stacked-form-item__label";
+    queryLabel.textContent = "Query Parameters";
+    const queryValue = document.createElement("div");
+    queryValue.className = "stacked-form-item__value stacked-form-item__value--multiline";
+    queryValue.textContent = formatQueryParams(service.queryParameters) || "None";
+    queryField.append(queryLabel, queryValue);
 
-    const contextLine = document.createElement("div");
-    contextLine.className = "service-card__meta service-card__meta--query";
+    const contextField = document.createElement("div");
+    contextField.className = "stacked-form-item__field";
+    const contextLabel = document.createElement("span");
+    contextLabel.className = "stacked-form-item__label";
+    contextLabel.textContent = "Context Parameters";
+    const contextValue = document.createElement("div");
+    contextValue.className = "stacked-form-item__value stacked-form-item__value--multiline";
     const contextBits = [];
     if (service.accountContextField) {
       contextBits.push(`Account → ${service.accountContextField}`);
@@ -2136,15 +2192,19 @@ function renderServiceList() {
     if (service.objectContextField) {
       contextBits.push(`Object → ${service.objectContextField}`);
     }
-    contextLine.textContent = contextBits.length
-      ? `Context Parameters: ${contextBits.join(" • ")}`
-      : "Context Parameters: none";
+    contextValue.textContent = contextBits.length ? contextBits.join(" • ") : "None";
+    contextField.append(contextLabel, contextValue);
 
-    const outputsBox = document.createElement("div");
-    outputsBox.className = "service-card__outputs";
+    const outputsField = document.createElement("div");
+    outputsField.className = "stacked-form-item__field";
+    const outputsLabel = document.createElement("span");
+    outputsLabel.className = "stacked-form-item__label";
+    outputsLabel.textContent = "Outputs";
+    const outputsValue = document.createElement("div");
+    outputsValue.className = "stacked-form-item__value stacked-form-item__value--multiline";
     const outputs = normalizeOutputFields(service.outputs);
     if (!outputs.length) {
-      outputsBox.textContent = "No output fields configured.";
+      outputsValue.textContent = "No output fields configured.";
     } else {
       outputs.forEach((output) => {
         const line = document.createElement("div");
@@ -2159,14 +2219,15 @@ function renderServiceList() {
           pill.textContent = "Object Context";
           line.append(" ", pill);
         }
-        outputsBox.append(line);
+        outputsValue.append(line);
       });
     }
+    outputsField.append(outputsLabel, outputsValue);
 
-    recordRow2.append(queryLine, contextLine, outputsBox);
+    detailsRow.append(queryField, contextField, outputsField);
 
-    const recordRowButtons = document.createElement("div");
-    recordRowButtons.className = "toolbar toolbar--end";
+    const actionsRow = document.createElement("div");
+    actionsRow.className = "stacked-form-item__actions";
 
     const editBtn = document.createElement("button");
     editBtn.type = "button";
@@ -2183,10 +2244,10 @@ function renderServiceList() {
       renderServiceList();
     });
 
-    recordRowButtons.append(editBtn, deleteBtn);
+    actionsRow.append(editBtn, deleteBtn);
 
-    record.append(recordRow, recordRow2, recordRowButtons);
-    
+    record.append(headerRow, detailsRow, actionsRow);
+
     serviceList.append(record);
   });
 }
@@ -2312,10 +2373,14 @@ async function saveApiRegistryFile() {
     return;
   }
   try {
+    const payload = apiRegistryEntries.map((api) => ({
+      ...api,
+      url: applyApimanBaseToken(stripApimanBaseToken(api.url || ""))
+    }));
     const response = await fetch(endpoint, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(apiRegistryEntries)
+      body: JSON.stringify(payload)
     });
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}`);
@@ -2979,34 +3044,50 @@ function renderWeblinksList() {
 
   weblinks.forEach((link, index) => {
     const row = document.createElement("div");
-    row.className = "session-row-user-details";
+    row.className = "stacked-form-item";
 
+    const fieldsRow = document.createElement("div");
+    fieldsRow.className = "stacked-form-item__fields";
+
+    const nameGroup = document.createElement("label");
+    nameGroup.className = "stacked-form-item__field";
+    const nameLabel = document.createElement("span");
+    nameLabel.textContent = "Web link Name";
+    nameLabel.className = "stacked-form-item__label";
     const nameField = document.createElement("input");
     nameField.type = "text";
     nameField.value = link.name;
     nameField.placeholder = "URL name";
-      nameField.classList.add("field"); // will be flex: 1 in CSS
+    nameField.classList.add("field");
     nameField.addEventListener("input", (event) => {
       weblinks[index].name = event.target.value;
       weblinksContent = buildWeblinksYaml();
       renderWeblinksPreview();
     });
+    nameGroup.append(nameLabel, nameField);
 
+    const urlGroup = document.createElement("label");
+    urlGroup.className = "stacked-form-item__field";
+    const urlLabel = document.createElement("span");
+    urlLabel.textContent = "Web Link URL";
+    urlLabel.className = "stacked-form-item__label";
     const urlField = document.createElement("input");
     urlField.type = "text";
     urlField.value = link.url || "";
     urlField.placeholder = "https://example.com";
-          urlField.classList.add("field"); // will be flex: 1 in CSS
+    urlField.classList.add("field");
     urlField.addEventListener("input", (event) => {
       weblinks[index].url = event.target.value;
       weblinksContent = buildWeblinksYaml();
       renderWeblinksPreview();
     });
-
-
+    urlGroup.append(urlLabel, urlField);
 
     const contextWrapper = document.createElement("label");
-    contextWrapper.textContent = "Context";
+    contextWrapper.className = "stacked-form-item__field";
+    const contextLabel = document.createElement("span");
+    contextLabel.textContent = "Context";
+    contextLabel.className = "stacked-form-item__label";
     const contextSelect = document.createElement("select");
     const currentContext = link.context || "noContext";
     [
@@ -3021,23 +3102,7 @@ function renderWeblinksList() {
       weblinksContent = buildWeblinksYaml();
       renderWeblinksPreview();
     });
-    contextWrapper.append(contextSelect);
-
-    const actions = document.createElement("div");
-    actions.className = "config-entry__actions";
-    const deleteButton = document.createElement("button");
-    deleteButton.type = "button";
-    deleteButton.textContent = "Delete";
-    deleteButton.classList.add("secondary", "cta"); // cta = auto-sized button
-    deleteButton.title = "Remove";
-    deleteButton.addEventListener("click", () => {
-      weblinks.splice(index, 1);
-      weblinksContent = buildWeblinksYaml();
-      renderWeblinksList();
-      renderWeblinksPreview();
-    });
-    actions.append(deleteButton);
-
+    contextWrapper.append(contextLabel, contextSelect);
 
     const authLabel = document.createElement("label");
     authLabel.className = "checkbox";
@@ -3053,9 +3118,27 @@ function renderWeblinksList() {
     authText.textContent = "Authenticated user";
     authLabel.append(authInput, authText);
 
-        row.append(nameField, urlField, contextSelect, authLabel, actions);
+    const authRow = document.createElement("div");
+    authRow.className = "stacked-form-item__row";
+    authRow.append(authLabel);
 
+    const actions = document.createElement("div");
+    actions.className = "stacked-form-item__actions";
+    const deleteButton = document.createElement("button");
+    deleteButton.type = "button";
+    deleteButton.textContent = "Delete";
+    deleteButton.classList.add("secondary", "cta");
+    deleteButton.title = "Remove";
+    deleteButton.addEventListener("click", () => {
+      weblinks.splice(index, 1);
+      weblinksContent = buildWeblinksYaml();
+      renderWeblinksList();
+      renderWeblinksPreview();
+    });
+    actions.append(deleteButton);
 
+    fieldsRow.append(nameGroup, urlGroup, contextWrapper);
+    row.append(fieldsRow, authRow, actions);
 
     weblinksList.append(row);
   
@@ -3085,17 +3168,22 @@ function syncWeblinksFromContent() {
 }
 
 async function loadWeblinksConfig() {
-  if (!weblinksStatus) return;
   const endpoint = buildAdminEndpoint("/admin/config/weblinks");
   if (!endpoint) {
-    weblinksStatus.textContent = "Set the monitoring API base URL so the Java server can be reached.";
-    weblinksStatus.className = "hint error-state";
-    weblinksFileName.textContent = "Unavailable";
+    if (weblinksStatus) {
+      weblinksStatus.textContent = "Set the monitoring API base URL so the Java server can be reached.";
+      weblinksStatus.className = "hint error-state";
+    }
+    if (weblinksFileName) {
+      weblinksFileName.textContent = "Unavailable";
+    }
     syncWeblinksFromContent();
     return;
   }
-  weblinksStatus.textContent = "Loading weblinks configuration...";
-  weblinksStatus.className = "hint";
+  if (weblinksStatus) {
+    weblinksStatus.textContent = "Loading weblinks configuration...";
+    weblinksStatus.className = "hint";
+  }
   try {
     const response = await fetch(endpoint);
     const payload = await response.json().catch(() => ({}));
@@ -3104,18 +3192,26 @@ async function loadWeblinksConfig() {
       throw new Error(reason);
     }
     weblinksFile = payload?.fileName || "weblinks-local.yml";
-    weblinksFileName.textContent = weblinksFile;
+    if (weblinksFileName) {
+      weblinksFileName.textContent = weblinksFile;
+    }
     weblinksContent = payload?.content || "";
     weblinksOriginalContent = weblinksContent;
     const timestamp = formatTimestamp(payload?.lastModified);
-    weblinksStatus.textContent = timestamp
-      ? `Last updated ${timestamp}`
-      : `Loaded ${weblinksFile}`;
-    weblinksStatus.className = "hint";
+    if (weblinksStatus) {
+      weblinksStatus.textContent = timestamp
+        ? `Last updated ${timestamp}`
+        : `Loaded ${weblinksFile}`;
+      weblinksStatus.className = "hint";
+    }
   } catch (error) {
-    weblinksStatus.textContent = `Unable to load weblinks configuration: ${error?.message || error}`;
-    weblinksStatus.className = "hint error-state";
-    weblinksFileName.textContent = "weblinks-local.yml";
+    if (weblinksStatus) {
+      weblinksStatus.textContent = `Unable to load weblinks configuration: ${error?.message || error}`;
+      weblinksStatus.className = "hint error-state";
+    }
+    if (weblinksFileName) {
+      weblinksFileName.textContent = "weblinks-local.yml";
+    }
     weblinksContent = "";
   }
   syncWeblinksFromContent();
@@ -3906,12 +4002,13 @@ if (addApiButton) {
 if (cancelApiButton) {
   cancelApiButton.addEventListener("click", () => toggleApiForm(false));
 }
-if (apiForm) {
+  if (apiForm) {
   apiForm.addEventListener("submit", (event) => {
     event.preventDefault();
     const name = (apiNameInput.value || "").trim();
-    const url = (apiUrlInput.value || "").trim();
-    if (!name || !url) {
+    const displayUrl = stripApimanBaseToken(apiUrlInput.value || "");
+    const url = applyApimanBaseToken(displayUrl);
+    if (!name || !displayUrl) {
       alert("Provide both an API name and URL.");
       return;
     }
