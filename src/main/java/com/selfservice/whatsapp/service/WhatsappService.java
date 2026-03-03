@@ -639,7 +639,26 @@ public class WhatsappService {
 
     public List<BusinessMenuItem> currentMenuItems(String userId) {
         String menuId = resolveCurrentMenuId(userId);
-        return new ArrayList<>(menuConfigurationProvider.getMenuItems(menuId));
+        List<BusinessMenuItem> configured = menuConfigurationProvider.getMenuItems(menuId);
+        boolean loggedIn = isLoggedIn(userId);
+        boolean hasAlternateAccount = hasAlternateAccount(userId);
+        int menuDepth = sessionService.getBusinessMenuDepth(userId, menuConfigurationProvider.getRootMenuId());
+
+        List<BusinessMenuItem> visible = new ArrayList<>();
+        for (BusinessMenuItem item : configured) {
+            if (!hasAlternateAccount && isChangeAccountItem(item)) {
+                continue;
+            }
+            if (!shouldDisplayBusinessMenuItem(item, menuDepth, hasAlternateAccount, loggedIn)) {
+                continue;
+            }
+            if (item.isSubMenu() && !menuConfigurationProvider.menuExists(item.submenuId())) {
+                log.warn("User {} attempted to access missing submenu {}", userId, item.submenuId());
+                continue;
+            }
+            visible.add(item);
+        }
+        return visible;
     }
 
     public List<BusinessMenuItem> currentLoginMenuItems(String userId) {
