@@ -843,11 +843,11 @@ function applyMenusToStore(menuType, menus) {
       const explicitType = item?.type;
       const hasSubmenu = item?.submenuId && store.menusById.has(item.submenuId);
       const functionId = item.function || item.id;
+      const resolvedWeblinkName = resolveWeblinkName(item);
       const isWeblink =
         explicitType === ITEM_TYPES.WEBLINK ||
-          (!explicitType || explicitType === ITEM_TYPES.WEBLINK)
-          ? Boolean(item?.weblink)
-          : explicitType === ITEM_TYPES.WEBLINK;
+        Boolean(item?.weblink) ||
+        Boolean(item?.url);
 
       if (explicitType === ITEM_TYPES.FUNCTION_MENU || (hasSubmenu && functionId && explicitType !== ITEM_TYPES.SUBMENU)) {
         if (!functionDictionary[functionId]) {
@@ -891,9 +891,12 @@ function applyMenusToStore(menuType, menus) {
       if (isWeblink) {
         target.items.push({
           id: item.id || nextItemId(),
-          label: item.label ?? item.weblink ?? "Web link",
-          type: "weblink",
-          weblink: item.weblink || item.id,
+          label: item.label ?? resolvedWeblinkName ?? "Web link",
+          type: ITEM_TYPES.WEBLINK,
+          weblink: resolvedWeblinkName,
+          url: item.url || null,
+          authenticated: item.authenticated,
+          context: item.context || "noContext",
           function: null,
           submenuId: null,
           useTranslation: false
@@ -926,6 +929,19 @@ function applyMenusToStore(menuType, menus) {
   persistActiveStore();
   activeMenuType = previousType;
   restoreActiveStore();
+}
+
+function resolveWeblinkName(item) {
+  if (item?.weblink) {
+    return item.weblink;
+  }
+
+  if (!item?.url) {
+    return "";
+  }
+
+  const matched = (weblinks || []).find((entry) => entry?.url === item.url);
+  return matched?.name || "";
 }
 
 function extractLoginMenus(loginMenu) {
@@ -1588,9 +1604,9 @@ function serializeStore(store) {
               translationKey: null,
               submenuId: null,
               weblink: item.weblink || null,
-              url: linkMeta?.url || null,
-              authenticated: Boolean(linkMeta?.authenticated),
-              context: linkMeta?.context || "noContext"
+              url: linkMeta?.url || item.url || null,
+              authenticated: linkMeta?.authenticated ?? Boolean(item.authenticated),
+              context: linkMeta?.context || item.context || "noContext"
             };
           }
 
@@ -1822,8 +1838,11 @@ function addMenuItem(event) {
     parentMenu.items.push({
       id: nextItemId(),
       label,
-      type: "weblink",
-      weblink: menuWeblinkSelect.value
+      type: ITEM_TYPES.WEBLINK,
+      weblink: menuWeblinkSelect.value,
+      url: findWeblinkMeta(menuWeblinkSelect.value)?.url || null,
+      authenticated: findWeblinkMeta(menuWeblinkSelect.value)?.authenticated ?? false,
+      context: findWeblinkMeta(menuWeblinkSelect.value)?.context || "noContext"
     });
   }
   selectedMenuId = parentId;
