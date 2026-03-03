@@ -590,7 +590,15 @@ public class WhatsappWebhookController {
                 return;
             }
 
-            switch (item.function()) {
+            String action = item.function();
+            if (action == null || action.isBlank()) {
+                whatsappService.sendText(from, whatsappService.translate(from, "BusinessMenuUnavailable"));
+                AccountSummary selected = sessionService.getSelectedAccount(userId);
+                whatsappService.sendLoggedInMenu(from, selected, sessionService.getAccounts(userId).size() > 1);
+                return;
+            }
+
+            switch (action) {
                 case TelegramService.CALLBACK_HOME -> {
                     whatsappService.goHomeBusinessMenu(userId);
                     AccountSummary selected = sessionService.getSelectedAccount(userId);

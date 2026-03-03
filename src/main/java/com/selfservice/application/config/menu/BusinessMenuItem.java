@@ -29,6 +29,9 @@ public record BusinessMenuItem(
 
     @JsonIgnore
     public boolean isSubMenu() {
+        if ("submenu".equalsIgnoreCase(type) || "function-menu".equalsIgnoreCase(type)) {
+            return submenuId != null && !submenuId.isBlank();
+        }
         return submenuId != null && !submenuId.isBlank();
     }
 
@@ -39,7 +42,13 @@ public record BusinessMenuItem(
 
     @JsonIgnore
     public boolean isWeblink() {
-        return weblink != null && !weblink.isBlank();
+        if ("weblink".equalsIgnoreCase(type)) {
+            return true;
+        }
+        if (weblink != null && !weblink.isBlank()) {
+            return true;
+        }
+        return url != null && !url.isBlank();
     }
 
     @JsonIgnore
