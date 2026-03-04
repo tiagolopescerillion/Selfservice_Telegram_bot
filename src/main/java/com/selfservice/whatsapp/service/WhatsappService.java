@@ -823,13 +823,14 @@ public class WhatsappService {
     private String freshExchangeId(String userId) {
         String accessToken = sessionService.getValidAccessToken(userId);
         if (!StringUtils.hasText(accessToken)) {
-            return sessionService.getExchangeId(userId);
+            return null;
         }
         String exchangeId = impersonationService.initiate(accessToken);
-        if (StringUtils.hasText(exchangeId)) {
-            return exchangeId;
+        if (!StringUtils.hasText(exchangeId)) {
+            log.warn("Unable to generate fresh exchangeId for WhatsApp user {}", userId);
+            return null;
         }
-        return sessionService.getExchangeId(userId);
+        return exchangeId;
     }
 
     private String applyContextualPath(String userId, BusinessMenuItem item) {
