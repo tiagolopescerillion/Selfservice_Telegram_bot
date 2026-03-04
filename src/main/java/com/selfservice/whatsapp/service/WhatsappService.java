@@ -10,6 +10,7 @@ import com.selfservice.application.config.menu.BusinessMenuItem;
 import com.selfservice.application.config.menu.LoginMenuDefinition;
 import com.selfservice.application.config.menu.LoginMenuFunction;
 import com.selfservice.application.config.menu.LoginMenuItem;
+import com.selfservice.application.service.ImpersonationService;
 import com.selfservice.application.service.TranslationService;
 import com.selfservice.telegrambot.service.TelegramService;
 import org.slf4j.Logger;
@@ -60,6 +61,7 @@ public class WhatsappService {
     private final WhatsappSessionService sessionService;
     private final BusinessMenuConfigurationProvider menuConfigurationProvider;
     private final LoginMenuProperties loginMenuProperties;
+    private final ImpersonationService impersonationService;
 
     public WhatsappService(
             @Value("${whatsapp.phone-number-id:}") String phoneNumberId,
@@ -67,13 +69,15 @@ public class WhatsappService {
             TranslationService translationService,
             WhatsappSessionService sessionService,
             BusinessMenuConfigurationProvider menuConfigurationProvider,
-            LoginMenuProperties loginMenuProperties) {
+            LoginMenuProperties loginMenuProperties,
+            ImpersonationService impersonationService) {
         this.phoneNumberId = phoneNumberId == null ? "" : phoneNumberId.trim();
         this.accessToken = accessToken == null ? "" : accessToken.trim();
         this.translationService = translationService;
         this.sessionService = sessionService;
         this.menuConfigurationProvider = menuConfigurationProvider;
         this.loginMenuProperties = loginMenuProperties;
+        this.impersonationService = impersonationService;
         if (!this.phoneNumberId.isBlank()) {
             log.info("WhatsApp phone-number-id configured");
         }
@@ -800,7 +804,7 @@ public class WhatsappService {
         if (!item.isAuthenticatedLink()) {
             return contextualUrl;
         }
-        String exchangeId = sessionService.getExchangeId(userId);
+        String exchangeId = freshExchangeId(userId);
         if (!StringUtils.hasText(exchangeId)) {
             return contextualUrl;
         }
@@ -814,6 +818,18 @@ public class WhatsappService {
             String encoded = UriUtils.encode(exchangeId, StandardCharsets.UTF_8);
             return contextualUrl + (contextualUrl.contains("?") ? "&" : "?") + "exchangeId=" + encoded;
         }
+    }
+
+    private String freshExchangeId(String userId) {
+        String accessToken = sessionService.getValidAccessToken(userId);
+        if (!StringUtils.hasText(accessToken)) {
+            return sessionService.getExchangeId(userId);
+        }
+        String exchangeId = impersonationService.initiate(accessToken);
+        if (StringUtils.hasText(exchangeId)) {
+            return exchangeId;
+        }
+        return sessionService.getExchangeId(userId);
     }
 
     private String applyContextualPath(String userId, BusinessMenuItem item) {

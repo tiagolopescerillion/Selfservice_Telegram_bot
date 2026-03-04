@@ -10,6 +10,7 @@ import com.selfservice.application.config.menu.BusinessMenuItem;
 import com.selfservice.application.config.menu.LoginMenuDefinition;
 import com.selfservice.application.config.menu.LoginMenuFunction;
 import com.selfservice.application.config.menu.LoginMenuItem;
+import com.selfservice.application.service.ImpersonationService;
 import com.selfservice.application.service.TranslationService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -95,6 +96,7 @@ public class TelegramService {
     private final UserSessionService userSessionService;
     private final BusinessMenuConfigurationProvider menuConfigurationProvider;
     private final LoginMenuProperties loginMenuProperties;
+    private final ImpersonationService impersonationService;
 
     public TelegramService(
             @Value("${telegram.bot.token}") String token,
@@ -102,7 +104,8 @@ public class TelegramService {
             TranslationService translationService,
             UserSessionService userSessionService,
             BusinessMenuConfigurationProvider menuConfigurationProvider,
-            LoginMenuProperties loginMenuProperties) {
+            LoginMenuProperties loginMenuProperties,
+            ImpersonationService impersonationService) {
 
         if (!StringUtils.hasText(token)) {
             throw new IllegalArgumentException("telegram.bot.token must be configured in telegram-local.yml");
@@ -114,6 +117,7 @@ public class TelegramService {
         this.userSessionService = userSessionService;
         this.menuConfigurationProvider = menuConfigurationProvider;
         this.loginMenuProperties = loginMenuProperties;
+        this.impersonationService = impersonationService;
 
         String masked = this.baseUrl.replaceFirst("/bot[^/]+", "/bot<token>");
         log.info("Telegram baseUrl set to {}", masked);
@@ -564,7 +568,7 @@ public class TelegramService {
             return contextualUrl;
         }
 
-        String exchangeId = userSessionService.getExchangeId(chatId);
+        String exchangeId = freshExchangeId(chatId);
         if (!StringUtils.hasText(exchangeId)) {
             return contextualUrl;
         }
@@ -578,6 +582,18 @@ public class TelegramService {
             String encoded = UriUtils.encode(exchangeId, StandardCharsets.UTF_8);
             return contextualUrl + (contextualUrl.contains("?") ? "&" : "?") + "exchangeId=" + encoded;
         }
+    }
+
+    private String freshExchangeId(long chatId) {
+        String accessToken = userSessionService.getValidAccessToken(chatId);
+        if (!StringUtils.hasText(accessToken)) {
+            return userSessionService.getExchangeId(chatId);
+        }
+        String exchangeId = impersonationService.initiate(accessToken);
+        if (StringUtils.hasText(exchangeId)) {
+            return exchangeId;
+        }
+        return userSessionService.getExchangeId(chatId);
     }
 
     private String applyContextualPath(long chatId, BusinessMenuItem item) {
