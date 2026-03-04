@@ -930,10 +930,7 @@ public class WhatsappService {
         }
 
         String configuredMessageType = outputConfiguration == null ? null : outputConfiguration.getMessageType();
-        String messageType = (configuredMessageType == null || configuredMessageType.isBlank())
-                ? "interactive-list-message"
-                : configuredMessageType.trim().toLowerCase();
-        if (!"interactive-list-message".equals(messageType)) {
+        if (!isInteractiveListMessageType(configuredMessageType)) {
             log.warn("Unsupported menu output message type {}. Falling back to interactive list.", configuredMessageType);
         }
 
@@ -984,6 +981,16 @@ public class WhatsappService {
         return postToWhatsapp(payload);
     }
 
+
+
+    private boolean isInteractiveListMessageType(String configuredMessageType) {
+        if (configuredMessageType == null || configuredMessageType.isBlank()) {
+            return true;
+        }
+        String normalized = configuredMessageType.trim().toLowerCase();
+        return "interactive-list-message".equals(normalized)
+                || "interactive list messages".equals(normalized);
+    }
 
     private MenuOutputConfiguration resolveBusinessMenuOutputConfig(String menuId) {
         BusinessMenuDefinition definition = menuConfigurationProvider.getMenuDefinition(menuId);

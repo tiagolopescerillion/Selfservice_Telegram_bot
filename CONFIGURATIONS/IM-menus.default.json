@@ -74,7 +74,14 @@
             "menuContextKey": null,
             "menuContextLabel": null
           }
-        ]
+        ],
+        "output": {
+          "messageType": "Interactive List Messages",
+          "headerText": "Default Header Text",
+          "bodyText": "Default Body Text",
+          "footerText": "",
+          "buttonText": "Default button text"
+        }
       },
       {
         "id": "login-settings",
@@ -125,7 +132,14 @@
             "menuContextKey": null,
             "menuContextLabel": null
           }
-        ]
+        ],
+        "output": {
+          "messageType": "Interactive List Messages",
+          "headerText": "Default Header Text",
+          "bodyText": "Default Body Text",
+          "footerText": "",
+          "buttonText": "Default button text"
+        }
       }
     ],
     "menu": [
@@ -321,7 +335,14 @@
           "menuContextKey": null,
           "menuContextLabel": null
         }
-      ]
+      ],
+      "output": {
+        "messageType": "Interactive List Messages",
+        "headerText": "Default Header Text",
+        "bodyText": "Default Body Text",
+        "footerText": "",
+        "buttonText": "Default button text"
+      }
     },
     {
       "id": "settings",
@@ -372,7 +393,14 @@
           "menuContextKey": null,
           "menuContextLabel": null
         }
-      ]
+      ],
+      "output": {
+        "messageType": "Interactive List Messages",
+        "headerText": "Default Header Text",
+        "bodyText": "Default Body Text",
+        "footerText": "",
+        "buttonText": "Default button text"
+      }
     },
     {
       "id": "invoice-actions",
@@ -467,7 +495,14 @@
           "menuContextKey": null,
           "menuContextLabel": null
         }
-      ]
+      ],
+      "output": {
+        "messageType": "Interactive List Messages",
+        "headerText": "Default Header Text",
+        "bodyText": "Default Body Text",
+        "footerText": "",
+        "buttonText": "Default button text"
+      }
     },
     {
       "id": "my-order-sub-menu",
@@ -496,7 +531,14 @@
           "menuContextKey": null,
           "menuContextLabel": null
         }
-      ]
+      ],
+      "output": {
+        "messageType": "Interactive List Messages",
+        "headerText": "Default Header Text",
+        "bodyText": "Default Body Text",
+        "footerText": "",
+        "buttonText": "Default button text"
+      }
     },
     {
       "id": "my-tickets",
@@ -525,7 +567,14 @@
           "menuContextKey": null,
           "menuContextLabel": null
         }
-      ]
+      ],
+      "output": {
+        "messageType": "Interactive List Messages",
+        "headerText": "Default Header Text",
+        "bodyText": "Default Body Text",
+        "footerText": "",
+        "buttonText": "Default button text"
+      }
     }
   ]
 }

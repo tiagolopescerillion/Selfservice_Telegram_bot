@@ -736,7 +736,7 @@ function slugify(value) {
 
 function defaultMenuOutput() {
   return {
-    messageType: "interactive-list-message",
+    messageType: "Interactive List Messages",
     headerText: "",
     bodyText: "",
     footerText: "",
@@ -1984,7 +1984,7 @@ function setActiveApp(target) {
 
 function updateSaveButtonVisibility() {
   if (!saveOverlayButton) return;
-  const saveableSections = ["menu", "api-registry", "service-builder", "weblinks", "connectors", "admin"];
+  const saveableSections = ["menu", "navigation-menus", "api-registry", "service-builder", "weblinks", "connectors", "admin"];
   const shouldShow = saveableSections.includes(activeApp);
   saveOverlayButton.classList.toggle("hidden", !shouldShow);
 }
@@ -2536,6 +2536,7 @@ async function handleSaveClick() {
   saveOverlayButton.disabled = true;
   switch (activeApp) {
     case "menu":
+    case "navigation-menus":
       await saveMenuConfigurationFile();
       break;
     case "api-registry":
