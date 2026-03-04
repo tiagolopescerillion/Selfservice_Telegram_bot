@@ -587,8 +587,10 @@ public class TelegramService {
     private String freshExchangeId(long chatId) {
         String accessToken = userSessionService.getValidAccessToken(chatId);
         if (!StringUtils.hasText(accessToken)) {
+            log.warn("Unable to generate fresh exchangeId for Telegram chat {} because access token is missing", chatId);
             return null;
         }
+        log.debug("Generating fresh exchangeId via impersonationInitiate for Telegram chat {}", chatId);
         String exchangeId = impersonationService.initiate(accessToken);
         if (!StringUtils.hasText(exchangeId)) {
             log.warn("Unable to generate fresh exchangeId for Telegram chat {}", chatId);

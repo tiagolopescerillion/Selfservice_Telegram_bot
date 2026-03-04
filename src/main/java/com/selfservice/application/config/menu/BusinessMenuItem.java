@@ -58,7 +58,10 @@ public record BusinessMenuItem(
 
     @JsonIgnore
     public boolean isAuthenticatedLink() {
-        return Boolean.TRUE.equals(authenticated);
+        if (Boolean.TRUE.equals(authenticated)) {
+            return true;
+        }
+        return requiresAccountContext() || requiresServiceContext();
     }
 
     @JsonIgnore

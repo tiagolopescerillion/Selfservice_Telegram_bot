@@ -829,8 +829,10 @@ public class WhatsappService {
     private String freshExchangeId(String userId) {
         String accessToken = sessionService.getValidAccessToken(userId);
         if (!StringUtils.hasText(accessToken)) {
+            log.warn("Unable to generate fresh exchangeId for WhatsApp user {} because access token is missing", userId);
             return null;
         }
+        log.debug("Generating fresh exchangeId via impersonationInitiate for WhatsApp user {}", userId);
         String exchangeId = impersonationService.initiate(accessToken);
         if (!StringUtils.hasText(exchangeId)) {
             log.warn("Unable to generate fresh exchangeId for WhatsApp user {}", userId);
