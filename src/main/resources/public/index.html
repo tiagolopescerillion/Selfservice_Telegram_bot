@@ -41,8 +41,12 @@
           <button id="navServiceBuilder" class="sidebar__link" type="button">
             Service Builder
           </button>
+          <div class="side-menu-divider">User Menus</div>
+          <button id="navNavigationMenus" class="sidebar__link" type="button">
+            Navigation Menus
+          </button>
           <button id="navMenuConfig" class="sidebar__link" type="button">
-            User Menus
+            Menu Items
           </button>
           <div class="side-menu-divider">Operations</div>
           <button
@@ -336,13 +340,68 @@
             </div>
           </section>
 
+
+          <section id="navigationMenusPanel" class="content-dashboard content-dashboard--wide hidden hidden">
+            <div class="content-dashboard-section content-dashboard-title">
+              <div class="content-title">Navigation Menus</div>
+              <div class="content-subtitle">Create menus/sub-menus and configure WhatsApp interactive list output for each menu</div>
+              <div class="content-selection">
+                <select id="navigationMenuTypeSelect">
+                  <option value="login">Login Menu Config</option>
+                  <option value="business">Business Menu Config</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="menu-toolbar">
+              <label>
+                Edit menu
+                <select id="navigationMenuSelect"></select>
+              </label>
+              <div class="menu-toolbar-actions">
+                <button id="navigationCreateMenuButton" type="button" class="secondary">Create sub-menu</button>
+                <button id="navigationDeleteMenuButton" type="button" class="danger">Delete selected sub-menu</button>
+              </div>
+            </div>
+            <label>
+              Menu name
+              <input id="navigationMenuNameEditor" type="text" placeholder="Menu title" />
+            </label>
+
+            <section class="panel">
+              <h2>Menu output (WhatsApp)</h2>
+              <label>
+                Message type
+                <select id="menuOutputTypeSelect">
+                  <option value="Interactive List Messages">Interactive List Messages</option>
+                </select>
+              </label>
+              <label>
+                Header Text
+                <input id="menuOutputHeaderText" type="text" placeholder="Menu header text" />
+              </label>
+              <label>
+                Body Text
+                <textarea id="menuOutputBodyText" rows="3" placeholder="Menu body text"></textarea>
+              </label>
+              <label>
+                Footer Text
+                <input id="menuOutputFooterText" type="text" placeholder="Menu footer text" />
+              </label>
+              <label>
+                Button Text
+                <input id="menuOutputButtonText" type="text" placeholder="Select" />
+              </label>
+            </section>
+          </section>
+
           <section id="menuConfigurationPanel" class="content-dashboard content-dashboard--wide hidden hidden">
             
             <div class="content-dashboard-section content-dashboard-title">
-              <div class="content-title">User Menus</div>
-              <div class="content-subtitle">Configure user menus and associate menu items to Service Functions</div>
+              <div class="content-title">Menu Items</div>
+              <div class="content-subtitle">Associate menu items to navigation menus and service functions</div>
               <div class="content-selection">
-                <select id="menuTypeSelect">
+                <select id="menuItemsMenuTypeSelect">
                   <option value="login">Login Menu Config</option>
                   <option value="business">Business Menu Config</option>
                 </select>
@@ -350,27 +409,9 @@
             </div>
             
 
-              <div class="menu-toolbar">
-                <label>
-                  Edit menu
-                  <select id="menuSelect"></select>
-                </label>
-                <div class="menu-toolbar-actions">
-                  <button id="createMenuButton" type="button" class="secondary">
-                    Create sub-menu
-                  </button>
-                  <button id="deleteMenuButton" type="button" class="danger">
-                    Delete selected sub-menu
-                  </button>
-                </div>
-              </div>
               <label>
-                Menu name
-                <input
-                  id="menuNameEditor"
-                  type="text"
-                  placeholder="Menu title"
-                />
+                Edit menu items for
+                <select id="menuItemsMenuSelect"></select>
               </label>
               <div
                 id="menuContainer"
@@ -389,7 +430,7 @@
               <form id="addItemForm" autocomplete="off">
                 <label>
                   Place this item inside
-                  <select id="parentMenuSelect" required></select>
+                  <select id="menuItemsParentMenuSelect" required></select>
                 </label>
                 <label>
                   Menu item name

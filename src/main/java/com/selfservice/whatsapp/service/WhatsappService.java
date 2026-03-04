@@ -6,7 +6,9 @@ import com.selfservice.application.dto.InvoiceSummary;
 import com.selfservice.application.dto.ServiceSummary;
 import com.selfservice.application.dto.TroubleTicketSummary;
 import com.selfservice.application.config.menu.BusinessMenuConfigurationProvider;
+import com.selfservice.application.config.menu.BusinessMenuDefinition;
 import com.selfservice.application.config.menu.BusinessMenuItem;
+import com.selfservice.application.config.menu.MenuOutputConfiguration;
 import com.selfservice.application.config.menu.LoginMenuDefinition;
 import com.selfservice.application.config.menu.LoginMenuFunction;
 import com.selfservice.application.config.menu.LoginMenuItem;
@@ -341,7 +343,8 @@ public class WhatsappService {
         sendInteractiveList(to,
                 translate(to, "SettingsMenuPrompt"),
                 translate(to, "SettingsMenuPrompt"),
-                rows);
+                rows,
+                resolveLoginMenuOutputConfig(settingsMenuId));
     }
 
     public void sendLoggedInMenu(String to, AccountSummary selectedAccount, boolean showChangeAccountOption) {
@@ -399,7 +402,8 @@ public class WhatsappService {
         sendInteractiveList(to,
                 header,
                 translate(to, "WhatsappMenuInstruction"),
-                rows);
+                rows,
+                resolveBusinessMenuOutputConfig(menuId));
     }
 
     private boolean isChangeAccountItem(BusinessMenuItem item) {
@@ -913,6 +917,10 @@ public class WhatsappService {
     }
 
     private boolean sendInteractiveList(String to, String title, String instruction, List<Map<String, Object>> rows) {
+        return sendInteractiveList(to, title, instruction, rows, null);
+    }
+
+    private boolean sendInteractiveList(String to, String title, String instruction, List<Map<String, Object>> rows, MenuOutputConfiguration outputConfiguration) {
         if (!isConfigured()) {
             log.warn("WhatsApp messaging is not fully configured; cannot send interactive list");
             return false;
@@ -921,8 +929,26 @@ public class WhatsappService {
             return false;
         }
 
-        String headerText = normalizeHeaderText(title);
-        String instructionText = safeText(instruction, "");
+        String configuredMessageType = outputConfiguration == null ? null : outputConfiguration.getMessageType();
+        if (!isInteractiveListMessageType(configuredMessageType)) {
+            log.warn("Unsupported menu output message type {}. Falling back to interactive list.", configuredMessageType);
+        }
+
+        String headerSource = outputConfiguration != null && StringUtils.hasText(outputConfiguration.getHeaderText())
+                ? outputConfiguration.getHeaderText()
+                : title;
+        String bodySource = outputConfiguration != null && StringUtils.hasText(outputConfiguration.getBodyText())
+                ? outputConfiguration.getBodyText()
+                : instruction;
+        String footerText = outputConfiguration != null && StringUtils.hasText(outputConfiguration.getFooterText())
+                ? outputConfiguration.getFooterText().trim()
+                : "";
+        String buttonText = outputConfiguration != null && StringUtils.hasText(outputConfiguration.getButtonText())
+                ? outputConfiguration.getButtonText().trim()
+                : "Select";
+
+        String headerText = normalizeHeaderText(headerSource);
+        String instructionText = safeText(bodySource, "");
         if (!headerText.isBlank()
                 && !instructionText.isBlank()
                 && headerText.strip().equals(instructionText.strip())) {
@@ -934,8 +960,11 @@ public class WhatsappService {
             interactive.put("header", Map.of("type", "text", "text", headerText));
         }
         interactive.put("body", Map.of("text", instructionText));
+        if (!footerText.isBlank()) {
+            interactive.put("footer", Map.of("text", footerText));
+        }
         interactive.put("action", Map.of(
-                "button", "Select",
+                "button", buttonText,
                 "sections", List.of(Map.of(
                         "title", "Options",
                         "rows", rows
@@ -950,6 +979,27 @@ public class WhatsappService {
         );
 
         return postToWhatsapp(payload);
+    }
+
+
+
+    private boolean isInteractiveListMessageType(String configuredMessageType) {
+        if (configuredMessageType == null || configuredMessageType.isBlank()) {
+            return true;
+        }
+        String normalized = configuredMessageType.trim().toLowerCase();
+        return "interactive-list-message".equals(normalized)
+                || "interactive list messages".equals(normalized);
+    }
+
+    private MenuOutputConfiguration resolveBusinessMenuOutputConfig(String menuId) {
+        BusinessMenuDefinition definition = menuConfigurationProvider.getMenuDefinition(menuId);
+        return definition == null ? null : definition.getOutput();
+    }
+
+    private MenuOutputConfiguration resolveLoginMenuOutputConfig(String menuId) {
+        BusinessMenuDefinition definition = menuConfigurationProvider.getLoginMenuDefinition(menuId);
+        return definition == null ? null : definition.getOutput();
     }
 
     public enum TelegramKey {

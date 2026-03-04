@@ -70,6 +70,7 @@ public class BusinessMenuConfigurationProvider {
             }
             copy.setName(resolvedName);
             copy.setParentId(definition.getParentId());
+            copy.setOutput(definition.getOutput());
             copy.setItems(definition.sortedItems());
             mapped.put(copy.getId(), copy);
         }
@@ -109,6 +110,11 @@ public class BusinessMenuConfigurationProvider {
         return menuId != null && menusById.containsKey(menuId);
     }
 
+
+    public BusinessMenuDefinition getMenuDefinition(String menuId) {
+        return menusById.getOrDefault(menuId, menusById.get(getRootMenuId()));
+    }
+
     public List<BusinessMenuItem> getMenuItems(String menuId) {
         BusinessMenuDefinition definition = menusById.getOrDefault(menuId, menusById.get(getRootMenuId()));
         if (definition == null) {
@@ -123,6 +129,11 @@ public class BusinessMenuConfigurationProvider {
 
     public boolean loginMenuExists(String menuId) {
         return menuId != null && loginMenusById.containsKey(menuId);
+    }
+
+
+    public BusinessMenuDefinition getLoginMenuDefinition(String menuId) {
+        return loginMenusById.getOrDefault(menuId, loginMenusById.get(getLoginRootMenuId()));
     }
 
     public List<BusinessMenuItem> getLoginMenuItems(String menuId) {
@@ -277,6 +288,7 @@ public class BusinessMenuConfigurationProvider {
                     copy.setId(menu.getId());
                     copy.setName(menu.getName());
                     copy.setParentId(menu.getParentId());
+                    copy.setOutput(menu.getOutput());
                     copy.setItems(menu.sortedItems());
                     return copy;
                 })
@@ -301,6 +313,7 @@ public class BusinessMenuConfigurationProvider {
                     copy.setId(menu.getId());
                     copy.setName(menu.getName());
                     copy.setParentId(menu.getParentId());
+                    copy.setOutput(menu.getOutput());
                     copy.setItems(menu.sortedItems());
                     return copy;
                 })
