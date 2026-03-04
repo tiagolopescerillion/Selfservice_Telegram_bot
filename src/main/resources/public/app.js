@@ -500,7 +500,7 @@ let itemIdCounter = 0;
 let liveSessions = [];
 let sessionHistory = [];
 let monitoringError = null;
-const MONITORING_REFRESH_MS = 5000;
+const MONITORING_REFRESH_MS = 2000;
 const MONITORING_API_STORAGE_KEY = "monitoringApiBase";
 const NOTIFICATION_API_STORAGE_KEY = "notificationApiBase";
 const APIMAN_BASE_TOKEN = "${endpoints.apiman-base-url}";
@@ -3573,6 +3573,9 @@ function buildRenderableTree(tree, entries) {
 }
 
 async function refreshMonitoringData() {
+  if (document.hidden) {
+    return;
+  }
   const endpoint = buildOperationsEndpoint("/operations/sessions");
   if (!endpoint) {
     monitoringError = "Set the monitoring API base URL so the Java server can be reached.";
@@ -3583,7 +3586,7 @@ async function refreshMonitoringData() {
   }
 
   try {
-    const response = await fetch(endpoint);
+    const response = await fetch(endpoint, { cache: "no-store" });
     if (!response.ok) {
       throw new Error(`Failed to load sessions (HTTP ${response.status})`);
     }
@@ -3614,7 +3617,7 @@ function normalizeSession(raw) {
     username: raw?.username || raw?.user || raw?.displayName || "",
     startedAt,
     lastSeen: raw?.lastSeen ? new Date(raw.lastSeen) : startedAt,
-    optIn: Boolean(raw?.optIn),
+    optIn: Boolean(raw?.optIn ?? raw?.consent ?? raw?.optedIn),
     tokenState,
     token: tokenValue
   };
@@ -3747,16 +3750,16 @@ const tokenDot = document.createElement("span");
     consentLabel.textContent = "Consent";
 
         const consentDot = document.createElement("span");
-    consentDot.className = `status-dot ${session.consent ? "online" : "offline"}`;
+    consentDot.className = `status-dot ${session.optIn ? "online" : "offline"}`;
     consentDot.setAttribute(
       "aria-label",
-      session.consent ? "User has consented" : "User has not consented"
+      session.optIn ? "User has consented" : "User has not consented"
     );
     consentDot.setAttribute("role", "img");
 
     const consent = document.createElement("span");
     consent.className = "session-row__value";
-    consent.textContent = session.consent ? "Given" : "Not given";
+    consent.textContent = session.optIn ? "Given" : "Not given";
 
     const userLabel = document.createElement("span");
     userLabel.className = "session-row__label";
@@ -3772,7 +3775,7 @@ if (session.loggedIn && session.username) {
   // will cover: not logged in OR missing/empty username
   userValue.textContent = session.loggedIn ? "No user" : "Not logged in";
 }
-``
+
 
 
 
@@ -3836,6 +3839,18 @@ function initMonitoring() {
   if (monitoringIntervalId === null) {
     monitoringIntervalId = setInterval(refreshMonitoringData, MONITORING_REFRESH_MS);
   }
+
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden && activeApp === "operations") {
+      refreshMonitoringData();
+    }
+  });
+
+  window.addEventListener("focus", () => {
+    if (activeApp === "operations") {
+      refreshMonitoringData();
+    }
+  });
 }
 
 async function handleSendNotification(event) {
