@@ -10,6 +10,7 @@ import com.selfservice.application.config.menu.BusinessMenuItem;
 import com.selfservice.application.config.menu.LoginMenuDefinition;
 import com.selfservice.application.config.menu.LoginMenuFunction;
 import com.selfservice.application.config.menu.LoginMenuItem;
+import com.selfservice.application.service.ImpersonationService;
 import com.selfservice.application.service.TranslationService;
 import com.selfservice.telegrambot.service.TelegramService;
 import org.slf4j.Logger;
@@ -60,6 +61,7 @@ public class WhatsappService {
     private final WhatsappSessionService sessionService;
     private final BusinessMenuConfigurationProvider menuConfigurationProvider;
     private final LoginMenuProperties loginMenuProperties;
+    private final ImpersonationService impersonationService;
 
     public WhatsappService(
             @Value("${whatsapp.phone-number-id:}") String phoneNumberId,
@@ -67,13 +69,15 @@ public class WhatsappService {
             TranslationService translationService,
             WhatsappSessionService sessionService,
             BusinessMenuConfigurationProvider menuConfigurationProvider,
-            LoginMenuProperties loginMenuProperties) {
+            LoginMenuProperties loginMenuProperties,
+            ImpersonationService impersonationService) {
         this.phoneNumberId = phoneNumberId == null ? "" : phoneNumberId.trim();
         this.accessToken = accessToken == null ? "" : accessToken.trim();
         this.translationService = translationService;
         this.sessionService = sessionService;
         this.menuConfigurationProvider = menuConfigurationProvider;
         this.loginMenuProperties = loginMenuProperties;
+        this.impersonationService = impersonationService;
         if (!this.phoneNumberId.isBlank()) {
             log.info("WhatsApp phone-number-id configured");
         }
@@ -96,6 +100,10 @@ public class WhatsappService {
     }
 
     public void sendText(String to, String message) {
+        sendText(to, message, true);
+    }
+
+    private void sendText(String to, String message, boolean previewUrl) {
         if (!isConfigured()) {
             log.warn("WhatsApp messaging is not fully configured; cannot send text");
             return;
@@ -105,7 +113,9 @@ public class WhatsappService {
                 "messaging_product", "whatsapp",
                 "to",           to,
                 "type",         "text",
-                "text",         Map.of("body", message)
+                "text",         Map.of(
+                        "body", message,
+                        "preview_url", previewUrl)
         );
 
         postToWhatsapp(payload);
@@ -437,7 +447,7 @@ public class WhatsappService {
             resolved = item.url();
         }
         message.append(resolved);
-        sendText(to, message.toString());
+        sendText(to, message.toString(), false);
     }
 
     public void sendAccountPage(String to, List<AccountSummary> accounts, int startIndex) {
@@ -639,7 +649,26 @@ public class WhatsappService {
 
     public List<BusinessMenuItem> currentMenuItems(String userId) {
         String menuId = resolveCurrentMenuId(userId);
-        return new ArrayList<>(menuConfigurationProvider.getMenuItems(menuId));
+        List<BusinessMenuItem> configured = menuConfigurationProvider.getMenuItems(menuId);
+        boolean loggedIn = isLoggedIn(userId);
+        boolean hasAlternateAccount = hasAlternateAccount(userId);
+        int menuDepth = sessionService.getBusinessMenuDepth(userId, menuConfigurationProvider.getRootMenuId());
+
+        List<BusinessMenuItem> visible = new ArrayList<>();
+        for (BusinessMenuItem item : configured) {
+            if (!hasAlternateAccount && isChangeAccountItem(item)) {
+                continue;
+            }
+            if (!shouldDisplayBusinessMenuItem(item, menuDepth, hasAlternateAccount, loggedIn)) {
+                continue;
+            }
+            if (item.isSubMenu() && !menuConfigurationProvider.menuExists(item.submenuId())) {
+                log.warn("User {} attempted to access missing submenu {}", userId, item.submenuId());
+                continue;
+            }
+            visible.add(item);
+        }
+        return visible;
     }
 
     public List<BusinessMenuItem> currentLoginMenuItems(String userId) {
@@ -781,7 +810,7 @@ public class WhatsappService {
         if (!item.isAuthenticatedLink()) {
             return contextualUrl;
         }
-        String exchangeId = sessionService.getExchangeId(userId);
+        String exchangeId = freshExchangeId(userId);
         if (!StringUtils.hasText(exchangeId)) {
             return contextualUrl;
         }
@@ -795,6 +824,21 @@ public class WhatsappService {
             String encoded = UriUtils.encode(exchangeId, StandardCharsets.UTF_8);
             return contextualUrl + (contextualUrl.contains("?") ? "&" : "?") + "exchangeId=" + encoded;
         }
+    }
+
+    private String freshExchangeId(String userId) {
+        String accessToken = sessionService.getValidAccessToken(userId);
+        if (!StringUtils.hasText(accessToken)) {
+            log.warn("Unable to generate fresh exchangeId for WhatsApp user {} because access token is missing", userId);
+            return null;
+        }
+        log.debug("Generating fresh exchangeId via impersonationInitiate for WhatsApp user {}", userId);
+        String exchangeId = impersonationService.initiate(accessToken);
+        if (!StringUtils.hasText(exchangeId)) {
+            log.warn("Unable to generate fresh exchangeId for WhatsApp user {}", userId);
+            return null;
+        }
+        return exchangeId;
     }
 
     private String applyContextualPath(String userId, BusinessMenuItem item) {

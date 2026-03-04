@@ -500,7 +500,7 @@ let itemIdCounter = 0;
 let liveSessions = [];
 let sessionHistory = [];
 let monitoringError = null;
-const MONITORING_REFRESH_MS = 5000;
+const MONITORING_REFRESH_MS = 2000;
 const MONITORING_API_STORAGE_KEY = "monitoringApiBase";
 const NOTIFICATION_API_STORAGE_KEY = "notificationApiBase";
 const APIMAN_BASE_TOKEN = "${endpoints.apiman-base-url}";
@@ -843,11 +843,11 @@ function applyMenusToStore(menuType, menus) {
       const explicitType = item?.type;
       const hasSubmenu = item?.submenuId && store.menusById.has(item.submenuId);
       const functionId = item.function || item.id;
+      const resolvedWeblinkName = resolveWeblinkName(item);
       const isWeblink =
         explicitType === ITEM_TYPES.WEBLINK ||
-          (!explicitType || explicitType === ITEM_TYPES.WEBLINK)
-          ? Boolean(item?.weblink)
-          : explicitType === ITEM_TYPES.WEBLINK;
+        Boolean(item?.weblink) ||
+        Boolean(item?.url);
 
       if (explicitType === ITEM_TYPES.FUNCTION_MENU || (hasSubmenu && functionId && explicitType !== ITEM_TYPES.SUBMENU)) {
         if (!functionDictionary[functionId]) {
@@ -891,9 +891,12 @@ function applyMenusToStore(menuType, menus) {
       if (isWeblink) {
         target.items.push({
           id: item.id || nextItemId(),
-          label: item.label ?? item.weblink ?? "Web link",
-          type: "weblink",
-          weblink: item.weblink || item.id,
+          label: item.label ?? resolvedWeblinkName ?? "Web link",
+          type: ITEM_TYPES.WEBLINK,
+          weblink: resolvedWeblinkName,
+          url: item.url || null,
+          authenticated: item.authenticated,
+          context: item.context || "noContext",
           function: null,
           submenuId: null,
           useTranslation: false
@@ -926,6 +929,19 @@ function applyMenusToStore(menuType, menus) {
   persistActiveStore();
   activeMenuType = previousType;
   restoreActiveStore();
+}
+
+function resolveWeblinkName(item) {
+  if (item?.weblink) {
+    return item.weblink;
+  }
+
+  if (!item?.url) {
+    return "";
+  }
+
+  const matched = (weblinks || []).find((entry) => entry?.url === item.url);
+  return matched?.name || "";
 }
 
 function extractLoginMenus(loginMenu) {
@@ -1588,9 +1604,9 @@ function serializeStore(store) {
               translationKey: null,
               submenuId: null,
               weblink: item.weblink || null,
-              url: linkMeta?.url || null,
-              authenticated: Boolean(linkMeta?.authenticated),
-              context: linkMeta?.context || "noContext"
+              url: linkMeta?.url || item.url || null,
+              authenticated: linkMeta?.authenticated ?? Boolean(item.authenticated),
+              context: linkMeta?.context || item.context || "noContext"
             };
           }
 
@@ -1822,8 +1838,11 @@ function addMenuItem(event) {
     parentMenu.items.push({
       id: nextItemId(),
       label,
-      type: "weblink",
-      weblink: menuWeblinkSelect.value
+      type: ITEM_TYPES.WEBLINK,
+      weblink: menuWeblinkSelect.value,
+      url: findWeblinkMeta(menuWeblinkSelect.value)?.url || null,
+      authenticated: findWeblinkMeta(menuWeblinkSelect.value)?.authenticated ?? false,
+      context: findWeblinkMeta(menuWeblinkSelect.value)?.context || "noContext"
     });
   }
   selectedMenuId = parentId;
@@ -3554,6 +3573,9 @@ function buildRenderableTree(tree, entries) {
 }
 
 async function refreshMonitoringData() {
+  if (document.hidden) {
+    return;
+  }
   const endpoint = buildOperationsEndpoint("/operations/sessions");
   if (!endpoint) {
     monitoringError = "Set the monitoring API base URL so the Java server can be reached.";
@@ -3564,7 +3586,7 @@ async function refreshMonitoringData() {
   }
 
   try {
-    const response = await fetch(endpoint);
+    const response = await fetch(endpoint, { cache: "no-store" });
     if (!response.ok) {
       throw new Error(`Failed to load sessions (HTTP ${response.status})`);
     }
@@ -3595,7 +3617,7 @@ function normalizeSession(raw) {
     username: raw?.username || raw?.user || raw?.displayName || "",
     startedAt,
     lastSeen: raw?.lastSeen ? new Date(raw.lastSeen) : startedAt,
-    optIn: Boolean(raw?.optIn),
+    optIn: Boolean(raw?.optIn ?? raw?.consent ?? raw?.optedIn),
     tokenState,
     token: tokenValue
   };
@@ -3728,16 +3750,16 @@ const tokenDot = document.createElement("span");
     consentLabel.textContent = "Consent";
 
         const consentDot = document.createElement("span");
-    consentDot.className = `status-dot ${session.consent ? "online" : "offline"}`;
+    consentDot.className = `status-dot ${session.optIn ? "online" : "offline"}`;
     consentDot.setAttribute(
       "aria-label",
-      session.consent ? "User has consented" : "User has not consented"
+      session.optIn ? "User has consented" : "User has not consented"
     );
     consentDot.setAttribute("role", "img");
 
     const consent = document.createElement("span");
     consent.className = "session-row__value";
-    consent.textContent = session.consent ? "Given" : "Not given";
+    consent.textContent = session.optIn ? "Given" : "Not given";
 
     const userLabel = document.createElement("span");
     userLabel.className = "session-row__label";
@@ -3753,7 +3775,7 @@ if (session.loggedIn && session.username) {
   // will cover: not logged in OR missing/empty username
   userValue.textContent = session.loggedIn ? "No user" : "Not logged in";
 }
-``
+
 
 
 
@@ -3817,6 +3839,18 @@ function initMonitoring() {
   if (monitoringIntervalId === null) {
     monitoringIntervalId = setInterval(refreshMonitoringData, MONITORING_REFRESH_MS);
   }
+
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden && activeApp === "operations") {
+      refreshMonitoringData();
+    }
+  });
+
+  window.addEventListener("focus", () => {
+    if (activeApp === "operations") {
+      refreshMonitoringData();
+    }
+  });
 }
 
 async function handleSendNotification(event) {
