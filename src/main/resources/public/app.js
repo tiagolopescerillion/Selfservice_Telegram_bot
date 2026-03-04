@@ -247,13 +247,20 @@ function removeFunctionOption(id) {
 
 BASE_FUNCTION_OPTIONS.forEach(registerFunctionOption);
 
-const menuTypeSelect = document.getElementById("menuTypeSelect");
+const navigationMenuTypeSelect = document.getElementById("navigationMenuTypeSelect");
+const menuItemsMenuTypeSelect = document.getElementById("menuItemsMenuTypeSelect");
 const menuContainer = document.getElementById("menuContainer");
-const menuSelect = document.getElementById("menuSelect");
-const parentMenuSelect = document.getElementById("parentMenuSelect");
-const menuNameEditor = document.getElementById("menuNameEditor");
-const createMenuButton = document.getElementById("createMenuButton");
-const deleteMenuButton = document.getElementById("deleteMenuButton");
+const navigationMenuSelect = document.getElementById("navigationMenuSelect");
+const menuItemsMenuSelect = document.getElementById("menuItemsMenuSelect");
+const menuItemsParentMenuSelect = document.getElementById("menuItemsParentMenuSelect");
+const navigationMenuNameEditor = document.getElementById("navigationMenuNameEditor");
+const navigationCreateMenuButton = document.getElementById("navigationCreateMenuButton");
+const navigationDeleteMenuButton = document.getElementById("navigationDeleteMenuButton");
+const menuOutputTypeSelect = document.getElementById("menuOutputTypeSelect");
+const menuOutputHeaderText = document.getElementById("menuOutputHeaderText");
+const menuOutputBodyText = document.getElementById("menuOutputBodyText");
+const menuOutputFooterText = document.getElementById("menuOutputFooterText");
+const menuOutputButtonText = document.getElementById("menuOutputButtonText");
 const addItemForm = document.getElementById("addItemForm");
 const itemLabelInput = document.getElementById("itemLabelInput");
 const menuFunctionSelect = document.getElementById("menuFunctionSelect");
@@ -279,6 +286,7 @@ const resetButton = document.getElementById("resetButton");
 const downloadButton = document.getElementById("downloadButton");
 const preview = document.getElementById("preview");
 const importInput = document.getElementById("importInput");
+const navNavigationMenus = document.getElementById("navNavigationMenus");
 const navMenuConfig = document.getElementById("navMenuConfig");
 const navOperationsMonitoring = document.getElementById("navOperationsMonitoring");
 const navSendMessages = document.getElementById("navSendMessages");
@@ -288,6 +296,7 @@ const navServiceBuilder = document.getElementById("navServiceBuilder");
 const navConnectors = document.getElementById("navConnectors");
 const navWeblinks = document.getElementById("navWeblinks");
 const saveOverlayButton = document.getElementById("saveOverlayButton");
+const navigationMenusPanel = document.getElementById("navigationMenusPanel");
 const menuConfigurationPanel = document.getElementById("menuConfigurationPanel");
 const operationsMonitoringPanel = document.getElementById("operationsMonitoringPanel");
 const sendMessagesPanel = document.getElementById("sendMessagesPanel");
@@ -725,6 +734,50 @@ function slugify(value) {
     .replace(/^-+|-+$/g, "");
 }
 
+function defaultMenuOutput() {
+  return {
+    messageType: "interactive-list-message",
+    headerText: "",
+    bodyText: "",
+    footerText: "",
+    buttonText: "Select"
+  };
+}
+
+function normalizeMenuOutput(output = {}) {
+  const defaults = defaultMenuOutput();
+  return {
+    messageType: output?.messageType || defaults.messageType,
+    headerText: output?.headerText || "",
+    bodyText: output?.bodyText || "",
+    footerText: output?.footerText || "",
+    buttonText: output?.buttonText || defaults.buttonText
+  };
+}
+
+function updateMenuOutputFromForm() {
+  const menu = menusById.get(selectedMenuId);
+  if (!menu) return;
+  menu.output = normalizeMenuOutput({
+    messageType: menuOutputTypeSelect?.value,
+    headerText: menuOutputHeaderText?.value?.trim(),
+    bodyText: menuOutputBodyText?.value?.trim(),
+    footerText: menuOutputFooterText?.value?.trim(),
+    buttonText: menuOutputButtonText?.value?.trim()
+  });
+  updatePreview();
+}
+
+function renderMenuOutputFields() {
+  const menu = menusById.get(selectedMenuId);
+  const output = normalizeMenuOutput(menu?.output);
+  if (menuOutputTypeSelect) menuOutputTypeSelect.value = output.messageType;
+  if (menuOutputHeaderText) menuOutputHeaderText.value = output.headerText;
+  if (menuOutputBodyText) menuOutputBodyText.value = output.bodyText;
+  if (menuOutputFooterText) menuOutputFooterText.value = output.footerText;
+  if (menuOutputButtonText) menuOutputButtonText.value = output.buttonText;
+}
+
 function createMenuStore(rootId, defaults) {
   return {
     rootId,
@@ -761,8 +814,8 @@ function switchMenuType(type) {
   persistActiveStore();
   activeMenuType = type;
   restoreActiveStore();
-  if (menuTypeSelect) {
-    menuTypeSelect.value = type;
+  if (navigationMenuTypeSelect) {
+    navigationMenuTypeSelect.value = type;
   }
   renderAll();
 }
@@ -784,7 +837,7 @@ function nextItemId() {
 
 function ensureRootMenu() {
   if (!menusById.has(currentRootMenuId)) {
-    menusById.set(currentRootMenuId, { id: currentRootMenuId, name: "Home", parentId: null, items: [] });
+    menusById.set(currentRootMenuId, { id: currentRootMenuId, name: "Home", parentId: null, output: defaultMenuOutput(), items: [] });
     menuOrder.unshift(currentRootMenuId);
   }
 }
@@ -823,6 +876,7 @@ function applyMenusToStore(menuType, menus) {
       id: resolvedId,
       name: menu.name?.trim() || (menu.id === store.rootId ? "Home" : menu.id || "Menu"),
       parentId: menu.parentId ?? null,
+      output: normalizeMenuOutput(menu.output),
       items: Array.isArray(menu.items) ? menu.items : []
     };
     store.menusById.set(normalized.id, { ...normalized, items: [] });
@@ -830,7 +884,7 @@ function applyMenusToStore(menuType, menus) {
   });
 
   if (!store.menusById.has(store.rootId)) {
-    store.menusById.set(store.rootId, { id: store.rootId, name: "Home", parentId: null, items: [] });
+    store.menusById.set(store.rootId, { id: store.rootId, name: "Home", parentId: null, output: defaultMenuOutput(), items: [] });
     store.menuOrder.unshift(store.rootId);
   }
 
@@ -1033,6 +1087,7 @@ function normalizeMenuTree(rawMenus, defaults, rootId) {
       id: menu.id || slugify(menu.name || ""),
       name: menu.name,
       parentId: menu.parentId ?? null,
+      output: normalizeMenuOutput(menu.output),
       items: Array.isArray(menu.items) ? menu.items : []
     }));
   }
@@ -1074,6 +1129,7 @@ function normalizeIncomingConfig(raw) {
 function renderAll() {
   renderMenuSelectors();
   renderMenuItems();
+  renderMenuOutputFields();
   toggleAddFormFields();
   updatePreview();
 }
@@ -1081,8 +1137,9 @@ function renderAll() {
 function renderMenuSelectors() {
   ensureRootMenu();
 
-  menuSelect.innerHTML = "";
-  parentMenuSelect.innerHTML = "";
+  navigationMenuSelect.innerHTML = "";
+  menuItemsMenuSelect.innerHTML = "";
+  menuItemsParentMenuSelect.innerHTML = "";
 
   menuOrder = menuOrder.filter((id) => menusById.has(id));
   if (!menuOrder.includes(currentRootMenuId)) {
@@ -1092,19 +1149,23 @@ function renderMenuSelectors() {
   menuOrder.forEach((id) => {
     const menu = menusById.get(id);
     if (!menu) return;
-    menuSelect.append(new Option(menu.name, id, false, id === selectedMenuId));
-    parentMenuSelect.append(new Option(menu.name, id));
+    navigationMenuSelect.append(new Option(menu.name, id, false, id === selectedMenuId));
+    menuItemsMenuSelect.append(new Option(menu.name, id, false, id === selectedMenuId));
+    menuItemsParentMenuSelect.append(new Option(menu.name, id));
   });
 
   if (!menusById.has(selectedMenuId)) {
     selectedMenuId = currentRootMenuId;
   }
 
-  menuSelect.value = selectedMenuId;
-  parentMenuSelect.value = selectedMenuId;
-  menuNameEditor.value = menusById.get(selectedMenuId)?.name ?? "";
-  menuNameEditor.disabled = selectedMenuId === currentRootMenuId;
-  deleteMenuButton.disabled = selectedMenuId === currentRootMenuId;
+  navigationMenuSelect.value = selectedMenuId;
+  menuItemsMenuSelect.value = selectedMenuId;
+  menuItemsParentMenuSelect.value = selectedMenuId;
+  navigationMenuNameEditor.value = menusById.get(selectedMenuId)?.name ?? "";
+  navigationMenuNameEditor.disabled = selectedMenuId === currentRootMenuId;
+  navigationDeleteMenuButton.disabled = selectedMenuId === currentRootMenuId;
+  if (navigationMenuTypeSelect) navigationMenuTypeSelect.value = activeMenuType;
+  if (menuItemsMenuTypeSelect) menuItemsMenuTypeSelect.value = activeMenuType;
 
   updateAddFormSubmenuOptions();
 }
@@ -1460,7 +1521,7 @@ function linkSubmenu(parentId, submenuId) {
 }
 
 function updateAddFormSubmenuOptions() {
-  const parentId = parentMenuSelect.value || currentRootMenuId;
+  const parentId = menuItemsParentMenuSelect.value || currentRootMenuId;
   const options = availableSubmenus(parentId);
   submenuSelect.innerHTML = "";
   if (!options.length) {
@@ -1566,6 +1627,7 @@ function serializeStore(store) {
         id: menu.id,
         name: menu.name,
         parentId: menu.parentId ?? null,
+        output: normalizeMenuOutput(menu.output),
         items: menu.items.map((item, index) => {
           if (item.type === ITEM_TYPES.FUNCTION_MENU) {
             const meta = functionDictionary[item.function] || {};
@@ -1675,7 +1737,7 @@ function createSubmenu(initialName) {
   const name = initialName ?? promptForMenuName();
   if (!name) return null;
   const id = nextMenuId(name);
-  menusById.set(id, { id, name, parentId: null, items: [] });
+  menusById.set(id, { id, name, parentId: null, output: defaultMenuOutput(), items: [] });
   menuOrder.push(id);
   return id;
 }
@@ -1766,7 +1828,7 @@ function importConfig(event) {
 
 function addMenuItem(event) {
   event.preventDefault();
-  const parentId = parentMenuSelect.value || currentRootMenuId;
+  const parentId = menuItemsParentMenuSelect.value || currentRootMenuId;
   const parentMenu = menusById.get(parentId);
   if (!parentMenu) {
     alert("Please select a valid menu.");
@@ -1856,6 +1918,7 @@ function addMenuItem(event) {
 
 function setActiveApp(target) {
   activeApp = target;
+  const showNavigationMenus = target === "navigation-menus";
   const showMenuConfig = target === "menu";
   const showOperations = target === "operations";
   const showSendMessages = target === "notifications";
@@ -1864,6 +1927,9 @@ function setActiveApp(target) {
   const showServiceBuilder = target === "service-builder";
   const showConnectors = target === "connectors";
   const showWeblinks = target === "weblinks";
+  if (navigationMenusPanel) {
+    navigationMenusPanel.classList.toggle("hidden", !showNavigationMenus);
+  }
   menuConfigurationPanel.classList.toggle("hidden", !showMenuConfig);
   operationsMonitoringPanel.classList.toggle("hidden", !showOperations);
   sendMessagesPanel.classList.toggle("hidden", !showSendMessages);
@@ -1875,6 +1941,9 @@ function setActiveApp(target) {
   }
   if (weblinksPanel) {
     weblinksPanel.classList.toggle("hidden", !showWeblinks);
+  }
+  if (navNavigationMenus) {
+    navNavigationMenus.classList.toggle("active", showNavigationMenus);
   }
   navMenuConfig.classList.toggle("active", showMenuConfig);
   navOperationsMonitoring.classList.toggle("active", showOperations);
@@ -3910,22 +3979,27 @@ async function handleSendNotification(event) {
   }
 }
 
-menuSelect.addEventListener("change", (event) => {
+navigationMenuSelect.addEventListener("change", (event) => {
   selectedMenuId = event.target.value;
   renderAll();
 });
 
-menuNameEditor.addEventListener("change", () => {
-  if (menuNameEditor.disabled) {
+menuItemsMenuSelect.addEventListener("change", (event) => {
+  selectedMenuId = event.target.value;
+  renderAll();
+});
+
+navigationMenuNameEditor.addEventListener("change", () => {
+  if (navigationMenuNameEditor.disabled) {
     return;
   }
   const menu = menusById.get(selectedMenuId);
   if (!menu) {
     return;
   }
-  const value = menuNameEditor.value.trim();
+  const value = navigationMenuNameEditor.value.trim();
   if (!value) {
-    menuNameEditor.value = menu.name;
+    navigationMenuNameEditor.value = menu.name;
     return;
   }
   menu.name = value;
@@ -3933,22 +4007,31 @@ menuNameEditor.addEventListener("change", () => {
   updatePreview();
 });
 
-createMenuButton.addEventListener("click", () => {
+navigationCreateMenuButton.addEventListener("click", () => {
   const id = createSubmenu();
   if (id) {
     selectedMenuId = id;
     renderAll();
-    menuNameEditor.focus();
+    navigationMenuNameEditor.focus();
   }
 });
 
-deleteMenuButton.addEventListener("click", () => deleteMenuWithConfirmation(selectedMenuId));
+navigationDeleteMenuButton.addEventListener("click", () => deleteMenuWithConfirmation(selectedMenuId));
 
-if (menuTypeSelect) {
-  menuTypeSelect.addEventListener("change", (event) => switchMenuType(event.target.value));
+if (navigationMenuTypeSelect) {
+  navigationMenuTypeSelect.addEventListener("change", (event) => switchMenuType(event.target.value));
+}
+if (menuItemsMenuTypeSelect) {
+  menuItemsMenuTypeSelect.addEventListener("change", (event) => switchMenuType(event.target.value));
 }
 
-parentMenuSelect.addEventListener("change", updateAddFormSubmenuOptions);
+menuItemsParentMenuSelect.addEventListener("change", updateAddFormSubmenuOptions);
+[menuOutputTypeSelect, menuOutputHeaderText, menuOutputBodyText, menuOutputFooterText, menuOutputButtonText].forEach((input) => {
+  if (input) {
+    input.addEventListener("change", updateMenuOutputFromForm);
+    input.addEventListener("input", updateMenuOutputFromForm);
+  }
+});
 itemTypeSelect.addEventListener("change", toggleAddFormFields);
 inlineCreateSubmenu.addEventListener("click", () => {
   const id = createSubmenu();
@@ -3967,6 +4050,9 @@ resetButton.addEventListener("click", () => {
 
 downloadButton.addEventListener("click", downloadConfig);
 importInput.addEventListener("change", importConfig);
+if (navNavigationMenus) {
+  navNavigationMenus.addEventListener("click", () => setActiveApp("navigation-menus"));
+}
 navMenuConfig.addEventListener("click", () => setActiveApp("menu"));
 navOperationsMonitoring.addEventListener("click", () => setActiveApp("operations"));
 navSendMessages.addEventListener("click", () => setActiveApp("notifications"));
@@ -4213,8 +4299,11 @@ if (refreshConfigButton) {
   refreshConfigButton.addEventListener("click", loadImServerConfig);
 }
 
-if (menuTypeSelect) {
-  menuTypeSelect.value = activeMenuType;
+if (navigationMenuTypeSelect) {
+  navigationMenuTypeSelect.value = activeMenuType;
+}
+if (menuItemsMenuTypeSelect) {
+  menuItemsMenuTypeSelect.value = activeMenuType;
 }
 
 setActiveConnectorsTab("general");
