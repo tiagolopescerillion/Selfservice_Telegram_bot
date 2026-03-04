@@ -100,6 +100,10 @@ public class WhatsappService {
     }
 
     public void sendText(String to, String message) {
+        sendText(to, message, true);
+    }
+
+    private void sendText(String to, String message, boolean previewUrl) {
         if (!isConfigured()) {
             log.warn("WhatsApp messaging is not fully configured; cannot send text");
             return;
@@ -109,7 +113,9 @@ public class WhatsappService {
                 "messaging_product", "whatsapp",
                 "to",           to,
                 "type",         "text",
-                "text",         Map.of("body", message)
+                "text",         Map.of(
+                        "body", message,
+                        "preview_url", previewUrl)
         );
 
         postToWhatsapp(payload);
@@ -441,7 +447,7 @@ public class WhatsappService {
             resolved = item.url();
         }
         message.append(resolved);
-        sendText(to, message.toString());
+        sendText(to, message.toString(), false);
     }
 
     public void sendAccountPage(String to, List<AccountSummary> accounts, int startIndex) {
