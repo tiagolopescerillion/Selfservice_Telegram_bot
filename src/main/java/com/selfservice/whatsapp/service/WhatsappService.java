@@ -62,6 +62,7 @@ public class WhatsappService {
     private final RestTemplate restTemplate = new RestTemplate();
     private final String phoneNumberId;
     private final String accessToken;
+    private final String publicBaseUrl;
     private final TranslationService translationService;
     private final WhatsappSessionService sessionService;
     private final BusinessMenuConfigurationProvider menuConfigurationProvider;
@@ -71,6 +72,7 @@ public class WhatsappService {
     public WhatsappService(
             @Value("${whatsapp.phone-number-id:}") String phoneNumberId,
             @Value("${whatsapp.access-token:}") String accessToken,
+            @Value("${app.public-base-url:}") String publicBaseUrl,
             TranslationService translationService,
             WhatsappSessionService sessionService,
             BusinessMenuConfigurationProvider menuConfigurationProvider,
@@ -78,6 +80,7 @@ public class WhatsappService {
             ImpersonationService impersonationService) {
         this.phoneNumberId = phoneNumberId == null ? "" : phoneNumberId.trim();
         this.accessToken = accessToken == null ? "" : accessToken.trim();
+        this.publicBaseUrl = publicBaseUrl == null ? "" : publicBaseUrl.trim();
         this.translationService = translationService;
         this.sessionService = sessionService;
         this.menuConfigurationProvider = menuConfigurationProvider;
@@ -492,10 +495,11 @@ public class WhatsappService {
 
         Map<String, Object> interactive = new java.util.HashMap<>();
         interactive.put("type", "cta_url");
-        if (StringUtils.hasText(headerImageUrl)) {
+        String resolvedHeaderImageUrl = resolveCtaHeaderImageUrl(headerImageUrl);
+        if (StringUtils.hasText(resolvedHeaderImageUrl)) {
             interactive.put("header", Map.of(
                     "type", "image",
-                    "image", Map.of("link", headerImageUrl)
+                    "image", Map.of("link", resolvedHeaderImageUrl)
             ));
         }
         interactive.put("body", Map.of("text", body));
@@ -520,6 +524,24 @@ public class WhatsappService {
         if (!postToWhatsapp(payload)) {
             sendText(to, linkLabel + ": " + url, false);
         }
+    }
+
+    private String resolveCtaHeaderImageUrl(String headerImageUrl) {
+        if (!StringUtils.hasText(headerImageUrl)) {
+            return "";
+        }
+        String candidate = headerImageUrl.trim();
+        if (candidate.startsWith("http://") || candidate.startsWith("https://")) {
+            return candidate;
+        }
+        if (candidate.startsWith("/") && StringUtils.hasText(publicBaseUrl)) {
+            String normalizedBase = publicBaseUrl.endsWith("/")
+                    ? publicBaseUrl.substring(0, publicBaseUrl.length() - 1)
+                    : publicBaseUrl;
+            return normalizedBase + candidate;
+        }
+        log.warn("Ignoring CTA header image URL '{}' because it is not an absolute URL and app.public-base-url is not configured", candidate);
+        return "";
     }
 
     public void sendAccountPage(String to, List<AccountSummary> accounts, int startIndex) {
