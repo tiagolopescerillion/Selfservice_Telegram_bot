@@ -62,10 +62,6 @@ public class WhatsappService {
     private final RestTemplate restTemplate = new RestTemplate();
     private final String phoneNumberId;
     private final String accessToken;
-    private final String ctaHeaderImageUrl;
-    private final String ctaBodyText;
-    private final String ctaFooterText;
-    private final String ctaButtonLabel;
     private final TranslationService translationService;
     private final WhatsappSessionService sessionService;
     private final BusinessMenuConfigurationProvider menuConfigurationProvider;
@@ -75,10 +71,6 @@ public class WhatsappService {
     public WhatsappService(
             @Value("${whatsapp.phone-number-id:}") String phoneNumberId,
             @Value("${whatsapp.access-token:}") String accessToken,
-            @Value("${whatsapp.cta.header-image-url:}") String ctaHeaderImageUrl,
-            @Value("${whatsapp.cta.body-text:Open this link}") String ctaBodyText,
-            @Value("${whatsapp.cta.footer-text:}") String ctaFooterText,
-            @Value("${whatsapp.cta.button-label:Open}") String ctaButtonLabel,
             TranslationService translationService,
             WhatsappSessionService sessionService,
             BusinessMenuConfigurationProvider menuConfigurationProvider,
@@ -86,10 +78,6 @@ public class WhatsappService {
             ImpersonationService impersonationService) {
         this.phoneNumberId = phoneNumberId == null ? "" : phoneNumberId.trim();
         this.accessToken = accessToken == null ? "" : accessToken.trim();
-        this.ctaHeaderImageUrl = ctaHeaderImageUrl == null ? "" : ctaHeaderImageUrl.trim();
-        this.ctaBodyText = ctaBodyText == null ? "" : ctaBodyText.trim();
-        this.ctaFooterText = ctaFooterText == null ? "" : ctaFooterText.trim();
-        this.ctaButtonLabel = ctaButtonLabel == null ? "" : ctaButtonLabel.trim();
         this.translationService = translationService;
         this.sessionService = sessionService;
         this.menuConfigurationProvider = menuConfigurationProvider;
@@ -471,7 +459,7 @@ public class WhatsappService {
             return;
         }
         String label = (item.label() == null || item.label().isBlank()) ? "Link" : item.label().trim();
-        sendCallToActionUrlMessage(to, item.url(), label);
+        sendCallToActionUrlMessage(to, item.url(), label, item.ctaHeaderImageUrl(), item.ctaBodyText(), item.ctaFooterText(), item.ctaButtonLabel());
     }
 
     public void sendWeblink(String to, BusinessMenuItem item) {
@@ -485,10 +473,10 @@ public class WhatsappService {
             resolved = item.url();
         }
         String label = (item.label() == null || item.label().isBlank()) ? "Link" : item.label().trim();
-        sendCallToActionUrlMessage(to, resolved, label);
+        sendCallToActionUrlMessage(to, resolved, label, item.ctaHeaderImageUrl(), item.ctaBodyText(), item.ctaFooterText(), item.ctaButtonLabel());
     }
 
-    private void sendCallToActionUrlMessage(String to, String url, String linkLabel) {
+    private void sendCallToActionUrlMessage(String to, String url, String linkLabel, String headerImageUrl, String bodyText, String footerText, String buttonLabelText) {
         if (!isConfigured()) {
             log.warn("WhatsApp messaging is not fully configured; cannot send CTA URL message");
             return;
@@ -498,16 +486,16 @@ public class WhatsappService {
             return;
         }
 
-        String body = StringUtils.hasText(ctaBodyText) ? ctaBodyText : "Open this link";
-        String footer = StringUtils.hasText(ctaFooterText) ? ctaFooterText : "";
-        String buttonLabel = StringUtils.hasText(ctaButtonLabel) ? ctaButtonLabel : "Open";
+        String body = StringUtils.hasText(bodyText) ? bodyText : "Open this link";
+        String footer = StringUtils.hasText(footerText) ? footerText : "";
+        String buttonLabel = StringUtils.hasText(buttonLabelText) ? buttonLabelText : (StringUtils.hasText(linkLabel) ? linkLabel : "Open");
 
         Map<String, Object> interactive = new java.util.HashMap<>();
         interactive.put("type", "cta_url");
-        if (StringUtils.hasText(ctaHeaderImageUrl)) {
+        if (StringUtils.hasText(headerImageUrl)) {
             interactive.put("header", Map.of(
                     "type", "image",
-                    "image", Map.of("link", ctaHeaderImageUrl)
+                    "image", Map.of("link", headerImageUrl)
             ));
         }
         interactive.put("body", Map.of("text", body));
@@ -669,6 +657,10 @@ public class WhatsappService {
                 label,
                 callback,
                 callback,
+                null,
+                null,
+                null,
+                null,
                 null,
                 null,
                 null,

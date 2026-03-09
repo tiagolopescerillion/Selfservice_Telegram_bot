@@ -2,7 +2,17 @@ Example Dashboard:
   URL: https://example.com/dashboard
   Authenticated-User: Y
   Context: account
+  CTA:
+    Header-Image-Url: /assets/images/example-dashboard-banner.jpg
+    Body-Text: Open your dashboard
+    Footer-Text: Manage your account with Cerillion
+    Button-Label: Open Dashboard
 Support Portal:
   URL: https://support.example.com/help
   Authenticated-User: N
   Context: noContext
+  CTA:
+    Header-Image-Url: /assets/images/support-banner.jpg
+    Body-Text: Need help? Open Support Portal
+    Footer-Text: ''
+    Button-Label: Open Support

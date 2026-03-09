@@ -413,6 +413,10 @@ const weblinkNameInput = document.getElementById("weblinkNameInput");
 const weblinkUrlInput = document.getElementById("weblinkUrlInput");
 const weblinkAuthInput = document.getElementById("weblinkAuthInput");
 const weblinkContextInput = document.getElementById("weblinkContextInput");
+const weblinkCtaHeaderImageInput = document.getElementById("weblinkCtaHeaderImageInput");
+const weblinkCtaBodyTextInput = document.getElementById("weblinkCtaBodyTextInput");
+const weblinkCtaFooterTextInput = document.getElementById("weblinkCtaFooterTextInput");
+const weblinkCtaButtonLabelInput = document.getElementById("weblinkCtaButtonLabelInput");
 const confirmWeblinkButton = document.getElementById("confirmWeblinkButton");
 const cancelWeblinkButton = document.getElementById("cancelWeblinkButton");
 
@@ -992,6 +996,10 @@ function applyMenusToStore(menuType, menus) {
           url: item.url || null,
           authenticated: item.authenticated,
           context: item.context || "noContext",
+          ctaHeaderImageUrl: item.ctaHeaderImageUrl || "",
+          ctaBodyText: item.ctaBodyText || "Open this link",
+          ctaFooterText: item.ctaFooterText || "",
+          ctaButtonLabel: item.ctaButtonLabel || "Open",
           function: null,
           submenuId: null,
           useTranslation: false
@@ -1712,7 +1720,11 @@ function serializeStore(store) {
               weblink: item.weblink || null,
               url: linkMeta?.url || item.url || null,
               authenticated: linkMeta?.authenticated ?? Boolean(item.authenticated),
-              context: linkMeta?.context || item.context || "noContext"
+              context: linkMeta?.context || item.context || "noContext",
+              ctaHeaderImageUrl: linkMeta?.ctaHeaderImageUrl || item.ctaHeaderImageUrl || "",
+              ctaBodyText: linkMeta?.ctaBodyText || item.ctaBodyText || "Open this link",
+              ctaFooterText: linkMeta?.ctaFooterText || item.ctaFooterText || "",
+              ctaButtonLabel: linkMeta?.ctaButtonLabel || item.ctaButtonLabel || "Open"
             };
           }
 
@@ -1948,7 +1960,11 @@ function addMenuItem(event) {
       weblink: menuWeblinkSelect.value,
       url: findWeblinkMeta(menuWeblinkSelect.value)?.url || null,
       authenticated: findWeblinkMeta(menuWeblinkSelect.value)?.authenticated ?? false,
-      context: findWeblinkMeta(menuWeblinkSelect.value)?.context || "noContext"
+      context: findWeblinkMeta(menuWeblinkSelect.value)?.context || "noContext",
+      ctaHeaderImageUrl: findWeblinkMeta(menuWeblinkSelect.value)?.ctaHeaderImageUrl || "",
+      ctaBodyText: findWeblinkMeta(menuWeblinkSelect.value)?.ctaBodyText || "Open this link",
+      ctaFooterText: findWeblinkMeta(menuWeblinkSelect.value)?.ctaFooterText || "",
+      ctaButtonLabel: findWeblinkMeta(menuWeblinkSelect.value)?.ctaButtonLabel || "Open"
     });
   }
   selectedMenuId = parentId;
@@ -3094,12 +3110,7 @@ function defaultConnectorTemplate(key) {
         "  callback-url: ${app.public-base-url}/webhook/whatsapp  # Public webhook endpoint for WhatsApp callbacks",
         "  verify-token: YOUR_WHATSAPP_VERIFY_TOKEN               # Verification token configured in Meta App settings",
         "  phone-number-id: YOUR_PHONE_NUMBER_ID                  # WhatsApp Business phone number ID",
-        "  access-token: YOUR_WHATSAPP_ACCESS_TOKEN               # WhatsApp Graph API access token",
-        "  cta:",
-        "    header-image-url: https://example.com/banner.jpg      # Optional public image URL shown at top of CTA URL message",
-        "    body-text: Open this link                            # Body text for CTA URL messages",
-        "    footer-text: \"\"                                      # Optional footer text for CTA URL messages",
-        "    button-label: Open                                  # CTA URL button label shown to user"
+        "  access-token: YOUR_WHATSAPP_ACCESS_TOKEN               # WhatsApp Graph API access token"
       ].join("\n");
     case "messenger":
       return [
@@ -3131,11 +3142,21 @@ function parseWeblinksYaml(content) {
       if (candidate === "service") return "service";
       return "noContext";
     })();
+    const ctaKey = Object.keys(meta || {}).find((key) => key.toLowerCase() === "cta");
+    const cta = ctaKey && typeof meta[ctaKey] === "object" && meta[ctaKey] !== null ? meta[ctaKey] : {};
+    const findCta = (name, fallback = "") => {
+      const key = Object.keys(cta).find((k) => k.toLowerCase() === name.toLowerCase());
+      return key ? (cta[key] || fallback) : fallback;
+    };
     return {
       name,
       url,
       authenticated: resolveBooleanFlag(authValue, false),
-      context: normalizedContext
+      context: normalizedContext,
+      ctaHeaderImageUrl: findCta("header-image-url", ""),
+      ctaBodyText: findCta("body-text", "Open this link"),
+      ctaFooterText: findCta("footer-text", ""),
+      ctaButtonLabel: findCta("button-label", "Open")
     };
   });
 }
@@ -3147,7 +3168,13 @@ function buildWeblinksYaml() {
     root[link.name] = {
       URL: link.url || "",
       "Authenticated-User": link.authenticated ? "Y" : "N",
-      Context: link.context || "noContext"
+      Context: link.context || "noContext",
+      CTA: {
+        "Header-Image-Url": link.ctaHeaderImageUrl || "",
+        "Body-Text": link.ctaBodyText || "Open this link",
+        "Footer-Text": link.ctaFooterText || "",
+        "Button-Label": link.ctaButtonLabel || "Open"
+      }
     };
   });
   return stringifySimpleYaml(root);
@@ -3268,6 +3295,75 @@ function renderWeblinksList() {
     authRow.className = "stacked-form-item__row";
     authRow.append(authLabel);
 
+    const ctaImageGroup = document.createElement("label");
+    ctaImageGroup.className = "stacked-form-item__field";
+    const ctaImageLabel = document.createElement("span");
+    ctaImageLabel.textContent = "CTA Header image URL";
+    ctaImageLabel.className = "stacked-form-item__label";
+    const ctaImageInput = document.createElement("input");
+    ctaImageInput.type = "text";
+    ctaImageInput.value = link.ctaHeaderImageUrl || "";
+    ctaImageInput.placeholder = "/assets/images/banner.jpg";
+    ctaImageInput.classList.add("field");
+    ctaImageInput.addEventListener("input", (event) => {
+      weblinks[index].ctaHeaderImageUrl = event.target.value;
+      weblinksContent = buildWeblinksYaml();
+      renderWeblinksPreview();
+    });
+    ctaImageGroup.append(ctaImageLabel, ctaImageInput);
+
+    const ctaBodyGroup = document.createElement("label");
+    ctaBodyGroup.className = "stacked-form-item__field";
+    const ctaBodyLabel = document.createElement("span");
+    ctaBodyLabel.textContent = "CTA Body text";
+    ctaBodyLabel.className = "stacked-form-item__label";
+    const ctaBodyInput = document.createElement("input");
+    ctaBodyInput.type = "text";
+    ctaBodyInput.value = link.ctaBodyText || "Open this link";
+    ctaBodyInput.classList.add("field");
+    ctaBodyInput.addEventListener("input", (event) => {
+      weblinks[index].ctaBodyText = event.target.value;
+      weblinksContent = buildWeblinksYaml();
+      renderWeblinksPreview();
+    });
+    ctaBodyGroup.append(ctaBodyLabel, ctaBodyInput);
+
+    const ctaFooterGroup = document.createElement("label");
+    ctaFooterGroup.className = "stacked-form-item__field";
+    const ctaFooterLabel = document.createElement("span");
+    ctaFooterLabel.textContent = "CTA Footer text";
+    ctaFooterLabel.className = "stacked-form-item__label";
+    const ctaFooterInput = document.createElement("input");
+    ctaFooterInput.type = "text";
+    ctaFooterInput.value = link.ctaFooterText || "";
+    ctaFooterInput.classList.add("field");
+    ctaFooterInput.addEventListener("input", (event) => {
+      weblinks[index].ctaFooterText = event.target.value;
+      weblinksContent = buildWeblinksYaml();
+      renderWeblinksPreview();
+    });
+    ctaFooterGroup.append(ctaFooterLabel, ctaFooterInput);
+
+    const ctaButtonGroup = document.createElement("label");
+    ctaButtonGroup.className = "stacked-form-item__field";
+    const ctaButtonLabelEl = document.createElement("span");
+    ctaButtonLabelEl.textContent = "CTA Button label";
+    ctaButtonLabelEl.className = "stacked-form-item__label";
+    const ctaButtonInput = document.createElement("input");
+    ctaButtonInput.type = "text";
+    ctaButtonInput.value = link.ctaButtonLabel || "Open";
+    ctaButtonInput.classList.add("field");
+    ctaButtonInput.addEventListener("input", (event) => {
+      weblinks[index].ctaButtonLabel = event.target.value;
+      weblinksContent = buildWeblinksYaml();
+      renderWeblinksPreview();
+    });
+    ctaButtonGroup.append(ctaButtonLabelEl, ctaButtonInput);
+
+    const ctaRow = document.createElement("div");
+    ctaRow.className = "stacked-form-item__fields";
+    ctaRow.append(ctaImageGroup, ctaBodyGroup, ctaFooterGroup, ctaButtonGroup);
+
     const actions = document.createElement("div");
     actions.className = "stacked-form-item__actions";
     const deleteButton = document.createElement("button");
@@ -3284,7 +3380,7 @@ function renderWeblinksList() {
     actions.append(deleteButton);
 
     fieldsRow.append(nameGroup, urlGroup, contextWrapper);
-    row.append(fieldsRow, authRow, actions);
+    row.append(fieldsRow, authRow, ctaRow, actions);
 
     weblinksList.append(row);
   
@@ -3302,8 +3398,8 @@ function syncWeblinksFromContent() {
   weblinks = parseWeblinksYaml(weblinksContent || "");
   if (!weblinks.length) {
     weblinks = [
-      { name: "Example Dashboard", url: "https://example.com/dashboard", authenticated: true, context: "account" },
-      { name: "Support Portal", url: "https://support.example.com/help", authenticated: false, context: "noContext" }
+      { name: "Example Dashboard", url: "https://example.com/dashboard", authenticated: true, context: "account", ctaHeaderImageUrl: "/assets/images/example-dashboard-banner.jpg", ctaBodyText: "Open your dashboard", ctaFooterText: "", ctaButtonLabel: "Open Dashboard" },
+      { name: "Support Portal", url: "https://support.example.com/help", authenticated: false, context: "noContext", ctaHeaderImageUrl: "/assets/images/support-banner.jpg", ctaBodyText: "Need help? Open Support Portal", ctaFooterText: "", ctaButtonLabel: "Open Support" }
     ];
     weblinksContent = buildWeblinksYaml();
   }
@@ -3386,11 +3482,15 @@ function handleAddWeblink(event) {
   const url = weblinkUrlInput?.value?.trim();
   const authenticated = Boolean(weblinkAuthInput?.checked);
   const context = weblinkContextInput?.value || "noContext";
+  const ctaHeaderImageUrl = weblinkCtaHeaderImageInput?.value?.trim() || "";
+  const ctaBodyText = weblinkCtaBodyTextInput?.value?.trim() || "Open this link";
+  const ctaFooterText = weblinkCtaFooterTextInput?.value?.trim() || "";
+  const ctaButtonLabel = weblinkCtaButtonLabelInput?.value?.trim() || "Open";
   if (!name || !url) {
     alert("URL name and URL are required.");
     return;
   }
-  weblinks.push({ name, url, authenticated, context });
+  weblinks.push({ name, url, authenticated, context, ctaHeaderImageUrl, ctaBodyText, ctaFooterText, ctaButtonLabel });
   weblinksContent = buildWeblinksYaml();
   syncWeblinksFromContent();
   toggleWeblinkForm(false);

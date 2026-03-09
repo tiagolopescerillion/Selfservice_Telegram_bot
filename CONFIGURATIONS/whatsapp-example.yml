@@ -4,8 +4,3 @@ whatsapp:
   phone-number-id: YOUR_WHATSAPP_PHONE_NUMBER_ID         # WhatsApp Business phone number ID
   access-token: YOUR_WHATSAPP_ACCESS_TOKEN               # Meta WhatsApp access token (not the Keycloak token)
 
-  cta:
-    header-image-url: https://example.com/banner.jpg      # Optional public image URL shown at top of CTA URL message
-    body-text: Open this link                            # Body text for CTA URL messages
-    footer-text: ""                                      # Optional footer text for CTA URL messages
-    button-label: Open                                  # CTA URL button label shown to user
