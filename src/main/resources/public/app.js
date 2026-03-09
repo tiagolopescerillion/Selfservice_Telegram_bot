@@ -3094,7 +3094,12 @@ function defaultConnectorTemplate(key) {
         "  callback-url: ${app.public-base-url}/webhook/whatsapp  # Public webhook endpoint for WhatsApp callbacks",
         "  verify-token: YOUR_WHATSAPP_VERIFY_TOKEN               # Verification token configured in Meta App settings",
         "  phone-number-id: YOUR_PHONE_NUMBER_ID                  # WhatsApp Business phone number ID",
-        "  access-token: YOUR_WHATSAPP_ACCESS_TOKEN               # WhatsApp Graph API access token"
+        "  access-token: YOUR_WHATSAPP_ACCESS_TOKEN               # WhatsApp Graph API access token",
+        "  cta:",
+        "    header-image-url: https://example.com/banner.jpg      # Optional public image URL shown at top of CTA URL message",
+        "    body-text: Open this link                            # Body text for CTA URL messages",
+        "    footer-text: \"\"                                      # Optional footer text for CTA URL messages",
+        "    button-label: Open                                  # CTA URL button label shown to user"
       ].join("\n");
     case "messenger":
       return [
