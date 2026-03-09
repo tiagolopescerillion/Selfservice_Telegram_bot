@@ -265,11 +265,13 @@ public class WhatsappService {
 
     public void sendLoginMenu(String to) {
         sessionService.setSelectionContext(to, WhatsappSessionService.SelectionContext.NONE);
-        List<LoginMenuItem> options = loginMenuOptions(to);
-        sendLoginMenuCards(to, options);
+        String menuId = resolveCurrentLoginMenu(to);
+        List<LoginMenuItem> options = loginMenuOptions(to, menuId,
+                sessionService.getLoginMenuDepth(to, menuConfigurationProvider.getLoginRootMenuId()));
+        sendLoginMenuCards(to, menuId, options);
     }
 
-    private boolean sendLoginMenuCards(String to, List<LoginMenuItem> options) {
+    private boolean sendLoginMenuCards(String to, String menuId, List<LoginMenuItem> options) {
         if (!isConfigured()) {
             log.warn("WhatsApp messaging is not fully configured; cannot send login menu cards");
             return false;
@@ -283,7 +285,8 @@ public class WhatsappService {
         return sendInteractiveList(to,
                 translate(to, "PleaseChooseSignIn"),
                 translate(to, "PleaseChooseSignIn"),
-                rows);
+                rows,
+                resolveLoginMenuOutputConfig(menuId));
     }
 
     public void sendDigitalLoginLink(String to, String loginUrl) {

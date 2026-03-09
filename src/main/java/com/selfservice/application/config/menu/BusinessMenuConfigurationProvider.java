@@ -337,6 +337,7 @@ public class BusinessMenuConfigurationProvider {
             }
             copy.setName(resolvedName);
             copy.setParentId(menu.getParentId());
+            copy.setOutput(menu.getOutput());
             copy.setItems(menu.sortedItems());
             mapped.put(copy.getId(), copy);
         }
