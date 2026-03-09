@@ -255,6 +255,11 @@ public class WhatsappWebhookController {
             if (settingsSelection != null) {
                 LoginMenuFunction selectionFunction = settingsSelection.resolvedFunction();
                 sessionService.setSelectionContext(userId, WhatsappSessionService.SelectionContext.NONE);
+                if (settingsSelection.isWeblink()) {
+                    whatsappService.sendLoginWeblink(from, settingsSelection);
+                    sendLoginPrompt(from, sessionKey);
+                    return;
+                }
                 if (selectionFunction == LoginMenuFunction.OPT_IN) {
                     whatsappService.sendOptInPrompt(from);
                     return;
@@ -354,6 +359,11 @@ public class WhatsappWebhookController {
         }
 
         if (!hasValidToken) {
+            if (selectedLoginItem != null && selectedLoginItem.isWeblink()) {
+                whatsappService.sendLoginWeblink(from, selectedLoginItem);
+                sendLoginPrompt(from, sessionKey);
+                return;
+            }
             if (isHomeSelection) {
                 whatsappService.goHomeLoginMenu(userId);
                 sendLoginPrompt(from, sessionKey);

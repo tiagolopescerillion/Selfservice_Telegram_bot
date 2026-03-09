@@ -41,8 +41,15 @@
           <button id="navServiceBuilder" class="sidebar__link" type="button">
             Service Builder
           </button>
+          <div class="side-menu-divider">User Menus</div>
+          <button id="navProductFeatureMenus" class="sidebar__link" type="button">
+            Product Feature Menus
+          </button>
+          <button id="navNavigationMenus" class="sidebar__link" type="button">
+            Navigation Menus
+          </button>
           <button id="navMenuConfig" class="sidebar__link" type="button">
-            User Menus
+            Menu Items
           </button>
           <div class="side-menu-divider">Operations</div>
           <button
@@ -162,6 +169,41 @@
                   <input id="weblinkAuthInput" type="checkbox" />
                   <span>Authenticated user link</span>
                 </label>
+
+                <div class="two-col-grid">
+                  <label>
+                    CTA Header image URL
+                    <input
+                      id="weblinkCtaHeaderImageInput"
+                      type="text"
+                      placeholder="/assets/images/my-banner.jpg"
+                    />
+                  </label>
+                  <label>
+                    CTA Button label
+                    <input
+                      id="weblinkCtaButtonLabelInput"
+                      type="text"
+                      placeholder="Open"
+                    />
+                  </label>
+                  <label>
+                    CTA Body text
+                    <input
+                      id="weblinkCtaBodyTextInput"
+                      type="text"
+                      placeholder="Open this link"
+                    />
+                  </label>
+                  <label>
+                    CTA Footer text
+                    <input
+                      id="weblinkCtaFooterTextInput"
+                      type="text"
+                      placeholder="Optional footer"
+                    />
+                  </label>
+                </div>
 
                 <div class="toolbar toolbar--end">
                   <button id="confirmWeblinkButton" type="submit">Save</button>
@@ -336,13 +378,113 @@
             </div>
           </section>
 
+
+          
+          <section id="productFeatureMenusPanel" class="content-dashboard content-dashboard--wide hidden hidden">
+            <div class="content-dashboard-section content-dashboard-title">
+              <div class="content-title">Product Feature Menus</div>
+              <div class="content-subtitle">Configure menu output for product feature generated options</div>
+            </div>
+            <section class="panel">
+              <label>
+                Product Feature
+                <select id="productFeatureSelect">
+                  <option value="CONSENT_MANAGEMENT">Consent Management</option>
+                  <option value="LANGUAGE_SETTINGS">Language Settings</option>
+                </select>
+              </label>
+              <label>
+                Message type
+                <select id="productFeatureOutputTypeSelect">
+                  <option value="Interactive List Messages">Interactive List Messages</option>
+                  <option value="Reply Buttons">Reply Buttons</option>
+                </select>
+              </label>
+              <label>
+                Header Text
+                <input id="productFeatureOutputHeaderText" type="text" placeholder="Feature menu header text" />
+              </label>
+              <label>
+                Body Text
+                <textarea id="productFeatureOutputBodyText" rows="3" placeholder="Feature menu body text"></textarea>
+              </label>
+              <label>
+                Footer Text
+                <input id="productFeatureOutputFooterText" type="text" placeholder="Feature menu footer text" />
+              </label>
+              <label>
+                Button Text
+                <input id="productFeatureOutputButtonText" type="text" placeholder="Select" />
+              </label>
+            </section>
+          </section>
+
+          <section id="navigationMenusPanel" class="content-dashboard content-dashboard--wide hidden hidden">
+            <div class="content-dashboard-section content-dashboard-title">
+              <div class="content-title">Navigation Menus</div>
+              <div class="content-subtitle">Create menus/sub-menus and configure WhatsApp message output for each menu</div>
+              <div class="content-selection">
+                <select id="navigationMenuTypeSelect">
+                  <option value="login">Login Menu Config</option>
+                  <option value="business">Business Menu Config</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="menu-toolbar">
+              <label>
+                Edit menu
+                <select id="navigationMenuSelect"></select>
+              </label>
+              <div class="menu-toolbar-actions">
+                <button id="navigationCreateMenuButton" type="button" class="secondary">Create sub-menu</button>
+                <button id="navigationDeleteMenuButton" type="button" class="danger">Delete selected sub-menu</button>
+              </div>
+            </div>
+            <label>
+              Menu name
+              <input id="navigationMenuNameEditor" type="text" placeholder="Menu title" />
+            </label>
+
+            <section class="panel">
+              <h2>Menu output (WhatsApp)</h2>
+              <label>
+                Message type
+                <select id="menuOutputTypeSelect">
+                  <option value="Interactive List Messages">Interactive List Messages</option>
+                  <option value="Reply Buttons">Reply Buttons</option>
+                </select>
+              </label>
+              <label>
+                Header Text
+                <input id="menuOutputHeaderText" type="text" placeholder="Menu header text" />
+              </label>
+              <label>
+                Header Image URL
+                <input id="menuOutputHeaderImageUrl" type="text" placeholder="/assets/images/menu-header.jpg or https://..." />
+              </label>
+              <label>
+                Body Text
+                <textarea id="menuOutputBodyText" rows="3" placeholder="Menu body text"></textarea>
+              </label>
+              <label>
+                Footer Text
+                <input id="menuOutputFooterText" type="text" placeholder="Menu footer text" />
+              </label>
+              <label>
+                Button Text
+                <input id="menuOutputButtonText" type="text" placeholder="Select" />
+              </label>
+            </section>
+          </section>
+
           <section id="menuConfigurationPanel" class="content-dashboard content-dashboard--wide hidden hidden">
             
             <div class="content-dashboard-section content-dashboard-title">
-              <div class="content-title">User Menus</div>
-              <div class="content-subtitle">Configure user menus and associate menu items to Service Functions</div>
+              <div class="content-title">Menu Items</div>
+              <div class="content-subtitle">Associate menu items to navigation menus and service functions</div>
               <div class="content-selection">
-                <select id="menuTypeSelect">
+                <select id="menuItemsMenuTypeSelect">
                   <option value="login">Login Menu Config</option>
                   <option value="business">Business Menu Config</option>
                 </select>
@@ -350,27 +492,9 @@
             </div>
             
 
-              <div class="menu-toolbar">
-                <label>
-                  Edit menu
-                  <select id="menuSelect"></select>
-                </label>
-                <div class="menu-toolbar-actions">
-                  <button id="createMenuButton" type="button" class="secondary">
-                    Create sub-menu
-                  </button>
-                  <button id="deleteMenuButton" type="button" class="danger">
-                    Delete selected sub-menu
-                  </button>
-                </div>
-              </div>
               <label>
-                Menu name
-                <input
-                  id="menuNameEditor"
-                  type="text"
-                  placeholder="Menu title"
-                />
+                Edit menu items for
+                <select id="menuItemsMenuSelect"></select>
               </label>
               <div
                 id="menuContainer"
@@ -389,7 +513,7 @@
               <form id="addItemForm" autocomplete="off">
                 <label>
                   Place this item inside
-                  <select id="parentMenuSelect" required></select>
+                  <select id="menuItemsParentMenuSelect" required></select>
                 </label>
                 <label>
                   Menu item name

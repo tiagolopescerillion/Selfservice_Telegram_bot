@@ -247,13 +247,21 @@ function removeFunctionOption(id) {
 
 BASE_FUNCTION_OPTIONS.forEach(registerFunctionOption);
 
-const menuTypeSelect = document.getElementById("menuTypeSelect");
+const navigationMenuTypeSelect = document.getElementById("navigationMenuTypeSelect");
+const menuItemsMenuTypeSelect = document.getElementById("menuItemsMenuTypeSelect");
 const menuContainer = document.getElementById("menuContainer");
-const menuSelect = document.getElementById("menuSelect");
-const parentMenuSelect = document.getElementById("parentMenuSelect");
-const menuNameEditor = document.getElementById("menuNameEditor");
-const createMenuButton = document.getElementById("createMenuButton");
-const deleteMenuButton = document.getElementById("deleteMenuButton");
+const navigationMenuSelect = document.getElementById("navigationMenuSelect");
+const menuItemsMenuSelect = document.getElementById("menuItemsMenuSelect");
+const menuItemsParentMenuSelect = document.getElementById("menuItemsParentMenuSelect");
+const navigationMenuNameEditor = document.getElementById("navigationMenuNameEditor");
+const navigationCreateMenuButton = document.getElementById("navigationCreateMenuButton");
+const navigationDeleteMenuButton = document.getElementById("navigationDeleteMenuButton");
+const menuOutputTypeSelect = document.getElementById("menuOutputTypeSelect");
+const menuOutputHeaderText = document.getElementById("menuOutputHeaderText");
+const menuOutputHeaderImageUrl = document.getElementById("menuOutputHeaderImageUrl");
+const menuOutputBodyText = document.getElementById("menuOutputBodyText");
+const menuOutputFooterText = document.getElementById("menuOutputFooterText");
+const menuOutputButtonText = document.getElementById("menuOutputButtonText");
 const addItemForm = document.getElementById("addItemForm");
 const itemLabelInput = document.getElementById("itemLabelInput");
 const menuFunctionSelect = document.getElementById("menuFunctionSelect");
@@ -279,6 +287,14 @@ const resetButton = document.getElementById("resetButton");
 const downloadButton = document.getElementById("downloadButton");
 const preview = document.getElementById("preview");
 const importInput = document.getElementById("importInput");
+const productFeatureSelect = document.getElementById("productFeatureSelect");
+const productFeatureOutputTypeSelect = document.getElementById("productFeatureOutputTypeSelect");
+const productFeatureOutputHeaderText = document.getElementById("productFeatureOutputHeaderText");
+const productFeatureOutputBodyText = document.getElementById("productFeatureOutputBodyText");
+const productFeatureOutputFooterText = document.getElementById("productFeatureOutputFooterText");
+const productFeatureOutputButtonText = document.getElementById("productFeatureOutputButtonText");
+const navProductFeatureMenus = document.getElementById("navProductFeatureMenus");
+const navNavigationMenus = document.getElementById("navNavigationMenus");
 const navMenuConfig = document.getElementById("navMenuConfig");
 const navOperationsMonitoring = document.getElementById("navOperationsMonitoring");
 const navSendMessages = document.getElementById("navSendMessages");
@@ -288,6 +304,8 @@ const navServiceBuilder = document.getElementById("navServiceBuilder");
 const navConnectors = document.getElementById("navConnectors");
 const navWeblinks = document.getElementById("navWeblinks");
 const saveOverlayButton = document.getElementById("saveOverlayButton");
+const productFeatureMenusPanel = document.getElementById("productFeatureMenusPanel");
+const navigationMenusPanel = document.getElementById("navigationMenusPanel");
 const menuConfigurationPanel = document.getElementById("menuConfigurationPanel");
 const operationsMonitoringPanel = document.getElementById("operationsMonitoringPanel");
 const sendMessagesPanel = document.getElementById("sendMessagesPanel");
@@ -396,6 +414,10 @@ const weblinkNameInput = document.getElementById("weblinkNameInput");
 const weblinkUrlInput = document.getElementById("weblinkUrlInput");
 const weblinkAuthInput = document.getElementById("weblinkAuthInput");
 const weblinkContextInput = document.getElementById("weblinkContextInput");
+const weblinkCtaHeaderImageInput = document.getElementById("weblinkCtaHeaderImageInput");
+const weblinkCtaBodyTextInput = document.getElementById("weblinkCtaBodyTextInput");
+const weblinkCtaFooterTextInput = document.getElementById("weblinkCtaFooterTextInput");
+const weblinkCtaButtonLabelInput = document.getElementById("weblinkCtaButtonLabelInput");
 const confirmWeblinkButton = document.getElementById("confirmWeblinkButton");
 const cancelWeblinkButton = document.getElementById("cancelWeblinkButton");
 
@@ -440,6 +462,8 @@ let weblinksContent = "";
 let weblinksOriginalContent = "";
 let weblinksFile = "weblinks-local.yml";
 
+const PRODUCT_FEATURES = ["CONSENT_MANAGEMENT", "LANGUAGE_SETTINGS"];
+let productFeatureMenuConfigs = {};
 let activeApp = "menu";
 let activeConnectorsTab = "general";
 
@@ -725,6 +749,85 @@ function slugify(value) {
     .replace(/^-+|-+$/g, "");
 }
 
+function defaultMenuOutput() {
+  return {
+    messageType: "Interactive List Messages",
+    headerText: "",
+    headerImageUrl: "",
+    bodyText: "",
+    footerText: "",
+    buttonText: "Select"
+  };
+}
+
+function normalizeMenuOutput(output = {}) {
+  const defaults = defaultMenuOutput();
+  return {
+    messageType: output?.messageType || defaults.messageType,
+    headerText: output?.headerText || "",
+    headerImageUrl: output?.headerImageUrl || "",
+    bodyText: output?.bodyText || "",
+    footerText: output?.footerText || "",
+    buttonText: output?.buttonText || defaults.buttonText
+  };
+}
+
+function normalizeProductFeatureMenus(input = {}) {
+  const normalized = {};
+  PRODUCT_FEATURES.forEach((feature) => {
+    normalized[feature] = normalizeMenuOutput(input?.[feature]);
+  });
+  return normalized;
+}
+
+function renderProductFeatureMenuFields() {
+  const feature = productFeatureSelect?.value || PRODUCT_FEATURES[0];
+  const output = normalizeMenuOutput(productFeatureMenuConfigs?.[feature]);
+  if (productFeatureOutputTypeSelect) productFeatureOutputTypeSelect.value = output.messageType;
+  if (productFeatureOutputHeaderText) productFeatureOutputHeaderText.value = output.headerText;
+  if (productFeatureOutputBodyText) productFeatureOutputBodyText.value = output.bodyText;
+  if (productFeatureOutputFooterText) productFeatureOutputFooterText.value = output.footerText;
+  if (productFeatureOutputButtonText) productFeatureOutputButtonText.value = output.buttonText;
+}
+
+function updateProductFeatureMenuFromForm() {
+  const feature = productFeatureSelect?.value;
+  if (!feature) return;
+  productFeatureMenuConfigs[feature] = normalizeMenuOutput({
+    messageType: productFeatureOutputTypeSelect?.value,
+    headerText: productFeatureOutputHeaderText?.value?.trim(),
+    bodyText: productFeatureOutputBodyText?.value?.trim(),
+    footerText: productFeatureOutputFooterText?.value?.trim(),
+    buttonText: productFeatureOutputButtonText?.value?.trim()
+  });
+  updatePreview();
+}
+
+function updateMenuOutputFromForm() {
+  const menu = menusById.get(selectedMenuId);
+  if (!menu) return;
+  menu.output = normalizeMenuOutput({
+    messageType: menuOutputTypeSelect?.value,
+    headerText: menuOutputHeaderText?.value?.trim(),
+    headerImageUrl: menuOutputHeaderImageUrl?.value?.trim(),
+    bodyText: menuOutputBodyText?.value?.trim(),
+    footerText: menuOutputFooterText?.value?.trim(),
+    buttonText: menuOutputButtonText?.value?.trim()
+  });
+  updatePreview();
+}
+
+function renderMenuOutputFields() {
+  const menu = menusById.get(selectedMenuId);
+  const output = normalizeMenuOutput(menu?.output);
+  if (menuOutputTypeSelect) menuOutputTypeSelect.value = output.messageType;
+  if (menuOutputHeaderText) menuOutputHeaderText.value = output.headerText;
+  if (menuOutputHeaderImageUrl) menuOutputHeaderImageUrl.value = output.headerImageUrl;
+  if (menuOutputBodyText) menuOutputBodyText.value = output.bodyText;
+  if (menuOutputFooterText) menuOutputFooterText.value = output.footerText;
+  if (menuOutputButtonText) menuOutputButtonText.value = output.buttonText;
+}
+
 function createMenuStore(rootId, defaults) {
   return {
     rootId,
@@ -761,8 +864,8 @@ function switchMenuType(type) {
   persistActiveStore();
   activeMenuType = type;
   restoreActiveStore();
-  if (menuTypeSelect) {
-    menuTypeSelect.value = type;
+  if (navigationMenuTypeSelect) {
+    navigationMenuTypeSelect.value = type;
   }
   renderAll();
 }
@@ -784,7 +887,7 @@ function nextItemId() {
 
 function ensureRootMenu() {
   if (!menusById.has(currentRootMenuId)) {
-    menusById.set(currentRootMenuId, { id: currentRootMenuId, name: "Home", parentId: null, items: [] });
+    menusById.set(currentRootMenuId, { id: currentRootMenuId, name: "Home", parentId: null, output: defaultMenuOutput(), items: [] });
     menuOrder.unshift(currentRootMenuId);
   }
 }
@@ -823,6 +926,7 @@ function applyMenusToStore(menuType, menus) {
       id: resolvedId,
       name: menu.name?.trim() || (menu.id === store.rootId ? "Home" : menu.id || "Menu"),
       parentId: menu.parentId ?? null,
+      output: normalizeMenuOutput(menu.output),
       items: Array.isArray(menu.items) ? menu.items : []
     };
     store.menusById.set(normalized.id, { ...normalized, items: [] });
@@ -830,7 +934,7 @@ function applyMenusToStore(menuType, menus) {
   });
 
   if (!store.menusById.has(store.rootId)) {
-    store.menusById.set(store.rootId, { id: store.rootId, name: "Home", parentId: null, items: [] });
+    store.menusById.set(store.rootId, { id: store.rootId, name: "Home", parentId: null, output: defaultMenuOutput(), items: [] });
     store.menuOrder.unshift(store.rootId);
   }
 
@@ -897,6 +1001,10 @@ function applyMenusToStore(menuType, menus) {
           url: item.url || null,
           authenticated: item.authenticated,
           context: item.context || "noContext",
+          ctaHeaderImageUrl: item.ctaHeaderImageUrl || "",
+          ctaBodyText: item.ctaBodyText || "Open this link",
+          ctaFooterText: item.ctaFooterText || "",
+          ctaButtonLabel: item.ctaButtonLabel || "Open",
           function: null,
           submenuId: null,
           useTranslation: false
@@ -1033,6 +1141,7 @@ function normalizeMenuTree(rawMenus, defaults, rootId) {
       id: menu.id || slugify(menu.name || ""),
       name: menu.name,
       parentId: menu.parentId ?? null,
+      output: normalizeMenuOutput(menu.output),
       items: Array.isArray(menu.items) ? menu.items : []
     }));
   }
@@ -1055,6 +1164,7 @@ function normalizeIncomingConfig(raw) {
       : null;
   const businessMenus = normalizeMenuTree(businessSource, DEFAULT_STRUCTURE, ROOT_MENU_ID);
   const loginMenus = normalizeMenuTree(extractLoginMenus(raw?.loginMenu), DEFAULT_LOGIN_STRUCTURE, LOGIN_ROOT_MENU_ID);
+  productFeatureMenuConfigs = normalizeProductFeatureMenus(raw?.productFeatureMenus || {});
 
   console.info(
     "Normalized menus", {
@@ -1074,6 +1184,8 @@ function normalizeIncomingConfig(raw) {
 function renderAll() {
   renderMenuSelectors();
   renderMenuItems();
+  renderMenuOutputFields();
+  renderProductFeatureMenuFields();
   toggleAddFormFields();
   updatePreview();
 }
@@ -1081,8 +1193,9 @@ function renderAll() {
 function renderMenuSelectors() {
   ensureRootMenu();
 
-  menuSelect.innerHTML = "";
-  parentMenuSelect.innerHTML = "";
+  navigationMenuSelect.innerHTML = "";
+  menuItemsMenuSelect.innerHTML = "";
+  menuItemsParentMenuSelect.innerHTML = "";
 
   menuOrder = menuOrder.filter((id) => menusById.has(id));
   if (!menuOrder.includes(currentRootMenuId)) {
@@ -1092,19 +1205,23 @@ function renderMenuSelectors() {
   menuOrder.forEach((id) => {
     const menu = menusById.get(id);
     if (!menu) return;
-    menuSelect.append(new Option(menu.name, id, false, id === selectedMenuId));
-    parentMenuSelect.append(new Option(menu.name, id));
+    navigationMenuSelect.append(new Option(menu.name, id, false, id === selectedMenuId));
+    menuItemsMenuSelect.append(new Option(menu.name, id, false, id === selectedMenuId));
+    menuItemsParentMenuSelect.append(new Option(menu.name, id));
   });
 
   if (!menusById.has(selectedMenuId)) {
     selectedMenuId = currentRootMenuId;
   }
 
-  menuSelect.value = selectedMenuId;
-  parentMenuSelect.value = selectedMenuId;
-  menuNameEditor.value = menusById.get(selectedMenuId)?.name ?? "";
-  menuNameEditor.disabled = selectedMenuId === currentRootMenuId;
-  deleteMenuButton.disabled = selectedMenuId === currentRootMenuId;
+  navigationMenuSelect.value = selectedMenuId;
+  menuItemsMenuSelect.value = selectedMenuId;
+  menuItemsParentMenuSelect.value = selectedMenuId;
+  navigationMenuNameEditor.value = menusById.get(selectedMenuId)?.name ?? "";
+  navigationMenuNameEditor.disabled = selectedMenuId === currentRootMenuId;
+  navigationDeleteMenuButton.disabled = selectedMenuId === currentRootMenuId;
+  if (navigationMenuTypeSelect) navigationMenuTypeSelect.value = activeMenuType;
+  if (menuItemsMenuTypeSelect) menuItemsMenuTypeSelect.value = activeMenuType;
 
   updateAddFormSubmenuOptions();
 }
@@ -1460,7 +1577,7 @@ function linkSubmenu(parentId, submenuId) {
 }
 
 function updateAddFormSubmenuOptions() {
-  const parentId = parentMenuSelect.value || currentRootMenuId;
+  const parentId = menuItemsParentMenuSelect.value || currentRootMenuId;
   const options = availableSubmenus(parentId);
   submenuSelect.innerHTML = "";
   if (!options.length) {
@@ -1553,7 +1670,8 @@ function buildConfig() {
     version: 1,
     generatedAt: timestamp,
     loginMenu: { menus: loginMenus, ...legacyLogin },
-    menus: businessMenus
+    menus: businessMenus,
+    productFeatureMenus: normalizeProductFeatureMenus(productFeatureMenuConfigs)
   };
 }
 
@@ -1566,6 +1684,7 @@ function serializeStore(store) {
         id: menu.id,
         name: menu.name,
         parentId: menu.parentId ?? null,
+        output: normalizeMenuOutput(menu.output),
         items: menu.items.map((item, index) => {
           if (item.type === ITEM_TYPES.FUNCTION_MENU) {
             const meta = functionDictionary[item.function] || {};
@@ -1606,7 +1725,11 @@ function serializeStore(store) {
               weblink: item.weblink || null,
               url: linkMeta?.url || item.url || null,
               authenticated: linkMeta?.authenticated ?? Boolean(item.authenticated),
-              context: linkMeta?.context || item.context || "noContext"
+              context: linkMeta?.context || item.context || "noContext",
+              ctaHeaderImageUrl: linkMeta?.ctaHeaderImageUrl || item.ctaHeaderImageUrl || "",
+              ctaBodyText: linkMeta?.ctaBodyText || item.ctaBodyText || "Open this link",
+              ctaFooterText: linkMeta?.ctaFooterText || item.ctaFooterText || "",
+              ctaButtonLabel: linkMeta?.ctaButtonLabel || item.ctaButtonLabel || "Open"
             };
           }
 
@@ -1675,7 +1798,7 @@ function createSubmenu(initialName) {
   const name = initialName ?? promptForMenuName();
   if (!name) return null;
   const id = nextMenuId(name);
-  menusById.set(id, { id, name, parentId: null, items: [] });
+  menusById.set(id, { id, name, parentId: null, output: defaultMenuOutput(), items: [] });
   menuOrder.push(id);
   return id;
 }
@@ -1766,7 +1889,7 @@ function importConfig(event) {
 
 function addMenuItem(event) {
   event.preventDefault();
-  const parentId = parentMenuSelect.value || currentRootMenuId;
+  const parentId = menuItemsParentMenuSelect.value || currentRootMenuId;
   const parentMenu = menusById.get(parentId);
   if (!parentMenu) {
     alert("Please select a valid menu.");
@@ -1842,7 +1965,11 @@ function addMenuItem(event) {
       weblink: menuWeblinkSelect.value,
       url: findWeblinkMeta(menuWeblinkSelect.value)?.url || null,
       authenticated: findWeblinkMeta(menuWeblinkSelect.value)?.authenticated ?? false,
-      context: findWeblinkMeta(menuWeblinkSelect.value)?.context || "noContext"
+      context: findWeblinkMeta(menuWeblinkSelect.value)?.context || "noContext",
+      ctaHeaderImageUrl: findWeblinkMeta(menuWeblinkSelect.value)?.ctaHeaderImageUrl || "",
+      ctaBodyText: findWeblinkMeta(menuWeblinkSelect.value)?.ctaBodyText || "Open this link",
+      ctaFooterText: findWeblinkMeta(menuWeblinkSelect.value)?.ctaFooterText || "",
+      ctaButtonLabel: findWeblinkMeta(menuWeblinkSelect.value)?.ctaButtonLabel || "Open"
     });
   }
   selectedMenuId = parentId;
@@ -1856,6 +1983,8 @@ function addMenuItem(event) {
 
 function setActiveApp(target) {
   activeApp = target;
+  const showProductFeatureMenus = target === "product-feature-menus";
+  const showNavigationMenus = target === "navigation-menus";
   const showMenuConfig = target === "menu";
   const showOperations = target === "operations";
   const showSendMessages = target === "notifications";
@@ -1864,6 +1993,12 @@ function setActiveApp(target) {
   const showServiceBuilder = target === "service-builder";
   const showConnectors = target === "connectors";
   const showWeblinks = target === "weblinks";
+  if (productFeatureMenusPanel) {
+    productFeatureMenusPanel.classList.toggle("hidden", !showProductFeatureMenus);
+  }
+  if (navigationMenusPanel) {
+    navigationMenusPanel.classList.toggle("hidden", !showNavigationMenus);
+  }
   menuConfigurationPanel.classList.toggle("hidden", !showMenuConfig);
   operationsMonitoringPanel.classList.toggle("hidden", !showOperations);
   sendMessagesPanel.classList.toggle("hidden", !showSendMessages);
@@ -1875,6 +2010,12 @@ function setActiveApp(target) {
   }
   if (weblinksPanel) {
     weblinksPanel.classList.toggle("hidden", !showWeblinks);
+  }
+  if (navProductFeatureMenus) {
+    navProductFeatureMenus.classList.toggle("active", showProductFeatureMenus);
+  }
+  if (navNavigationMenus) {
+    navNavigationMenus.classList.toggle("active", showNavigationMenus);
   }
   navMenuConfig.classList.toggle("active", showMenuConfig);
   navOperationsMonitoring.classList.toggle("active", showOperations);
@@ -1915,7 +2056,7 @@ function setActiveApp(target) {
 
 function updateSaveButtonVisibility() {
   if (!saveOverlayButton) return;
-  const saveableSections = ["menu", "api-registry", "service-builder", "weblinks", "connectors", "admin"];
+  const saveableSections = ["menu", "product-feature-menus", "navigation-menus", "api-registry", "service-builder", "weblinks", "connectors", "admin"];
   const shouldShow = saveableSections.includes(activeApp);
   saveOverlayButton.classList.toggle("hidden", !shouldShow);
 }
@@ -2467,6 +2608,8 @@ async function handleSaveClick() {
   saveOverlayButton.disabled = true;
   switch (activeApp) {
     case "menu":
+    case "product-feature-menus":
+    case "navigation-menus":
       await saveMenuConfigurationFile();
       break;
     case "api-registry":
@@ -3004,11 +3147,21 @@ function parseWeblinksYaml(content) {
       if (candidate === "service") return "service";
       return "noContext";
     })();
+    const ctaKey = Object.keys(meta || {}).find((key) => key.toLowerCase() === "cta");
+    const cta = ctaKey && typeof meta[ctaKey] === "object" && meta[ctaKey] !== null ? meta[ctaKey] : {};
+    const findCta = (name, fallback = "") => {
+      const key = Object.keys(cta).find((k) => k.toLowerCase() === name.toLowerCase());
+      return key ? (cta[key] || fallback) : fallback;
+    };
     return {
       name,
       url,
       authenticated: resolveBooleanFlag(authValue, false),
-      context: normalizedContext
+      context: normalizedContext,
+      ctaHeaderImageUrl: findCta("header-image-url", ""),
+      ctaBodyText: findCta("body-text", "Open this link"),
+      ctaFooterText: findCta("footer-text", ""),
+      ctaButtonLabel: findCta("button-label", "Open")
     };
   });
 }
@@ -3020,7 +3173,13 @@ function buildWeblinksYaml() {
     root[link.name] = {
       URL: link.url || "",
       "Authenticated-User": link.authenticated ? "Y" : "N",
-      Context: link.context || "noContext"
+      Context: link.context || "noContext",
+      CTA: {
+        "Header-Image-Url": link.ctaHeaderImageUrl || "",
+        "Body-Text": link.ctaBodyText || "Open this link",
+        "Footer-Text": link.ctaFooterText || "",
+        "Button-Label": link.ctaButtonLabel || "Open"
+      }
     };
   });
   return stringifySimpleYaml(root);
@@ -3141,6 +3300,75 @@ function renderWeblinksList() {
     authRow.className = "stacked-form-item__row";
     authRow.append(authLabel);
 
+    const ctaImageGroup = document.createElement("label");
+    ctaImageGroup.className = "stacked-form-item__field";
+    const ctaImageLabel = document.createElement("span");
+    ctaImageLabel.textContent = "CTA Header image URL";
+    ctaImageLabel.className = "stacked-form-item__label";
+    const ctaImageInput = document.createElement("input");
+    ctaImageInput.type = "text";
+    ctaImageInput.value = link.ctaHeaderImageUrl || "";
+    ctaImageInput.placeholder = "/assets/images/banner.jpg";
+    ctaImageInput.classList.add("field");
+    ctaImageInput.addEventListener("input", (event) => {
+      weblinks[index].ctaHeaderImageUrl = event.target.value;
+      weblinksContent = buildWeblinksYaml();
+      renderWeblinksPreview();
+    });
+    ctaImageGroup.append(ctaImageLabel, ctaImageInput);
+
+    const ctaBodyGroup = document.createElement("label");
+    ctaBodyGroup.className = "stacked-form-item__field";
+    const ctaBodyLabel = document.createElement("span");
+    ctaBodyLabel.textContent = "CTA Body text";
+    ctaBodyLabel.className = "stacked-form-item__label";
+    const ctaBodyInput = document.createElement("input");
+    ctaBodyInput.type = "text";
+    ctaBodyInput.value = link.ctaBodyText || "Open this link";
+    ctaBodyInput.classList.add("field");
+    ctaBodyInput.addEventListener("input", (event) => {
+      weblinks[index].ctaBodyText = event.target.value;
+      weblinksContent = buildWeblinksYaml();
+      renderWeblinksPreview();
+    });
+    ctaBodyGroup.append(ctaBodyLabel, ctaBodyInput);
+
+    const ctaFooterGroup = document.createElement("label");
+    ctaFooterGroup.className = "stacked-form-item__field";
+    const ctaFooterLabel = document.createElement("span");
+    ctaFooterLabel.textContent = "CTA Footer text";
+    ctaFooterLabel.className = "stacked-form-item__label";
+    const ctaFooterInput = document.createElement("input");
+    ctaFooterInput.type = "text";
+    ctaFooterInput.value = link.ctaFooterText || "";
+    ctaFooterInput.classList.add("field");
+    ctaFooterInput.addEventListener("input", (event) => {
+      weblinks[index].ctaFooterText = event.target.value;
+      weblinksContent = buildWeblinksYaml();
+      renderWeblinksPreview();
+    });
+    ctaFooterGroup.append(ctaFooterLabel, ctaFooterInput);
+
+    const ctaButtonGroup = document.createElement("label");
+    ctaButtonGroup.className = "stacked-form-item__field";
+    const ctaButtonLabelEl = document.createElement("span");
+    ctaButtonLabelEl.textContent = "CTA Button label";
+    ctaButtonLabelEl.className = "stacked-form-item__label";
+    const ctaButtonInput = document.createElement("input");
+    ctaButtonInput.type = "text";
+    ctaButtonInput.value = link.ctaButtonLabel || "Open";
+    ctaButtonInput.classList.add("field");
+    ctaButtonInput.addEventListener("input", (event) => {
+      weblinks[index].ctaButtonLabel = event.target.value;
+      weblinksContent = buildWeblinksYaml();
+      renderWeblinksPreview();
+    });
+    ctaButtonGroup.append(ctaButtonLabelEl, ctaButtonInput);
+
+    const ctaRow = document.createElement("div");
+    ctaRow.className = "stacked-form-item__fields";
+    ctaRow.append(ctaImageGroup, ctaBodyGroup, ctaFooterGroup, ctaButtonGroup);
+
     const actions = document.createElement("div");
     actions.className = "stacked-form-item__actions";
     const deleteButton = document.createElement("button");
@@ -3157,7 +3385,7 @@ function renderWeblinksList() {
     actions.append(deleteButton);
 
     fieldsRow.append(nameGroup, urlGroup, contextWrapper);
-    row.append(fieldsRow, authRow, actions);
+    row.append(fieldsRow, authRow, ctaRow, actions);
 
     weblinksList.append(row);
   
@@ -3175,8 +3403,8 @@ function syncWeblinksFromContent() {
   weblinks = parseWeblinksYaml(weblinksContent || "");
   if (!weblinks.length) {
     weblinks = [
-      { name: "Example Dashboard", url: "https://example.com/dashboard", authenticated: true, context: "account" },
-      { name: "Support Portal", url: "https://support.example.com/help", authenticated: false, context: "noContext" }
+      { name: "Example Dashboard", url: "https://example.com/dashboard", authenticated: true, context: "account", ctaHeaderImageUrl: "/assets/images/example-dashboard-banner.jpg", ctaBodyText: "Open your dashboard", ctaFooterText: "", ctaButtonLabel: "Open Dashboard" },
+      { name: "Support Portal", url: "https://support.example.com/help", authenticated: false, context: "noContext", ctaHeaderImageUrl: "/assets/images/support-banner.jpg", ctaBodyText: "Need help? Open Support Portal", ctaFooterText: "", ctaButtonLabel: "Open Support" }
     ];
     weblinksContent = buildWeblinksYaml();
   }
@@ -3259,11 +3487,15 @@ function handleAddWeblink(event) {
   const url = weblinkUrlInput?.value?.trim();
   const authenticated = Boolean(weblinkAuthInput?.checked);
   const context = weblinkContextInput?.value || "noContext";
+  const ctaHeaderImageUrl = weblinkCtaHeaderImageInput?.value?.trim() || "";
+  const ctaBodyText = weblinkCtaBodyTextInput?.value?.trim() || "Open this link";
+  const ctaFooterText = weblinkCtaFooterTextInput?.value?.trim() || "";
+  const ctaButtonLabel = weblinkCtaButtonLabelInput?.value?.trim() || "Open";
   if (!name || !url) {
     alert("URL name and URL are required.");
     return;
   }
-  weblinks.push({ name, url, authenticated, context });
+  weblinks.push({ name, url, authenticated, context, ctaHeaderImageUrl, ctaBodyText, ctaFooterText, ctaButtonLabel });
   weblinksContent = buildWeblinksYaml();
   syncWeblinksFromContent();
   toggleWeblinkForm(false);
@@ -3910,22 +4142,27 @@ async function handleSendNotification(event) {
   }
 }
 
-menuSelect.addEventListener("change", (event) => {
+navigationMenuSelect.addEventListener("change", (event) => {
   selectedMenuId = event.target.value;
   renderAll();
 });
 
-menuNameEditor.addEventListener("change", () => {
-  if (menuNameEditor.disabled) {
+menuItemsMenuSelect.addEventListener("change", (event) => {
+  selectedMenuId = event.target.value;
+  renderAll();
+});
+
+navigationMenuNameEditor.addEventListener("change", () => {
+  if (navigationMenuNameEditor.disabled) {
     return;
   }
   const menu = menusById.get(selectedMenuId);
   if (!menu) {
     return;
   }
-  const value = menuNameEditor.value.trim();
+  const value = navigationMenuNameEditor.value.trim();
   if (!value) {
-    menuNameEditor.value = menu.name;
+    navigationMenuNameEditor.value = menu.name;
     return;
   }
   menu.name = value;
@@ -3933,22 +4170,40 @@ menuNameEditor.addEventListener("change", () => {
   updatePreview();
 });
 
-createMenuButton.addEventListener("click", () => {
+navigationCreateMenuButton.addEventListener("click", () => {
   const id = createSubmenu();
   if (id) {
     selectedMenuId = id;
     renderAll();
-    menuNameEditor.focus();
+    navigationMenuNameEditor.focus();
   }
 });
 
-deleteMenuButton.addEventListener("click", () => deleteMenuWithConfirmation(selectedMenuId));
+navigationDeleteMenuButton.addEventListener("click", () => deleteMenuWithConfirmation(selectedMenuId));
 
-if (menuTypeSelect) {
-  menuTypeSelect.addEventListener("change", (event) => switchMenuType(event.target.value));
+if (navigationMenuTypeSelect) {
+  navigationMenuTypeSelect.addEventListener("change", (event) => switchMenuType(event.target.value));
+}
+if (menuItemsMenuTypeSelect) {
+  menuItemsMenuTypeSelect.addEventListener("change", (event) => switchMenuType(event.target.value));
 }
 
-parentMenuSelect.addEventListener("change", updateAddFormSubmenuOptions);
+menuItemsParentMenuSelect.addEventListener("change", updateAddFormSubmenuOptions);
+[menuOutputTypeSelect, menuOutputHeaderText, menuOutputHeaderImageUrl, menuOutputBodyText, menuOutputFooterText, menuOutputButtonText].forEach((input) => {
+  if (input) {
+    input.addEventListener("change", updateMenuOutputFromForm);
+    input.addEventListener("input", updateMenuOutputFromForm);
+  }
+});
+if (productFeatureSelect) {
+  productFeatureSelect.addEventListener("change", renderProductFeatureMenuFields);
+}
+[productFeatureOutputTypeSelect, productFeatureOutputHeaderText, productFeatureOutputBodyText, productFeatureOutputFooterText, productFeatureOutputButtonText].forEach((input) => {
+  if (input) {
+    input.addEventListener("change", updateProductFeatureMenuFromForm);
+    input.addEventListener("input", updateProductFeatureMenuFromForm);
+  }
+});
 itemTypeSelect.addEventListener("change", toggleAddFormFields);
 inlineCreateSubmenu.addEventListener("click", () => {
   const id = createSubmenu();
@@ -3967,6 +4222,12 @@ resetButton.addEventListener("click", () => {
 
 downloadButton.addEventListener("click", downloadConfig);
 importInput.addEventListener("change", importConfig);
+if (navProductFeatureMenus) {
+  navProductFeatureMenus.addEventListener("click", () => setActiveApp("product-feature-menus"));
+}
+if (navNavigationMenus) {
+  navNavigationMenus.addEventListener("click", () => setActiveApp("navigation-menus"));
+}
 navMenuConfig.addEventListener("click", () => setActiveApp("menu"));
 navOperationsMonitoring.addEventListener("click", () => setActiveApp("operations"));
 navSendMessages.addEventListener("click", () => setActiveApp("notifications"));
@@ -4213,13 +4474,17 @@ if (refreshConfigButton) {
   refreshConfigButton.addEventListener("click", loadImServerConfig);
 }
 
-if (menuTypeSelect) {
-  menuTypeSelect.value = activeMenuType;
+if (navigationMenuTypeSelect) {
+  navigationMenuTypeSelect.value = activeMenuType;
+}
+if (menuItemsMenuTypeSelect) {
+  menuItemsMenuTypeSelect.value = activeMenuType;
 }
 
 setActiveConnectorsTab("general");
 toggleAddFormFields();
 bootstrapMenuConfig();
+productFeatureMenuConfigs = normalizeProductFeatureMenus(productFeatureMenuConfigs);
 initMonitoring();
 restoreNotificationApiBase();
 loadWeblinksConfig();

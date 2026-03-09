@@ -12,6 +12,7 @@ public class BusinessMenuDefinition {
     private String id;
     private String name;
     private String parentId;
+    private MenuOutputConfiguration output;
     private List<BusinessMenuItem> items;
 
     public String getId() {
@@ -44,6 +45,14 @@ public class BusinessMenuDefinition {
 
     public void setItems(List<BusinessMenuItem> items) {
         this.items = items;
+    }
+
+    public MenuOutputConfiguration getOutput() {
+        return output;
+    }
+
+    public void setOutput(MenuOutputConfiguration output) {
+        this.output = output;
     }
 
     public List<BusinessMenuItem> sortedItems() {

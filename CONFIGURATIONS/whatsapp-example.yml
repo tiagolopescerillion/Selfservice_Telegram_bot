@@ -3,3 +3,4 @@ whatsapp:
   verify-token: YOUR_WHATSAPP_VERIFY_TOKEN               # Verification token configured in Meta App settings
   phone-number-id: YOUR_WHATSAPP_PHONE_NUMBER_ID         # WhatsApp Business phone number ID
   access-token: YOUR_WHATSAPP_ACCESS_TOKEN               # Meta WhatsApp access token (not the Keycloak token)
+

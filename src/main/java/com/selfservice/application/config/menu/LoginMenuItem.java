@@ -16,6 +16,10 @@ public record LoginMenuItem(
         String url,
         Boolean authenticated,
         String context,
+        String ctaHeaderImageUrl,
+        String ctaBodyText,
+        String ctaFooterText,
+        String ctaButtonLabel,
         Boolean useTranslation,
         Boolean accountContextEnabled,
         String accountContextKey,
@@ -39,7 +43,7 @@ public record LoginMenuItem(
 
     @JsonIgnore
     public boolean isWeblink() {
-        return weblink != null && !weblink.isBlank();
+        return (weblink != null && !weblink.isBlank()) || (url != null && !url.isBlank());
     }
 
     @JsonIgnore

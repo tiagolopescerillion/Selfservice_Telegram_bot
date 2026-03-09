@@ -74,7 +74,15 @@
             "menuContextKey": null,
             "menuContextLabel": null
           }
-        ]
+        ],
+        "output": {
+          "messageType": "Interactive List Messages",
+          "headerText": "Default Header Text",
+          "bodyText": "Default Body Text",
+          "footerText": "",
+          "buttonText": "Default button text",
+          "headerImageUrl": ""
+        }
       },
       {
         "id": "login-settings",
@@ -125,7 +133,15 @@
             "menuContextKey": null,
             "menuContextLabel": null
           }
-        ]
+        ],
+        "output": {
+          "messageType": "Interactive List Messages",
+          "headerText": "Default Header Text",
+          "bodyText": "Default Body Text",
+          "footerText": "",
+          "buttonText": "Default button text",
+          "headerImageUrl": ""
+        }
       }
     ],
     "menu": [
@@ -321,7 +337,15 @@
           "menuContextKey": null,
           "menuContextLabel": null
         }
-      ]
+      ],
+      "output": {
+        "messageType": "Interactive List Messages",
+        "headerText": "Default Header Text",
+        "bodyText": "Default Body Text",
+        "footerText": "",
+        "buttonText": "Default button text",
+        "headerImageUrl": ""
+      }
     },
     {
       "id": "settings",
@@ -372,7 +396,15 @@
           "menuContextKey": null,
           "menuContextLabel": null
         }
-      ]
+      ],
+      "output": {
+        "messageType": "Interactive List Messages",
+        "headerText": "Default Header Text",
+        "bodyText": "Default Body Text",
+        "footerText": "",
+        "buttonText": "Default button text",
+        "headerImageUrl": ""
+      }
     },
     {
       "id": "invoice-actions",
@@ -467,7 +499,15 @@
           "menuContextKey": null,
           "menuContextLabel": null
         }
-      ]
+      ],
+      "output": {
+        "messageType": "Interactive List Messages",
+        "headerText": "Default Header Text",
+        "bodyText": "Default Body Text",
+        "footerText": "",
+        "buttonText": "Default button text",
+        "headerImageUrl": ""
+      }
     },
     {
       "id": "my-order-sub-menu",
@@ -496,7 +536,15 @@
           "menuContextKey": null,
           "menuContextLabel": null
         }
-      ]
+      ],
+      "output": {
+        "messageType": "Interactive List Messages",
+        "headerText": "Default Header Text",
+        "bodyText": "Default Body Text",
+        "footerText": "",
+        "buttonText": "Default button text",
+        "headerImageUrl": ""
+      }
     },
     {
       "id": "my-tickets",
@@ -525,7 +573,33 @@
           "menuContextKey": null,
           "menuContextLabel": null
         }
-      ]
+      ],
+      "output": {
+        "messageType": "Interactive List Messages",
+        "headerText": "Default Header Text",
+        "bodyText": "Default Body Text",
+        "footerText": "",
+        "buttonText": "Default button text",
+        "headerImageUrl": ""
+      }
     }
-  ]
+  ],
+  "productFeatureMenus": {
+    "CONSENT_MANAGEMENT": {
+      "messageType": "Interactive List Messages",
+      "headerText": "Default Header Text",
+      "bodyText": "Default Body Text",
+      "footerText": "",
+      "buttonText": "Default button text",
+      "headerImageUrl": ""
+    },
+    "LANGUAGE_SETTINGS": {
+      "messageType": "Interactive List Messages",
+      "headerText": "Default Header Text",
+      "bodyText": "Default Body Text",
+      "footerText": "",
+      "buttonText": "Default button text",
+      "headerImageUrl": ""
+    }
+  }
 }
