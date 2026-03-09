@@ -6,6 +6,7 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 public class MenuOutputConfiguration {
     private String messageType;
     private String headerText;
+    private String headerImageUrl;
     private String bodyText;
     private String footerText;
     private String buttonText;
@@ -24,6 +25,14 @@ public class MenuOutputConfiguration {
 
     public void setHeaderText(String headerText) {
         this.headerText = headerText;
+    }
+
+    public String getHeaderImageUrl() {
+        return headerImageUrl;
+    }
+
+    public void setHeaderImageUrl(String headerImageUrl) {
+        this.headerImageUrl = headerImageUrl;
     }
 
     public String getBodyText() {

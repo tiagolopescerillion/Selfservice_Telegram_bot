@@ -58,6 +58,7 @@ public class WhatsappService {
     private static final int WHATSAPP_REPLY_BUTTON_TITLE_LIMIT = 20;
     private static final int WHATSAPP_REPLY_BUTTON_MAX = 3;
     private static final int WHATSAPP_HEADER_TEXT_LIMIT = 60;
+    private static final int WHATSAPP_CTA_BUTTON_LABEL_LIMIT = 20;
 
     private final RestTemplate restTemplate = new RestTemplate();
     private final String phoneNumberId;
@@ -491,7 +492,7 @@ public class WhatsappService {
 
         String body = StringUtils.hasText(bodyText) ? bodyText : "Open this link";
         String footer = StringUtils.hasText(footerText) ? footerText : "";
-        String buttonLabel = StringUtils.hasText(buttonLabelText) ? buttonLabelText : (StringUtils.hasText(linkLabel) ? linkLabel : "Open");
+        String buttonLabel = normalizeCtaButtonLabel(buttonLabelText, linkLabel);
 
         Map<String, Object> interactive = new java.util.HashMap<>();
         interactive.put("type", "cta_url");
@@ -1026,6 +1027,15 @@ public class WhatsappService {
         return value.substring(0, WHATSAPP_HEADER_TEXT_LIMIT);
     }
 
+    private String normalizeCtaButtonLabel(String label, String linkLabel) {
+        String fallback = StringUtils.hasText(linkLabel) ? linkLabel : "Open";
+        String value = safeText(label, fallback);
+        if (value.length() <= WHATSAPP_CTA_BUTTON_LABEL_LIMIT) {
+            return value;
+        }
+        return value.substring(0, WHATSAPP_CTA_BUTTON_LABEL_LIMIT);
+    }
+
     private boolean looksLikeUrl(String value) {
         if (value == null) {
             return false;
@@ -1060,13 +1070,21 @@ public class WhatsappService {
         String buttonText = outputConfiguration != null && StringUtils.hasText(outputConfiguration.getButtonText())
                 ? outputConfiguration.getButtonText().trim()
                 : "Select";
+        String headerImageUrl = outputConfiguration == null ? "" : resolveCtaHeaderImageUrl(outputConfiguration.getHeaderImageUrl());
+        if (StringUtils.hasText(headerImageUrl)) {
+            sendImage(to, headerImageUrl);
+        }
 
         if (isReplyButtonsMessageType(configuredMessageType)) {
-            boolean sent = sendInteractiveReplyButtons(to, headerSource, bodySource, footerText, rows);
-            if (sent) {
-                return true;
+            if (rows.size() > WHATSAPP_REPLY_BUTTON_MAX) {
+                log.info("Configured Reply Buttons for menu with {} items; falling back to interactive list", rows.size());
+            } else {
+                boolean sent = sendInteractiveReplyButtons(to, headerSource, bodySource, footerText, rows);
+                if (sent) {
+                    return true;
+                }
+                log.warn("Unable to send reply buttons for message type {}. Falling back to interactive list.", configuredMessageType);
             }
-            log.warn("Unable to send reply buttons for message type {}. Falling back to interactive list.", configuredMessageType);
         } else if (!isInteractiveListMessageType(configuredMessageType)) {
             log.warn("Unsupported menu output message type {}. Falling back to interactive list.", configuredMessageType);
         }
@@ -1187,6 +1205,20 @@ public class WhatsappService {
         BusinessMenuDefinition definition = menuConfigurationProvider.getLoginMenuDefinition(menuId);
         return definition == null ? null : definition.getOutput();
     }
+
+    private boolean sendImage(String to, String imageUrl) {
+        if (!isConfigured() || !StringUtils.hasText(imageUrl)) {
+            return false;
+        }
+        Map<String, Object> payload = Map.of(
+                "messaging_product", "whatsapp",
+                "to", to,
+                "type", "image",
+                "image", Map.of("link", imageUrl.trim())
+        );
+        return postToWhatsapp(payload);
+    }
+
 
     public enum TelegramKey {
         BUTTON_SELF_SERVICE_LOGIN("ButtonSelfServiceLogin"),

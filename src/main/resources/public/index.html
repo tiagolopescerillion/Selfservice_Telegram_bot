@@ -422,7 +422,7 @@
           <section id="navigationMenusPanel" class="content-dashboard content-dashboard--wide hidden hidden">
             <div class="content-dashboard-section content-dashboard-title">
               <div class="content-title">Navigation Menus</div>
-              <div class="content-subtitle">Create menus/sub-menus and configure WhatsApp interactive list output for each menu</div>
+              <div class="content-subtitle">Create menus/sub-menus and configure WhatsApp message output for each menu</div>
               <div class="content-selection">
                 <select id="navigationMenuTypeSelect">
                   <option value="login">Login Menu Config</option>
@@ -452,11 +452,16 @@
                 Message type
                 <select id="menuOutputTypeSelect">
                   <option value="Interactive List Messages">Interactive List Messages</option>
+                  <option value="Reply Buttons">Reply Buttons</option>
                 </select>
               </label>
               <label>
                 Header Text
                 <input id="menuOutputHeaderText" type="text" placeholder="Menu header text" />
+              </label>
+              <label>
+                Header Image URL
+                <input id="menuOutputHeaderImageUrl" type="text" placeholder="/assets/images/menu-header.jpg or https://..." />
               </label>
               <label>
                 Body Text

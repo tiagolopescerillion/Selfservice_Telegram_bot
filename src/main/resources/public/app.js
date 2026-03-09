@@ -258,6 +258,7 @@ const navigationCreateMenuButton = document.getElementById("navigationCreateMenu
 const navigationDeleteMenuButton = document.getElementById("navigationDeleteMenuButton");
 const menuOutputTypeSelect = document.getElementById("menuOutputTypeSelect");
 const menuOutputHeaderText = document.getElementById("menuOutputHeaderText");
+const menuOutputHeaderImageUrl = document.getElementById("menuOutputHeaderImageUrl");
 const menuOutputBodyText = document.getElementById("menuOutputBodyText");
 const menuOutputFooterText = document.getElementById("menuOutputFooterText");
 const menuOutputButtonText = document.getElementById("menuOutputButtonText");
@@ -752,6 +753,7 @@ function defaultMenuOutput() {
   return {
     messageType: "Interactive List Messages",
     headerText: "",
+    headerImageUrl: "",
     bodyText: "",
     footerText: "",
     buttonText: "Select"
@@ -763,6 +765,7 @@ function normalizeMenuOutput(output = {}) {
   return {
     messageType: output?.messageType || defaults.messageType,
     headerText: output?.headerText || "",
+    headerImageUrl: output?.headerImageUrl || "",
     bodyText: output?.bodyText || "",
     footerText: output?.footerText || "",
     buttonText: output?.buttonText || defaults.buttonText
@@ -806,6 +809,7 @@ function updateMenuOutputFromForm() {
   menu.output = normalizeMenuOutput({
     messageType: menuOutputTypeSelect?.value,
     headerText: menuOutputHeaderText?.value?.trim(),
+    headerImageUrl: menuOutputHeaderImageUrl?.value?.trim(),
     bodyText: menuOutputBodyText?.value?.trim(),
     footerText: menuOutputFooterText?.value?.trim(),
     buttonText: menuOutputButtonText?.value?.trim()
@@ -818,6 +822,7 @@ function renderMenuOutputFields() {
   const output = normalizeMenuOutput(menu?.output);
   if (menuOutputTypeSelect) menuOutputTypeSelect.value = output.messageType;
   if (menuOutputHeaderText) menuOutputHeaderText.value = output.headerText;
+  if (menuOutputHeaderImageUrl) menuOutputHeaderImageUrl.value = output.headerImageUrl;
   if (menuOutputBodyText) menuOutputBodyText.value = output.bodyText;
   if (menuOutputFooterText) menuOutputFooterText.value = output.footerText;
   if (menuOutputButtonText) menuOutputButtonText.value = output.buttonText;
@@ -4184,7 +4189,7 @@ if (menuItemsMenuTypeSelect) {
 }
 
 menuItemsParentMenuSelect.addEventListener("change", updateAddFormSubmenuOptions);
-[menuOutputTypeSelect, menuOutputHeaderText, menuOutputBodyText, menuOutputFooterText, menuOutputButtonText].forEach((input) => {
+[menuOutputTypeSelect, menuOutputHeaderText, menuOutputHeaderImageUrl, menuOutputBodyText, menuOutputFooterText, menuOutputButtonText].forEach((input) => {
   if (input) {
     input.addEventListener("change", updateMenuOutputFromForm);
     input.addEventListener("input", updateMenuOutputFromForm);
