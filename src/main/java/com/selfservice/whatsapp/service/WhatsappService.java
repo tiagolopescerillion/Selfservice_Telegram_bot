@@ -55,6 +55,8 @@ public class WhatsappService {
     public static final String INTERACTIVE_ID_OPT_IN = "OPT_IN";
     public static final String INTERACTIVE_ID_SETTINGS = "SETTINGS";
     private static final int WHATSAPP_ROW_TITLE_LIMIT = 24;
+    private static final int WHATSAPP_REPLY_BUTTON_TITLE_LIMIT = 20;
+    private static final int WHATSAPP_REPLY_BUTTON_MAX = 3;
     private static final int WHATSAPP_HEADER_TEXT_LIMIT = 60;
 
     private final RestTemplate restTemplate = new RestTemplate();
@@ -906,6 +908,14 @@ public class WhatsappService {
         return value.substring(0, WHATSAPP_ROW_TITLE_LIMIT);
     }
 
+    private String normalizeReplyButtonTitle(String title) {
+        String value = safeText(title, "Option");
+        if (value.length() <= WHATSAPP_REPLY_BUTTON_TITLE_LIMIT) {
+            return value;
+        }
+        return value.substring(0, WHATSAPP_REPLY_BUTTON_TITLE_LIMIT);
+    }
+
     private String normalizeHeaderText(String title) {
         String value = safeText(title, "");
         if (value.length() <= WHATSAPP_HEADER_TEXT_LIMIT) {
@@ -936,10 +946,6 @@ public class WhatsappService {
         }
 
         String configuredMessageType = outputConfiguration == null ? null : outputConfiguration.getMessageType();
-        if (!isInteractiveListMessageType(configuredMessageType)) {
-            log.warn("Unsupported menu output message type {}. Falling back to interactive list.", configuredMessageType);
-        }
-
         String headerSource = outputConfiguration != null && StringUtils.hasText(outputConfiguration.getHeaderText())
                 ? outputConfiguration.getHeaderText()
                 : title;
@@ -952,6 +958,16 @@ public class WhatsappService {
         String buttonText = outputConfiguration != null && StringUtils.hasText(outputConfiguration.getButtonText())
                 ? outputConfiguration.getButtonText().trim()
                 : "Select";
+
+        if (isReplyButtonsMessageType(configuredMessageType)) {
+            boolean sent = sendInteractiveReplyButtons(to, headerSource, bodySource, footerText, rows);
+            if (sent) {
+                return true;
+            }
+            log.warn("Unable to send reply buttons for message type {}. Falling back to interactive list.", configuredMessageType);
+        } else if (!isInteractiveListMessageType(configuredMessageType)) {
+            log.warn("Unsupported menu output message type {}. Falling back to interactive list.", configuredMessageType);
+        }
 
         String headerText = normalizeHeaderText(headerSource);
         String instructionText = safeText(bodySource, "");
@@ -988,6 +1004,64 @@ public class WhatsappService {
     }
 
 
+
+
+    private boolean sendInteractiveReplyButtons(String to, String title, String instruction, String footerText, List<Map<String, Object>> rows) {
+        List<Map<String, Object>> buttons = new ArrayList<>();
+        for (Map<String, Object> row : rows) {
+            if (row == null) {
+                continue;
+            }
+            Object id = row.get("id");
+            Object rowTitle = row.get("title");
+            if (!(id instanceof String) || !StringUtils.hasText((String) id)) {
+                continue;
+            }
+            buttons.add(Map.of(
+                    "type", "reply",
+                    "reply", Map.of(
+                            "id", ((String) id).trim(),
+                            "title", normalizeReplyButtonTitle(rowTitle == null ? null : rowTitle.toString())
+                    )
+            ));
+            if (buttons.size() >= WHATSAPP_REPLY_BUTTON_MAX) {
+                break;
+            }
+        }
+
+        if (buttons.isEmpty()) {
+            return false;
+        }
+
+        Map<String, Object> interactive = new java.util.HashMap<>();
+        interactive.put("type", "button");
+        if (StringUtils.hasText(title)) {
+            interactive.put("header", Map.of("type", "text", "text", normalizeHeaderText(title)));
+        }
+        interactive.put("body", Map.of("text", safeText(instruction, "")));
+        if (StringUtils.hasText(footerText)) {
+            interactive.put("footer", Map.of("text", footerText));
+        }
+        interactive.put("action", Map.of("buttons", buttons));
+
+        Map<String, Object> payload = Map.of(
+                "messaging_product", "whatsapp",
+                "to", to,
+                "type", "interactive",
+                "interactive", interactive
+        );
+
+        return postToWhatsapp(payload);
+    }
+
+    private boolean isReplyButtonsMessageType(String configuredMessageType) {
+        if (configuredMessageType == null || configuredMessageType.isBlank()) {
+            return false;
+        }
+        String normalized = configuredMessageType.trim().toLowerCase();
+        return "reply-buttons".equals(normalized)
+                || "reply buttons".equals(normalized);
+    }
 
     private boolean isInteractiveListMessageType(String configuredMessageType) {
         if (configuredMessageType == null || configuredMessageType.isBlank()) {
