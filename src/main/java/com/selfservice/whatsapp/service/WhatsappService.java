@@ -199,7 +199,15 @@ public class WhatsappService {
             return item.getCallbackData();
         }
         LoginMenuFunction function = item.resolvedFunction();
-        return function == null ? "" : function.name();
+        if (function != null) {
+            return function.name();
+        }
+        String url = item.url();
+        if (url != null && !url.isBlank()) {
+            String seed = (item.label() == null ? "" : item.label()) + "|" + url + "|" + item.order();
+            return "LOGIN_WEBLINK_" + Math.abs(seed.hashCode());
+        }
+        return "";
     }
 
     private boolean isLoggedIn(String userId) {
@@ -442,6 +450,20 @@ public class WhatsappService {
             return false;
         }
         return true;
+    }
+
+
+    public void sendLoginWeblink(String to, LoginMenuItem item) {
+        if (item == null) {
+            return;
+        }
+        String url = item.url();
+        if (url == null || url.isBlank()) {
+            sendText(to, "Link unavailable.");
+            return;
+        }
+        String label = (item.label() == null || item.label().isBlank()) ? "Link" : item.label().trim();
+        sendText(to, label + ": " + url, false);
     }
 
     public void sendWeblink(String to, BusinessMenuItem item) {

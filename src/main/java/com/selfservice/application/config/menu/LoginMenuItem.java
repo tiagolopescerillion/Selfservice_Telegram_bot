@@ -39,7 +39,7 @@ public record LoginMenuItem(
 
     @JsonIgnore
     public boolean isWeblink() {
-        return weblink != null && !weblink.isBlank();
+        return (weblink != null && !weblink.isBlank()) || (url != null && !url.isBlank());
     }
 
     @JsonIgnore
