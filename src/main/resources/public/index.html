@@ -42,6 +42,9 @@
             Service Builder
           </button>
           <div class="side-menu-divider">User Menus</div>
+          <button id="navProductFeatureMenus" class="sidebar__link" type="button">
+            Product Feature Menus
+          </button>
           <button id="navNavigationMenus" class="sidebar__link" type="button">
             Navigation Menus
           </button>
@@ -340,6 +343,45 @@
             </div>
           </section>
 
+
+          
+          <section id="productFeatureMenusPanel" class="content-dashboard content-dashboard--wide hidden hidden">
+            <div class="content-dashboard-section content-dashboard-title">
+              <div class="content-title">Product Feature Menus</div>
+              <div class="content-subtitle">Configure menu output for product feature generated options</div>
+            </div>
+            <section class="panel">
+              <label>
+                Product Feature
+                <select id="productFeatureSelect">
+                  <option value="CONSENT_MANAGEMENT">Consent Management</option>
+                  <option value="LANGUAGE_SETTINGS">Language Settings</option>
+                </select>
+              </label>
+              <label>
+                Message type
+                <select id="productFeatureOutputTypeSelect">
+                  <option value="Interactive List Messages">Interactive List Messages</option>
+                </select>
+              </label>
+              <label>
+                Header Text
+                <input id="productFeatureOutputHeaderText" type="text" placeholder="Feature menu header text" />
+              </label>
+              <label>
+                Body Text
+                <textarea id="productFeatureOutputBodyText" rows="3" placeholder="Feature menu body text"></textarea>
+              </label>
+              <label>
+                Footer Text
+                <input id="productFeatureOutputFooterText" type="text" placeholder="Feature menu footer text" />
+              </label>
+              <label>
+                Button Text
+                <input id="productFeatureOutputButtonText" type="text" placeholder="Select" />
+              </label>
+            </section>
+          </section>
 
           <section id="navigationMenusPanel" class="content-dashboard content-dashboard--wide hidden hidden">
             <div class="content-dashboard-section content-dashboard-title">

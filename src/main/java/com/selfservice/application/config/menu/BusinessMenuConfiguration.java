@@ -3,7 +3,9 @@ package com.selfservice.application.config.menu;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class BusinessMenuConfiguration {
@@ -12,6 +14,7 @@ public class BusinessMenuConfiguration {
     private List<BusinessMenuDefinition> menus;
     private List<BusinessMenuItem> menu;
     private LoginMenuDefinition loginMenu;
+    private Map<String, MenuOutputConfiguration> productFeatureMenus;
 
     public int getVersion() {
         return version;
@@ -51,6 +54,22 @@ public class BusinessMenuConfiguration {
 
     public void setLoginMenu(LoginMenuDefinition loginMenu) {
         this.loginMenu = loginMenu;
+    }
+
+
+    public Map<String, MenuOutputConfiguration> getProductFeatureMenus() {
+        return productFeatureMenus;
+    }
+
+    public void setProductFeatureMenus(Map<String, MenuOutputConfiguration> productFeatureMenus) {
+        this.productFeatureMenus = productFeatureMenus;
+    }
+
+    public Map<String, MenuOutputConfiguration> normalizedProductFeatureMenus() {
+        if (productFeatureMenus == null || productFeatureMenus.isEmpty()) {
+            return Map.of();
+        }
+        return new LinkedHashMap<>(productFeatureMenus);
     }
 
     public List<BusinessMenuDefinition> normalizedMenus() {

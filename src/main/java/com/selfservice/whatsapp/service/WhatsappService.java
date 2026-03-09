@@ -9,6 +9,7 @@ import com.selfservice.application.config.menu.BusinessMenuConfigurationProvider
 import com.selfservice.application.config.menu.BusinessMenuDefinition;
 import com.selfservice.application.config.menu.BusinessMenuItem;
 import com.selfservice.application.config.menu.MenuOutputConfiguration;
+import com.selfservice.application.config.menu.ProductFeatureMenu;
 import com.selfservice.application.config.menu.LoginMenuDefinition;
 import com.selfservice.application.config.menu.LoginMenuFunction;
 import com.selfservice.application.config.menu.LoginMenuItem;
@@ -308,7 +309,8 @@ public class WhatsappService {
                 List.of(
                         buildListRow("1", yes),
                         buildListRow("2", no)
-                ));
+                ),
+                resolveProductFeatureMenuOutputConfig(ProductFeatureMenu.CONSENT_MANAGEMENT));
     }
 
     public void sendOptInAccepted(String to) {
@@ -329,7 +331,8 @@ public class WhatsappService {
                         buildListRow("2", translate(to, "LanguageFrench")),
                         buildListRow("3", translate(to, "LanguagePortuguese")),
                         buildListRow("4", translate(to, "LanguageRussian"))
-                ));
+                ),
+                resolveProductFeatureMenuOutputConfig(ProductFeatureMenu.LANGUAGE_SETTINGS));
     }
 
     public void sendSettingsMenu(String to) {
@@ -993,6 +996,10 @@ public class WhatsappService {
         String normalized = configuredMessageType.trim().toLowerCase();
         return "interactive-list-message".equals(normalized)
                 || "interactive list messages".equals(normalized);
+    }
+
+    private MenuOutputConfiguration resolveProductFeatureMenuOutputConfig(ProductFeatureMenu feature) {
+        return menuConfigurationProvider.getProductFeatureMenuOutput(feature);
     }
 
     private MenuOutputConfiguration resolveBusinessMenuOutputConfig(String menuId) {

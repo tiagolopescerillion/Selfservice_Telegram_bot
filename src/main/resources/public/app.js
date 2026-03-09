@@ -286,6 +286,13 @@ const resetButton = document.getElementById("resetButton");
 const downloadButton = document.getElementById("downloadButton");
 const preview = document.getElementById("preview");
 const importInput = document.getElementById("importInput");
+const productFeatureSelect = document.getElementById("productFeatureSelect");
+const productFeatureOutputTypeSelect = document.getElementById("productFeatureOutputTypeSelect");
+const productFeatureOutputHeaderText = document.getElementById("productFeatureOutputHeaderText");
+const productFeatureOutputBodyText = document.getElementById("productFeatureOutputBodyText");
+const productFeatureOutputFooterText = document.getElementById("productFeatureOutputFooterText");
+const productFeatureOutputButtonText = document.getElementById("productFeatureOutputButtonText");
+const navProductFeatureMenus = document.getElementById("navProductFeatureMenus");
 const navNavigationMenus = document.getElementById("navNavigationMenus");
 const navMenuConfig = document.getElementById("navMenuConfig");
 const navOperationsMonitoring = document.getElementById("navOperationsMonitoring");
@@ -296,6 +303,7 @@ const navServiceBuilder = document.getElementById("navServiceBuilder");
 const navConnectors = document.getElementById("navConnectors");
 const navWeblinks = document.getElementById("navWeblinks");
 const saveOverlayButton = document.getElementById("saveOverlayButton");
+const productFeatureMenusPanel = document.getElementById("productFeatureMenusPanel");
 const navigationMenusPanel = document.getElementById("navigationMenusPanel");
 const menuConfigurationPanel = document.getElementById("menuConfigurationPanel");
 const operationsMonitoringPanel = document.getElementById("operationsMonitoringPanel");
@@ -449,6 +457,8 @@ let weblinksContent = "";
 let weblinksOriginalContent = "";
 let weblinksFile = "weblinks-local.yml";
 
+const PRODUCT_FEATURES = ["CONSENT_MANAGEMENT", "LANGUAGE_SETTINGS"];
+let productFeatureMenuConfigs = {};
 let activeApp = "menu";
 let activeConnectorsTab = "general";
 
@@ -753,6 +763,37 @@ function normalizeMenuOutput(output = {}) {
     footerText: output?.footerText || "",
     buttonText: output?.buttonText || defaults.buttonText
   };
+}
+
+function normalizeProductFeatureMenus(input = {}) {
+  const normalized = {};
+  PRODUCT_FEATURES.forEach((feature) => {
+    normalized[feature] = normalizeMenuOutput(input?.[feature]);
+  });
+  return normalized;
+}
+
+function renderProductFeatureMenuFields() {
+  const feature = productFeatureSelect?.value || PRODUCT_FEATURES[0];
+  const output = normalizeMenuOutput(productFeatureMenuConfigs?.[feature]);
+  if (productFeatureOutputTypeSelect) productFeatureOutputTypeSelect.value = output.messageType;
+  if (productFeatureOutputHeaderText) productFeatureOutputHeaderText.value = output.headerText;
+  if (productFeatureOutputBodyText) productFeatureOutputBodyText.value = output.bodyText;
+  if (productFeatureOutputFooterText) productFeatureOutputFooterText.value = output.footerText;
+  if (productFeatureOutputButtonText) productFeatureOutputButtonText.value = output.buttonText;
+}
+
+function updateProductFeatureMenuFromForm() {
+  const feature = productFeatureSelect?.value;
+  if (!feature) return;
+  productFeatureMenuConfigs[feature] = normalizeMenuOutput({
+    messageType: productFeatureOutputTypeSelect?.value,
+    headerText: productFeatureOutputHeaderText?.value?.trim(),
+    bodyText: productFeatureOutputBodyText?.value?.trim(),
+    footerText: productFeatureOutputFooterText?.value?.trim(),
+    buttonText: productFeatureOutputButtonText?.value?.trim()
+  });
+  updatePreview();
 }
 
 function updateMenuOutputFromForm() {
@@ -1110,6 +1151,7 @@ function normalizeIncomingConfig(raw) {
       : null;
   const businessMenus = normalizeMenuTree(businessSource, DEFAULT_STRUCTURE, ROOT_MENU_ID);
   const loginMenus = normalizeMenuTree(extractLoginMenus(raw?.loginMenu), DEFAULT_LOGIN_STRUCTURE, LOGIN_ROOT_MENU_ID);
+  productFeatureMenuConfigs = normalizeProductFeatureMenus(raw?.productFeatureMenus || {});
 
   console.info(
     "Normalized menus", {
@@ -1130,6 +1172,7 @@ function renderAll() {
   renderMenuSelectors();
   renderMenuItems();
   renderMenuOutputFields();
+  renderProductFeatureMenuFields();
   toggleAddFormFields();
   updatePreview();
 }
@@ -1614,7 +1657,8 @@ function buildConfig() {
     version: 1,
     generatedAt: timestamp,
     loginMenu: { menus: loginMenus, ...legacyLogin },
-    menus: businessMenus
+    menus: businessMenus,
+    productFeatureMenus: normalizeProductFeatureMenus(productFeatureMenuConfigs)
   };
 }
 
@@ -1918,6 +1962,7 @@ function addMenuItem(event) {
 
 function setActiveApp(target) {
   activeApp = target;
+  const showProductFeatureMenus = target === "product-feature-menus";
   const showNavigationMenus = target === "navigation-menus";
   const showMenuConfig = target === "menu";
   const showOperations = target === "operations";
@@ -1927,6 +1972,9 @@ function setActiveApp(target) {
   const showServiceBuilder = target === "service-builder";
   const showConnectors = target === "connectors";
   const showWeblinks = target === "weblinks";
+  if (productFeatureMenusPanel) {
+    productFeatureMenusPanel.classList.toggle("hidden", !showProductFeatureMenus);
+  }
   if (navigationMenusPanel) {
     navigationMenusPanel.classList.toggle("hidden", !showNavigationMenus);
   }
@@ -1941,6 +1989,9 @@ function setActiveApp(target) {
   }
   if (weblinksPanel) {
     weblinksPanel.classList.toggle("hidden", !showWeblinks);
+  }
+  if (navProductFeatureMenus) {
+    navProductFeatureMenus.classList.toggle("active", showProductFeatureMenus);
   }
   if (navNavigationMenus) {
     navNavigationMenus.classList.toggle("active", showNavigationMenus);
@@ -1984,7 +2035,7 @@ function setActiveApp(target) {
 
 function updateSaveButtonVisibility() {
   if (!saveOverlayButton) return;
-  const saveableSections = ["menu", "navigation-menus", "api-registry", "service-builder", "weblinks", "connectors", "admin"];
+  const saveableSections = ["menu", "product-feature-menus", "navigation-menus", "api-registry", "service-builder", "weblinks", "connectors", "admin"];
   const shouldShow = saveableSections.includes(activeApp);
   saveOverlayButton.classList.toggle("hidden", !shouldShow);
 }
@@ -2536,6 +2587,7 @@ async function handleSaveClick() {
   saveOverlayButton.disabled = true;
   switch (activeApp) {
     case "menu":
+    case "product-feature-menus":
     case "navigation-menus":
       await saveMenuConfigurationFile();
       break;
@@ -4033,6 +4085,15 @@ menuItemsParentMenuSelect.addEventListener("change", updateAddFormSubmenuOptions
     input.addEventListener("input", updateMenuOutputFromForm);
   }
 });
+if (productFeatureSelect) {
+  productFeatureSelect.addEventListener("change", renderProductFeatureMenuFields);
+}
+[productFeatureOutputTypeSelect, productFeatureOutputHeaderText, productFeatureOutputBodyText, productFeatureOutputFooterText, productFeatureOutputButtonText].forEach((input) => {
+  if (input) {
+    input.addEventListener("change", updateProductFeatureMenuFromForm);
+    input.addEventListener("input", updateProductFeatureMenuFromForm);
+  }
+});
 itemTypeSelect.addEventListener("change", toggleAddFormFields);
 inlineCreateSubmenu.addEventListener("click", () => {
   const id = createSubmenu();
@@ -4051,6 +4112,9 @@ resetButton.addEventListener("click", () => {
 
 downloadButton.addEventListener("click", downloadConfig);
 importInput.addEventListener("change", importConfig);
+if (navProductFeatureMenus) {
+  navProductFeatureMenus.addEventListener("click", () => setActiveApp("product-feature-menus"));
+}
 if (navNavigationMenus) {
   navNavigationMenus.addEventListener("click", () => setActiveApp("navigation-menus"));
 }
@@ -4310,6 +4374,7 @@ if (menuItemsMenuTypeSelect) {
 setActiveConnectorsTab("general");
 toggleAddFormFields();
 bootstrapMenuConfig();
+productFeatureMenuConfigs = normalizeProductFeatureMenus(productFeatureMenuConfigs);
 initMonitoring();
 restoreNotificationApiBase();
 loadWeblinksConfig();

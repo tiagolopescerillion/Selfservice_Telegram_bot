@@ -33,6 +33,7 @@ public class BusinessMenuConfigurationProvider {
     private BusinessMenuConfiguration defaultConfiguration;
     private String loginRootMenuId;
     private String loginSettingsMenuId;
+    private Map<String, MenuOutputConfiguration> productFeatureMenus;
 
     public BusinessMenuConfigurationProvider(
             ObjectMapper objectMapper,
@@ -51,6 +52,7 @@ public class BusinessMenuConfigurationProvider {
         BusinessMenuConfiguration preferredDefault = firstWithAnyMenu(defaultConfig, overrideConfig);
         List<BusinessMenuDefinition> loadedMenus = resolveMenus(overrideConfig, defaultConfig);
         LoginMenuDefinition loadedLoginMenu = resolveLoginMenu(overrideConfig, defaultConfig);
+        Map<String, MenuOutputConfiguration> loadedProductFeatureMenus = resolveProductFeatureMenus(overrideConfig, defaultConfig);
 
         if (selectedConfiguration == null || loadedMenus.isEmpty()) {
             throw new IllegalStateException("Business menu configuration could not be loaded from CONFIGURATIONS");
@@ -85,6 +87,7 @@ public class BusinessMenuConfigurationProvider {
         this.loginMenusById = Collections.unmodifiableMap(loginMenus);
         this.loginRootMenuId = resolveLoginRootMenuId(loginMenus);
         this.loginSettingsMenuId = resolveLoginSettingsMenuId(loginMenus, this.loginRootMenuId);
+        this.productFeatureMenus = Collections.unmodifiableMap(new LinkedHashMap<>(loadedProductFeatureMenus));
         this.effectiveConfiguration = snapshotConfiguration(
                 selectedConfiguration,
                 loadedMenus,
@@ -155,6 +158,14 @@ public class BusinessMenuConfigurationProvider {
     public List<LoginMenuItem> getLoginSettingsMenuItems() {
         return loginMenuDefinition.normalizedSettingsMenu();
     }
+
+    public MenuOutputConfiguration getProductFeatureMenuOutput(ProductFeatureMenu feature) {
+        if (feature == null) {
+            return null;
+        }
+        return productFeatureMenus.get(feature.name());
+    }
+
 
     public LoginMenuItem findLoginMenuItemByCallback(String callbackData) {
         if (callbackData == null || callbackData.isBlank()) {
@@ -252,6 +263,19 @@ public class BusinessMenuConfigurationProvider {
         return null;
     }
 
+
+    private Map<String, MenuOutputConfiguration> resolveProductFeatureMenus(
+            BusinessMenuConfiguration primary,
+            BusinessMenuConfiguration fallback) {
+        if (primary != null && !primary.normalizedProductFeatureMenus().isEmpty()) {
+            return copyProductFeatureMenus(primary.normalizedProductFeatureMenus());
+        }
+        if (fallback != null && !fallback.normalizedProductFeatureMenus().isEmpty()) {
+            return copyProductFeatureMenus(fallback.normalizedProductFeatureMenus());
+        }
+        return Map.of();
+    }
+
     private boolean hasLoginMenuContent(LoginMenuDefinition loginMenu) {
         return loginMenu != null
                 && ((loginMenu.getMenus() != null && !loginMenu.getMenus().isEmpty())
@@ -268,6 +292,7 @@ public class BusinessMenuConfigurationProvider {
         snapshot.setGeneratedAt(source == null ? null : source.getGeneratedAt());
         snapshot.setMenus(copyMenus(menus));
         snapshot.setLoginMenu(copyLoginMenu(loginMenu));
+        snapshot.setProductFeatureMenus(copyProductFeatureMenus(source == null ? Map.of() : source.normalizedProductFeatureMenus()));
         return snapshot;
     }
 
@@ -293,6 +318,27 @@ public class BusinessMenuConfigurationProvider {
                     return copy;
                 })
                 .toList();
+    }
+
+
+    private Map<String, MenuOutputConfiguration> copyProductFeatureMenus(Map<String, MenuOutputConfiguration> source) {
+        if (source == null || source.isEmpty()) {
+            return Map.of();
+        }
+        Map<String, MenuOutputConfiguration> copy = new LinkedHashMap<>();
+        source.forEach((key, value) -> {
+            if (key == null || key.isBlank() || value == null) {
+                return;
+            }
+            MenuOutputConfiguration output = new MenuOutputConfiguration();
+            output.setMessageType(value.getMessageType());
+            output.setHeaderText(value.getHeaderText());
+            output.setBodyText(value.getBodyText());
+            output.setFooterText(value.getFooterText());
+            output.setButtonText(value.getButtonText());
+            copy.put(key, output);
+        });
+        return copy;
     }
 
     private LoginMenuDefinition copyLoginMenu(LoginMenuDefinition menu) {

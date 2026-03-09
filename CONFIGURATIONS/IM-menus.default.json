@@ -576,5 +576,21 @@
         "buttonText": "Default button text"
       }
     }
-  ]
+  ],
+  "productFeatureMenus": {
+    "CONSENT_MANAGEMENT": {
+      "messageType": "Interactive List Messages",
+      "headerText": "Default Header Text",
+      "bodyText": "Default Body Text",
+      "footerText": "",
+      "buttonText": "Default button text"
+    },
+    "LANGUAGE_SETTINGS": {
+      "messageType": "Interactive List Messages",
+      "headerText": "Default Header Text",
+      "bodyText": "Default Body Text",
+      "footerText": "",
+      "buttonText": "Default button text"
+    }
+  }
 }
