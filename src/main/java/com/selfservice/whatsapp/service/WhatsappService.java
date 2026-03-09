@@ -521,9 +521,25 @@ public class WhatsappService {
                 "interactive", interactive
         );
 
-        if (!postToWhatsapp(payload)) {
-            sendText(to, linkLabel + ": " + url, false);
+        if (postToWhatsapp(payload)) {
+            return;
         }
+
+        if (interactive.containsKey("header")) {
+            log.warn("Retrying CTA URL message without header image for {}", to);
+            interactive.remove("header");
+            Map<String, Object> retryPayload = Map.of(
+                    "messaging_product", "whatsapp",
+                    "to", to,
+                    "type", "interactive",
+                    "interactive", interactive
+            );
+            if (postToWhatsapp(retryPayload)) {
+                return;
+            }
+        }
+
+        sendText(to, linkLabel + ": " + url, false);
     }
 
     private String resolveCtaHeaderImageUrl(String headerImageUrl) {
