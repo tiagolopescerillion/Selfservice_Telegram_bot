@@ -54,7 +54,10 @@ public class WhatsappService {
     public static final String INTERACTIVE_ID_CHANGE_LANGUAGE = "CHANGE_LANGUAGE";
     public static final String INTERACTIVE_ID_OPT_IN = "OPT_IN";
     public static final String INTERACTIVE_ID_SETTINGS = "SETTINGS";
+    public static final String INTERACTIVE_ID_ACCOUNT_BALANCE_PAY_NOW = "ACCOUNT_BALANCE_PAY_NOW";
+    public static final String INTERACTIVE_ID_ACCOUNT_BALANCE_CONTINUE = "ACCOUNT_BALANCE_CONTINUE";
     private static final int WHATSAPP_ROW_TITLE_LIMIT = 24;
+    private static final int WHATSAPP_ROW_DESCRIPTION_LIMIT = 72;
     private static final int WHATSAPP_REPLY_BUTTON_TITLE_LIMIT = 20;
     private static final int WHATSAPP_REPLY_BUTTON_MAX = 3;
     private static final int WHATSAPP_HEADER_TEXT_LIMIT = 60;
@@ -64,6 +67,10 @@ public class WhatsappService {
     private final String phoneNumberId;
     private final String accessToken;
     private final String publicBaseUrl;
+    private final String loginCtaHeaderImageUrl;
+    private final String loginCtaBodyText;
+    private final String loginCtaFooterText;
+    private final String loginCtaButtonLabel;
     private final TranslationService translationService;
     private final WhatsappSessionService sessionService;
     private final BusinessMenuConfigurationProvider menuConfigurationProvider;
@@ -74,6 +81,10 @@ public class WhatsappService {
             @Value("${whatsapp.phone-number-id:}") String phoneNumberId,
             @Value("${whatsapp.access-token:}") String accessToken,
             @Value("${app.public-base-url:}") String publicBaseUrl,
+            @Value("${whatsapp.login-settings.cta.header-image-url:}") String loginCtaHeaderImageUrl,
+            @Value("${whatsapp.login-settings.cta.body-text:}") String loginCtaBodyText,
+            @Value("${whatsapp.login-settings.cta.footer-text:}") String loginCtaFooterText,
+            @Value("${whatsapp.login-settings.cta.button-label:Open Login}") String loginCtaButtonLabel,
             TranslationService translationService,
             WhatsappSessionService sessionService,
             BusinessMenuConfigurationProvider menuConfigurationProvider,
@@ -82,6 +93,10 @@ public class WhatsappService {
         this.phoneNumberId = phoneNumberId == null ? "" : phoneNumberId.trim();
         this.accessToken = accessToken == null ? "" : accessToken.trim();
         this.publicBaseUrl = publicBaseUrl == null ? "" : publicBaseUrl.trim();
+        this.loginCtaHeaderImageUrl = loginCtaHeaderImageUrl == null ? "" : loginCtaHeaderImageUrl.trim();
+        this.loginCtaBodyText = loginCtaBodyText == null ? "" : loginCtaBodyText.trim();
+        this.loginCtaFooterText = loginCtaFooterText == null ? "" : loginCtaFooterText.trim();
+        this.loginCtaButtonLabel = loginCtaButtonLabel == null ? "Open Login" : loginCtaButtonLabel.trim();
         this.translationService = translationService;
         this.sessionService = sessionService;
         this.menuConfigurationProvider = menuConfigurationProvider;
@@ -309,7 +324,132 @@ public class WhatsappService {
             sendText(to, "Login link is not available right now. Please try again later.");
             return;
         }
-        sendText(to, format(to, "LoginUrlHint", loginUrl));
+        sendCallToActionUrlMessage(to, loginUrl, "Self Service Login", loginCtaHeaderImageUrl, loginCtaBodyText, loginCtaFooterText, loginCtaButtonLabel);
+    }
+
+    public void sendAccountBalanceAlert(String to, AccountSummary account, ServiceSummary service, String greeting,
+            java.math.BigDecimal current, java.math.BigDecimal overdue) {
+        if (account == null || account.accountId() == null || account.accountId().isBlank()) {
+            return;
+        }
+        log.info("[WhatsApp] sendAccountBalanceAlert invoked for to={} accountId={} current={} overdue={}", to, account.accountId(), current, overdue);
+        sessionService.setSelectionContext(to, WhatsappSessionService.SelectionContext.ACCOUNT_BALANCE_ALERT);
+        String message = buildAccountServiceSummary(to, account, service);
+        message = appendBalanceSummary(message, current, overdue);
+        MenuOutputConfiguration configuredOutput = resolveProductFeatureMenuOutputConfig(ProductFeatureMenu.ACCOUNT_BALANCE_ALERT);
+        MenuOutputConfiguration effectiveOutput = new MenuOutputConfiguration();
+        if (configuredOutput != null) {
+            effectiveOutput.setMessageType(configuredOutput.getMessageType());
+            effectiveOutput.setHeaderText((greeting != null && !greeting.isBlank()) ? greeting : "Menu");
+            effectiveOutput.setHeaderImageUrl(configuredOutput.getHeaderImageUrl());
+            effectiveOutput.setFooterText(configuredOutput.getFooterText());
+            effectiveOutput.setButtonText(configuredOutput.getButtonText());
+        }
+        effectiveOutput.setBodyText(message);
+        sendInteractiveList(to,
+                message,
+                message,
+                List.of(
+                        buildListRow(INTERACTIVE_ID_ACCOUNT_BALANCE_PAY_NOW, "Pay Bills"),
+                        buildListRow(INTERACTIVE_ID_ACCOUNT_BALANCE_CONTINUE, "Continue")
+                ),
+                effectiveOutput);
+    }
+
+    public void sendAccountServiceCard(String to, AccountSummary account, com.selfservice.application.dto.ServiceSummary service, boolean showChangeAccountOption, String greeting) {
+        sessionService.setSelectionContext(to, WhatsappSessionService.SelectionContext.NONE);
+
+        StringBuilder body = new StringBuilder(buildAccountServiceSummary(to, account, service));
+
+        String menuId = resolveCurrentMenuId(to);
+        List<BusinessMenuItem> menuItems = menuConfigurationProvider.getMenuItems(menuId);
+        boolean loggedIn = isLoggedIn(to);
+        boolean hasAlternateAccount = hasAlternateAccount(to);
+        int menuDepth = sessionService.getBusinessMenuDepth(to, menuConfigurationProvider.getRootMenuId());
+        int serviceCount = sessionService.getServices(to).size();
+
+        List<Map<String, Object>> rows = new ArrayList<>();
+        int rowIndex = 1;
+        for (BusinessMenuItem item : menuItems) {
+            if (!showChangeAccountOption && isChangeAccountItem(item)) {
+                continue;
+            }
+            if (TelegramService.CALLBACK_SELECT_SERVICE.equalsIgnoreCase(item.callbackData())
+                    || TelegramService.CALLBACK_SELECT_SERVICE.equalsIgnoreCase(item.function())) {
+                if (serviceCount <= 1) {
+                    continue;
+                }
+            }
+            if (!shouldDisplayBusinessMenuItem(item, menuDepth, hasAlternateAccount, loggedIn)) {
+                continue;
+            }
+            if (item.isSubMenu() && !menuConfigurationProvider.menuExists(item.submenuId())) {
+                continue;
+            }
+            rows.add(buildListRow(String.valueOf(rowIndex), resolveMenuLabel(to, item)));
+            rowIndex++;
+        }
+
+        // Ensure the card renders even if no menu rows are visible: add a harmless fallback row.
+        if (rows.isEmpty()) {
+            rows.add(buildListRow("1", "Continue"));
+        }
+
+        String cardHeader = (greeting != null && !greeting.isBlank()) ? greeting : "Menu";
+        String cardText = body.toString();
+        log.info("[WhatsApp] sendAccountServiceCard to={} menuId={} rows={} header='{}'", to, menuId, rows.size(), cardText.replaceAll("\n", " "));
+        MenuOutputConfiguration baseOutput = resolveBusinessMenuOutputConfig(menuId);
+        MenuOutputConfiguration dynamicOutput = new MenuOutputConfiguration();
+        if (baseOutput != null) {
+            dynamicOutput.setMessageType(baseOutput.getMessageType());
+            dynamicOutput.setHeaderImageUrl(baseOutput.getHeaderImageUrl());
+            dynamicOutput.setFooterText(baseOutput.getFooterText());
+            dynamicOutput.setButtonText(baseOutput.getButtonText());
+        }
+        dynamicOutput.setHeaderText(cardHeader);
+        dynamicOutput.setBodyText(cardText);
+        boolean sent = sendInteractiveList(to, cardHeader, cardText, rows, dynamicOutput);
+        if (!sent) {
+            log.warn("[WhatsApp] interactive list failed for {}. Falling back to plain text header", to);
+            sendText(to, cardText);
+        }
+    }
+
+    private String buildAccountServiceSummary(String userId, AccountSummary account, ServiceSummary service) {
+        StringBuilder body = new StringBuilder();
+        if (account == null) {
+            body.append(translate(userId, "NoBillingAccountsFound"));
+            return body.toString();
+        }
+        body.append("Account Selected")
+                .append("\n")
+                .append(account.accountId() == null ? "" : account.accountId())
+                .append("\n")
+                .append(account.accountName() == null ? "" : account.accountName());
+        if (service == null) {
+            body.append("\n\n").append(translate(userId, "NoServicesUnderBillingAccount"));
+        } else {
+            body.append("\n\n")
+                    .append("Service Selected")
+                    .append("\n")
+                    .append(service.accessNumber() == null ? "" : service.accessNumber())
+                    .append("\n")
+                    .append(service.productName() == null ? "" : service.productName());
+        }
+        return body.toString();
+    }
+
+    private String appendBalanceSummary(String base, java.math.BigDecimal current, java.math.BigDecimal overdue) {
+        StringBuilder body = new StringBuilder(base == null ? "" : base);
+        body.append("\n\n")
+                .append("Account Balance")
+                .append("\n")
+                .append("Amount Due: ")
+                .append(current == null ? "0" : current.toPlainString())
+                .append("\n")
+                .append("Amount Overdue: ")
+                .append(overdue == null ? "0" : overdue.toPlainString());
+        return body.toString();
     }
 
     public void sendOptInPrompt(String to) {
@@ -384,9 +524,17 @@ public class WhatsappService {
         boolean loggedIn = isLoggedIn(to);
         boolean hasAlternateAccount = hasAlternateAccount(to);
         int menuDepth = sessionService.getBusinessMenuDepth(to, menuConfigurationProvider.getRootMenuId());
+        List<com.selfservice.application.dto.ServiceSummary> services = sessionService.getServices(to);
+        int svcCount = services == null ? 0 : services.size();
         for (BusinessMenuItem item : menuItems) {
             if (!showChangeAccountOption && isChangeAccountItem(item)) {
                 continue;
+            }
+            if (TelegramService.CALLBACK_SELECT_SERVICE.equalsIgnoreCase(item.callbackData())
+                    || TelegramService.CALLBACK_SELECT_SERVICE.equalsIgnoreCase(item.function())) {
+                if (svcCount <= 1) {
+                    continue;
+                }
             }
             if (!shouldDisplayBusinessMenuItem(item, menuDepth, hasAlternateAccount, loggedIn)) {
                 continue;
@@ -402,6 +550,12 @@ public class WhatsappService {
         for (BusinessMenuItem item : menuItems) {
             if (!showChangeAccountOption && isChangeAccountItem(item)) {
                 continue;
+            }
+            if (TelegramService.CALLBACK_SELECT_SERVICE.equalsIgnoreCase(item.callbackData())
+                    || TelegramService.CALLBACK_SELECT_SERVICE.equalsIgnoreCase(item.function())) {
+                if (svcCount <= 1) {
+                    continue;
+                }
             }
             if (!shouldDisplayBusinessMenuItem(item, menuDepth, hasAlternateAccount, loggedIn)) {
                 continue;
@@ -581,15 +735,29 @@ public class WhatsappService {
         List<Map<String, Object>> rows = new ArrayList<>();
         for (int i = safeStart; i < end; i++) {
             AccountSummary summary = accounts.get(i);
-            rows.add(buildListRow(String.valueOf(i + 1), summary.displayLabel()));
+            String accountNumber = summary.accountId() == null || summary.accountId().isBlank()
+                    ? translate(to, "UnknownValue")
+                    : summary.accountId().strip();
+            String accountName = summary.accountName() == null || summary.accountName().isBlank()
+                    ? ""
+                    : summary.accountName().strip();
+            rows.add(buildListRow(String.valueOf(i + 1), accountNumber, accountName));
         }
         if (end < accounts.size()) {
             rows.add(buildListRow("0", "More accounts"));
         }
-        String title = buildPagedPrompt(to, TelegramKey.SELECT_ACCOUNT_PROMPT.toString(), safeStart, end, accounts.size());
-        String instruction = translate(to, "WhatsappAccountSelectionInstruction");
-        String combinedTitle = (header == null || header.isBlank()) ? title : header + "\n" + title;
-        sendInteractiveList(to, combinedTitle, instruction, rows);
+        String pageCounter = format(to, "ListPageCounter", safeStart + 1, end, accounts.size());
+        MenuOutputConfiguration baseOutput = resolveProductFeatureMenuOutputConfig(ProductFeatureMenu.ACCOUNT_SELECTOR);
+        MenuOutputConfiguration dynamicOutput = new MenuOutputConfiguration();
+        if (baseOutput != null) {
+            dynamicOutput.setMessageType(baseOutput.getMessageType());
+            dynamicOutput.setHeaderImageUrl(baseOutput.getHeaderImageUrl());
+            dynamicOutput.setFooterText(baseOutput.getFooterText());
+            dynamicOutput.setButtonText(baseOutput.getButtonText());
+        }
+        dynamicOutput.setHeaderText(translate(to, "AccountSelectorTitle"));
+        dynamicOutput.setBodyText(pageCounter);
+        sendInteractiveList(to, translate(to, "AccountSelectorTitle"), pageCounter, rows, dynamicOutput);
     }
 
     public void sendServicePage(String to, List<ServiceSummary> services, int startIndex) {
@@ -614,15 +782,13 @@ public class WhatsappService {
             String number = (service.accessNumber() == null || service.accessNumber().isBlank())
                     ? translate(to, "NoAccessNumber")
                     : service.accessNumber().strip();
-            rows.add(buildListRow(String.valueOf(i + 1), format(to, "ServiceButtonLabel", name, number)));
+            rows.add(buildListRow(String.valueOf(i + 1), number, name));
         }
         if (end < services.size()) {
             rows.add(buildListRow("0", "More services"));
         }
-        sendInteractiveList(to,
-                buildPagedPrompt(to, "SelectServicePrompt", safeStart, end, services.size()),
-                translate(to, "WhatsappServiceSelectionInstruction"),
-                rows);
+        String pageCounter = format(to, "ListPageCounter", safeStart + 1, end, services.size());
+        sendInteractiveList(to, translate(to, "ServiceSelectorTitle"), pageCounter, rows);
     }
 
     public void sendInvoicePage(String to, List<InvoiceSummary> invoices, int startIndex) {
@@ -768,11 +934,19 @@ public class WhatsappService {
         boolean loggedIn = isLoggedIn(userId);
         boolean hasAlternateAccount = hasAlternateAccount(userId);
         int menuDepth = sessionService.getBusinessMenuDepth(userId, menuConfigurationProvider.getRootMenuId());
+        List<ServiceSummary> services = sessionService.getServices(userId);
+        int serviceCount = services == null ? 0 : services.size();
 
         List<BusinessMenuItem> visible = new ArrayList<>();
         for (BusinessMenuItem item : configured) {
             if (!hasAlternateAccount && isChangeAccountItem(item)) {
                 continue;
+            }
+            if (TelegramService.CALLBACK_SELECT_SERVICE.equalsIgnoreCase(item.callbackData())
+                    || TelegramService.CALLBACK_SELECT_SERVICE.equalsIgnoreCase(item.function())) {
+                if (serviceCount <= 1) {
+                    continue;
+                }
             }
             if (!shouldDisplayBusinessMenuItem(item, menuDepth, hasAlternateAccount, loggedIn)) {
                 continue;
@@ -1003,12 +1177,32 @@ public class WhatsappService {
         );
     }
 
+    private Map<String, Object> buildListRow(String id, String title, String description) {
+        String normalizedDescription = normalizeRowDescription(description);
+        if (normalizedDescription.isBlank()) {
+            return buildListRow(id, title);
+        }
+        return Map.of(
+                "id", id,
+                "title", normalizeRowTitle(title),
+                "description", normalizedDescription
+        );
+    }
+
     private String normalizeRowTitle(String title) {
         String value = safeText(title, "Option");
         if (value.length() <= WHATSAPP_ROW_TITLE_LIMIT) {
             return value;
         }
         return value.substring(0, WHATSAPP_ROW_TITLE_LIMIT);
+    }
+
+    private String normalizeRowDescription(String description) {
+        String value = safeText(description, "").strip();
+        if (value.length() <= WHATSAPP_ROW_DESCRIPTION_LIMIT) {
+            return value;
+        }
+        return value.substring(0, WHATSAPP_ROW_DESCRIPTION_LIMIT);
     }
 
     private String normalizeReplyButtonTitle(String title) {
@@ -1058,28 +1252,24 @@ public class WhatsappService {
         }
 
         String configuredMessageType = outputConfiguration == null ? null : outputConfiguration.getMessageType();
-        String headerSource = outputConfiguration != null && StringUtils.hasText(outputConfiguration.getHeaderText())
-                ? outputConfiguration.getHeaderText()
+        String headerSource = outputConfiguration != null
+                ? safeText(outputConfiguration.getHeaderText(), "")
                 : title;
-        String bodySource = outputConfiguration != null && StringUtils.hasText(outputConfiguration.getBodyText())
-                ? outputConfiguration.getBodyText()
+        String bodySource = outputConfiguration != null
+                ? safeText(outputConfiguration.getBodyText(), "")
                 : instruction;
         String footerText = outputConfiguration != null && StringUtils.hasText(outputConfiguration.getFooterText())
                 ? outputConfiguration.getFooterText().trim()
                 : "";
-        String buttonText = outputConfiguration != null && StringUtils.hasText(outputConfiguration.getButtonText())
-                ? outputConfiguration.getButtonText().trim()
+        String buttonText = outputConfiguration != null
+                ? safeText(outputConfiguration.getButtonText(), "")
                 : "Select";
         String headerImageUrl = outputConfiguration == null ? "" : resolveCtaHeaderImageUrl(outputConfiguration.getHeaderImageUrl());
-        if (StringUtils.hasText(headerImageUrl)) {
-            sendImage(to, headerImageUrl);
-        }
-
         if (isReplyButtonsMessageType(configuredMessageType)) {
             if (rows.size() > WHATSAPP_REPLY_BUTTON_MAX) {
                 log.info("Configured Reply Buttons for menu with {} items; falling back to interactive list", rows.size());
             } else {
-                boolean sent = sendInteractiveReplyButtons(to, headerSource, bodySource, footerText, rows);
+                boolean sent = sendInteractiveReplyButtons(to, headerSource, bodySource, footerText, rows, headerImageUrl);
                 if (sent) {
                     return true;
                 }
@@ -1090,17 +1280,10 @@ public class WhatsappService {
         }
 
         String headerText = normalizeHeaderText(headerSource);
-        String instructionText = safeText(bodySource, "");
-        if (!headerText.isBlank()
-                && !instructionText.isBlank()
-                && headerText.strip().equals(instructionText.strip())) {
-            instructionText = "·";
-        }
+        String instructionText = composeInteractiveBody(headerText, bodySource, headerImageUrl);
         Map<String, Object> interactive = new java.util.HashMap<>();
         interactive.put("type", "list");
-        if (!headerText.isBlank()) {
-            interactive.put("header", Map.of("type", "text", "text", headerText));
-        }
+        applyInteractiveHeader(interactive, headerText, headerImageUrl);
         interactive.put("body", Map.of("text", instructionText));
         if (!footerText.isBlank()) {
             interactive.put("footer", Map.of("text", footerText));
@@ -1126,7 +1309,7 @@ public class WhatsappService {
 
 
 
-    private boolean sendInteractiveReplyButtons(String to, String title, String instruction, String footerText, List<Map<String, Object>> rows) {
+    private boolean sendInteractiveReplyButtons(String to, String title, String instruction, String footerText, List<Map<String, Object>> rows, String headerImageUrl) {
         List<Map<String, Object>> buttons = new ArrayList<>();
         for (Map<String, Object> row : rows) {
             if (row == null) {
@@ -1155,10 +1338,10 @@ public class WhatsappService {
 
         Map<String, Object> interactive = new java.util.HashMap<>();
         interactive.put("type", "button");
-        if (StringUtils.hasText(title)) {
-            interactive.put("header", Map.of("type", "text", "text", normalizeHeaderText(title)));
-        }
-        interactive.put("body", Map.of("text", safeText(instruction, "")));
+        String headerText = normalizeHeaderText(title);
+        String bodyText = composeInteractiveBody(headerText, instruction, headerImageUrl);
+        applyInteractiveHeader(interactive, headerText, headerImageUrl);
+        interactive.put("body", Map.of("text", bodyText));
         if (StringUtils.hasText(footerText)) {
             interactive.put("footer", Map.of("text", footerText));
         }
@@ -1174,6 +1357,43 @@ public class WhatsappService {
         return postToWhatsapp(payload);
     }
 
+    private String composeInteractiveBody(String headerText, String bodyText, String headerImageUrl) {
+        String resolvedHeader = safeText(headerText, "").strip();
+        String resolvedBody = safeText(bodyText, "");
+        if (!StringUtils.hasText(headerImageUrl)) {
+            if (!resolvedHeader.isBlank()
+                    && !resolvedBody.isBlank()
+                    && resolvedHeader.equals(resolvedBody.strip())) {
+                return "·";
+            }
+            return resolvedBody.isBlank() ? "·" : resolvedBody;
+        }
+        if (resolvedHeader.isBlank()) {
+            return resolvedBody.isBlank() ? "·" : resolvedBody;
+        }
+        if (resolvedBody.isBlank()) {
+            return resolvedHeader.isBlank() ? "·" : resolvedHeader;
+        }
+        if (resolvedHeader.equals(resolvedBody.strip())) {
+            return resolvedHeader;
+        }
+        return resolvedHeader + "\n" + resolvedBody;
+    }
+    private void applyInteractiveHeader(Map<String, Object> interactive, String headerText, String headerImageUrl) {
+        if (interactive == null) {
+            return;
+        }
+        if (StringUtils.hasText(headerImageUrl)) {
+            interactive.put("header", Map.of(
+                    "type", "image",
+                    "image", Map.of("link", headerImageUrl)
+            ));
+            return;
+        }
+        if (StringUtils.hasText(headerText)) {
+            interactive.put("header", Map.of("type", "text", "text", headerText));
+        }
+    }
     private boolean isReplyButtonsMessageType(String configuredMessageType) {
         if (configuredMessageType == null || configuredMessageType.isBlank()) {
             return false;
@@ -1243,3 +1463,8 @@ public class WhatsappService {
         }
     }
 }
+
+
+
+
+

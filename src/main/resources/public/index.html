@@ -391,6 +391,8 @@
                 <select id="productFeatureSelect">
                   <option value="CONSENT_MANAGEMENT">Consent Management</option>
                   <option value="LANGUAGE_SETTINGS">Language Settings</option>
+                  <option value="ACCOUNT_SELECTOR">Account Selector Page</option>
+                  <option value="ACCOUNT_BALANCE_ALERT">Account Balance Alert</option>
                 </select>
               </label>
               <label>
@@ -403,6 +405,10 @@
               <label>
                 Header Text
                 <input id="productFeatureOutputHeaderText" type="text" placeholder="Feature menu header text" />
+              </label>
+              <label>
+                Header Image URL
+                <input id="productFeatureOutputHeaderImageUrl" type="text" placeholder="/assets/images/menu-header.jpg or https://..." />
               </label>
               <label>
                 Body Text
@@ -959,6 +965,25 @@
               >
                 WhatsApp is disabled in your configuration.
               </div>
+              <section class="panel">
+                <h3>Login Settings</h3>
+                <label>
+                  CTA Header Image URL
+                  <input id="whatsappLoginCtaHeaderImageUrl" type="text" placeholder="/assets/images/login-banner.jpg or https://..." />
+                </label>
+                <label>
+                  CTA Body Text
+                  <textarea id="whatsappLoginCtaBodyText" rows="3" placeholder="Open the self-service login page"></textarea>
+                </label>
+                <label>
+                  CTA Footer Text
+                  <input id="whatsappLoginCtaFooterText" type="text" placeholder="Optional footer text" />
+                </label>
+                <label>
+                  CTA Button Label
+                  <input id="whatsappLoginCtaButtonLabel" type="text" placeholder="Open Login" />
+                </label>
+              </section>
               <div class="config-editor">
                 <div
                   id="whatsappConfigTree"
@@ -1102,3 +1127,6 @@
     <script src="app.js"></script>
   </body>
 </html>
+
+
+

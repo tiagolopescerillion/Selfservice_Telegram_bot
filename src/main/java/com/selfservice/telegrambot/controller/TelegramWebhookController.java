@@ -417,14 +417,13 @@ public class TelegramWebhookController {
                             ? telegramService.translate(chatId, "NoAccessNumber")
                             : selectedService.accessNumber().strip();
                     telegramService.sendMessageWithKey(chatId, "ServiceSelected", name, number);
-                }
-
-                if (hasValidToken && ensureAccountSelected(chatId)) {
-                    AccountSummary selected = userSessionService.getSelectedAccount(chatId);
-                    telegramService.sendLoggedInMenu(chatId, selected,
-                            userSessionService.getAccounts(chatId).size() > 1);
-                } else {
-                    telegramService.sendLoginMenu(chatId, oauthSessionService.buildAuthUrl(chatId));
+                    // show combined account+service card
+                    if (hasValidToken && ensureAccountSelected(chatId)) {
+                        AccountSummary selected = userSessionService.getSelectedAccount(chatId);
+                        telegramService.sendAccountServiceCard(chatId, selected, selectedService, userSessionService.getAccounts(chatId).size() > 1, null);
+                    } else {
+                        telegramService.sendLoginMenu(chatId, oauthSessionService.buildAuthUrl(chatId));
+                    }
                 }
                 return ResponseEntity.ok().build();
             }
@@ -453,8 +452,41 @@ public class TelegramWebhookController {
                 } else {
                     var selected = accounts.get(index);
                     userSessionService.selectAccount(chatId, selected);
-                    telegramService.sendMessageWithKey(chatId, "SelectedAccount", selected.displayLabel());
-                    telegramService.sendLoggedInMenu(chatId, selected, accounts.size() > 1);
+
+                    // Try to fetch services for this account and auto-select first service
+                    try {
+                        if (hasValidToken && existingToken != null) {
+                            var services = productService.getMainServices(existingToken, selected.accountId());
+                            if (services.hasError()) {
+                                userSessionService.clearServices(chatId);
+                                telegramService.sendMessageWithKey(chatId, "UnableToRetrieveServices", services.errorMessage());
+                                telegramService.sendLoggedInMenu(chatId, selected, accounts.size() > 1);
+                                return ResponseEntity.ok().build();
+                            } else if (services.services() == null || services.services().isEmpty()) {
+                                userSessionService.clearServices(chatId);
+                                telegramService.sendMessageWithKey(chatId, "NoServicesForAccount", selected.accountId());
+                                telegramService.sendLoggedInMenu(chatId, selected, accounts.size() > 1);
+                                return ResponseEntity.ok().build();
+                            } else {
+                                userSessionService.saveServices(chatId, services.services());
+                                var firstService = services.services().get(0);
+                                userSessionService.selectService(chatId, firstService);
+                                String name = (firstService.productName() == null || firstService.productName().isBlank())
+                                        ? telegramService.translate(chatId, "UnknownService")
+                                        : firstService.productName().strip();
+                                String number = (firstService.accessNumber() == null || firstService.accessNumber().isBlank())
+                                        ? telegramService.translate(chatId, "NoAccessNumber")
+                                        : firstService.accessNumber().strip();
+                                telegramService.sendMessageWithKey(chatId, "ServiceSelected", name, number);
+                                telegramService.sendAccountServiceCard(chatId, selected, firstService, accounts.size() > 1, null);
+                                return ResponseEntity.ok().build();
+                            }
+                        }
+                    } catch (Exception e) {
+                        log.warn("Failed to auto-fetch services for account {}", selected.accountId(), e);
+                    }
+
+                    telegramService.sendAccountServiceCard(chatId, selected, userSessionService.getServices(chatId).isEmpty() ? null : userSessionService.getServices(chatId).get(0), accounts.size() > 1, null);
                 }
                 return ResponseEntity.ok().build();
             }

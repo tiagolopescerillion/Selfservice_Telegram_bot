@@ -78,7 +78,8 @@ public class WhatsappSessionService {
         INVOICE_ACTION,
         TICKET,
         OPT_IN,
-        SETTINGS
+        SETTINGS,
+        ACCOUNT_BALANCE_ALERT
     }
 
     public void save(String userId, String accessToken, String refreshToken, String idToken, long expiresInSeconds,
@@ -675,4 +676,6 @@ public class WhatsappSessionService {
         });
     }
 }
+
+
 

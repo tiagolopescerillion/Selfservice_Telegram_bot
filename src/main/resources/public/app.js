@@ -290,6 +290,7 @@ const importInput = document.getElementById("importInput");
 const productFeatureSelect = document.getElementById("productFeatureSelect");
 const productFeatureOutputTypeSelect = document.getElementById("productFeatureOutputTypeSelect");
 const productFeatureOutputHeaderText = document.getElementById("productFeatureOutputHeaderText");
+const productFeatureOutputHeaderImageUrl = document.getElementById("productFeatureOutputHeaderImageUrl");
 const productFeatureOutputBodyText = document.getElementById("productFeatureOutputBodyText");
 const productFeatureOutputFooterText = document.getElementById("productFeatureOutputFooterText");
 const productFeatureOutputButtonText = document.getElementById("productFeatureOutputButtonText");
@@ -419,6 +420,10 @@ const weblinkCtaBodyTextInput = document.getElementById("weblinkCtaBodyTextInput
 const weblinkCtaFooterTextInput = document.getElementById("weblinkCtaFooterTextInput");
 const weblinkCtaButtonLabelInput = document.getElementById("weblinkCtaButtonLabelInput");
 const confirmWeblinkButton = document.getElementById("confirmWeblinkButton");
+const whatsappLoginCtaHeaderImageUrl = document.getElementById("whatsappLoginCtaHeaderImageUrl");
+const whatsappLoginCtaBodyText = document.getElementById("whatsappLoginCtaBodyText");
+const whatsappLoginCtaFooterText = document.getElementById("whatsappLoginCtaFooterText");
+const whatsappLoginCtaButtonLabel = document.getElementById("whatsappLoginCtaButtonLabel");
 const cancelWeblinkButton = document.getElementById("cancelWeblinkButton");
 
 const PUBLIC_BASE_URL_PLACEHOLDER = "YOUR_SERVER_PUBLIC_URL";
@@ -462,7 +467,7 @@ let weblinksContent = "";
 let weblinksOriginalContent = "";
 let weblinksFile = "weblinks-local.yml";
 
-const PRODUCT_FEATURES = ["CONSENT_MANAGEMENT", "LANGUAGE_SETTINGS"];
+const PRODUCT_FEATURES = ["CONSENT_MANAGEMENT", "LANGUAGE_SETTINGS", "ACCOUNT_SELECTOR", "ACCOUNT_BALANCE_ALERT"];
 let productFeatureMenuConfigs = {};
 let activeApp = "menu";
 let activeConnectorsTab = "general";
@@ -756,7 +761,7 @@ function defaultMenuOutput() {
     headerImageUrl: "",
     bodyText: "",
     footerText: "",
-    buttonText: "Select"
+    buttonText: ""
   };
 }
 
@@ -764,11 +769,11 @@ function normalizeMenuOutput(output = {}) {
   const defaults = defaultMenuOutput();
   return {
     messageType: output?.messageType || defaults.messageType,
-    headerText: output?.headerText || "",
-    headerImageUrl: output?.headerImageUrl || "",
-    bodyText: output?.bodyText || "",
-    footerText: output?.footerText || "",
-    buttonText: output?.buttonText || defaults.buttonText
+    headerText: output?.headerText ?? "",
+    headerImageUrl: output?.headerImageUrl ?? "",
+    bodyText: output?.bodyText ?? "",
+    footerText: output?.footerText ?? "",
+    buttonText: output?.buttonText ?? defaults.buttonText
   };
 }
 
@@ -780,25 +785,48 @@ function normalizeProductFeatureMenus(input = {}) {
   return normalized;
 }
 
+function isReplyButtonsMessageType(value) {
+  const normalized = (value || "").trim().toLowerCase();
+  return normalized === "reply buttons" || normalized === "reply-buttons";
+}
+
+function syncMenuOutputButtonField(typeSelect, buttonInput) {
+  if (!typeSelect || !buttonInput) return;
+  const isReplyButtons = isReplyButtonsMessageType(typeSelect.value);
+  buttonInput.disabled = isReplyButtons;
+  buttonInput.required = !isReplyButtons;
+  const isMissingButtonText = !isReplyButtons && !buttonInput.value.trim();
+  buttonInput.setCustomValidity(isMissingButtonText ? "Button Text is required for Interactive List Messages." : "");
+  buttonInput.placeholder = isReplyButtons ? "Not used for reply buttons" : "Required for interactive list";
+  if (isReplyButtons) {
+    buttonInput.value = "";
+  }
+}
 function renderProductFeatureMenuFields() {
   const feature = productFeatureSelect?.value || PRODUCT_FEATURES[0];
   const output = normalizeMenuOutput(productFeatureMenuConfigs?.[feature]);
   if (productFeatureOutputTypeSelect) productFeatureOutputTypeSelect.value = output.messageType;
   if (productFeatureOutputHeaderText) productFeatureOutputHeaderText.value = output.headerText;
+  if (productFeatureOutputHeaderImageUrl) productFeatureOutputHeaderImageUrl.value = output.headerImageUrl;
   if (productFeatureOutputBodyText) productFeatureOutputBodyText.value = output.bodyText;
   if (productFeatureOutputFooterText) productFeatureOutputFooterText.value = output.footerText;
   if (productFeatureOutputButtonText) productFeatureOutputButtonText.value = output.buttonText;
+  syncMenuOutputButtonField(productFeatureOutputTypeSelect, productFeatureOutputButtonText);
 }
 
 function updateProductFeatureMenuFromForm() {
   const feature = productFeatureSelect?.value;
   if (!feature) return;
+  syncMenuOutputButtonField(productFeatureOutputTypeSelect, productFeatureOutputButtonText);
   productFeatureMenuConfigs[feature] = normalizeMenuOutput({
     messageType: productFeatureOutputTypeSelect?.value,
     headerText: productFeatureOutputHeaderText?.value?.trim(),
+    headerImageUrl: productFeatureOutputHeaderImageUrl?.value?.trim(),
     bodyText: productFeatureOutputBodyText?.value?.trim(),
     footerText: productFeatureOutputFooterText?.value?.trim(),
-    buttonText: productFeatureOutputButtonText?.value?.trim()
+    buttonText: isReplyButtonsMessageType(productFeatureOutputTypeSelect?.value)
+      ? ""
+      : productFeatureOutputButtonText?.value?.trim()
   });
   updatePreview();
 }
@@ -806,13 +834,16 @@ function updateProductFeatureMenuFromForm() {
 function updateMenuOutputFromForm() {
   const menu = menusById.get(selectedMenuId);
   if (!menu) return;
+  syncMenuOutputButtonField(menuOutputTypeSelect, menuOutputButtonText);
   menu.output = normalizeMenuOutput({
     messageType: menuOutputTypeSelect?.value,
     headerText: menuOutputHeaderText?.value?.trim(),
     headerImageUrl: menuOutputHeaderImageUrl?.value?.trim(),
     bodyText: menuOutputBodyText?.value?.trim(),
     footerText: menuOutputFooterText?.value?.trim(),
-    buttonText: menuOutputButtonText?.value?.trim()
+    buttonText: isReplyButtonsMessageType(menuOutputTypeSelect?.value)
+      ? ""
+      : menuOutputButtonText?.value?.trim()
   });
   updatePreview();
 }
@@ -826,6 +857,7 @@ function renderMenuOutputFields() {
   if (menuOutputBodyText) menuOutputBodyText.value = output.bodyText;
   if (menuOutputFooterText) menuOutputFooterText.value = output.footerText;
   if (menuOutputButtonText) menuOutputButtonText.value = output.buttonText;
+  syncMenuOutputButtonField(menuOutputTypeSelect, menuOutputButtonText);
 }
 
 function createMenuStore(rootId, defaults) {
@@ -2515,16 +2547,21 @@ async function saveMenuConfigurationFile() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(config)
     });
+    const payload = await response.json().catch(() => ({}));
     if (!response.ok) {
-      throw new Error(`HTTP ${response.status}`);
+      const reason = payload?.reason || `HTTP ${response.status}`;
+      throw new Error(reason);
     }
-    setTimeout(() => window.location.reload(), 300);
+    if (payload?.configuration) {
+      normalizeIncomingConfig(payload.configuration);
+    }
+    configStatus.textContent = `Saved ${payload?.file || "IM-menus.override.json"}.`;
+    configStatus.className = "hint success-state";
   } catch (error) {
     configStatus.textContent = `Unable to save menu configuration: ${error?.message || error}`;
     configStatus.className = "hint error-state";
   }
 }
-
 async function saveApiRegistryFile() {
   const endpoint = buildAdminEndpoint("/admin/apis/save");
   if (!endpoint) {
@@ -2603,9 +2640,23 @@ async function saveImServerConfigFile() {
   await persistContent(endpoint, content, configStatus);
 }
 
+function validateMenuOutputButtonField(typeSelect, buttonInput) {
+  syncMenuOutputButtonField(typeSelect, buttonInput);
+  if (!typeSelect || !buttonInput) return true;
+  if (isReplyButtonsMessageType(typeSelect.value)) return true;
+  if (buttonInput.value.trim()) return true;
+  buttonInput.reportValidity();
+  return false;
+}
+
 async function handleSaveClick() {
   if (!saveOverlayButton) return;
   saveOverlayButton.disabled = true;
+  if ((activeApp === "navigation-menus" && !validateMenuOutputButtonField(menuOutputTypeSelect, menuOutputButtonText))
+      || (activeApp === "product-feature-menus" && !validateMenuOutputButtonField(productFeatureOutputTypeSelect, productFeatureOutputButtonText))) {
+    saveOverlayButton.disabled = false;
+    return;
+  }
   switch (activeApp) {
     case "menu":
     case "product-feature-menus":
@@ -2778,6 +2829,48 @@ function renderYamlNode(node, depth, container, onValueChange) {
   container.append(row);
 }
 
+function ensureWhatsappLoginSettingsDefaults(configObj) {
+  if (!configObj || typeof configObj !== "object") return null;
+  const whatsapp = configObj.whatsapp && typeof configObj.whatsapp === "object"
+    ? configObj.whatsapp
+    : (configObj.whatsapp = {});
+  const loginSettings = whatsapp["login-settings"] && typeof whatsapp["login-settings"] === "object"
+    ? whatsapp["login-settings"]
+    : (whatsapp["login-settings"] = {});
+  const cta = loginSettings.cta && typeof loginSettings.cta === "object"
+    ? loginSettings.cta
+    : (loginSettings.cta = {});
+  if (cta["header-image-url"] === undefined) cta["header-image-url"] = "";
+  if (cta["body-text"] === undefined) cta["body-text"] = "";
+  if (cta["footer-text"] === undefined) cta["footer-text"] = "";
+  if (cta["button-label"] === undefined) cta["button-label"] = "Open Login";
+  return cta;
+}
+
+function renderWhatsappLoginSettings() {
+  const configObj = ensureConnectorObjectDefaults("whatsapp");
+  const cta = ensureWhatsappLoginSettingsDefaults(configObj);
+  if (!cta) return;
+  if (whatsappLoginCtaHeaderImageUrl) whatsappLoginCtaHeaderImageUrl.value = cta["header-image-url"] || "";
+  if (whatsappLoginCtaBodyText) whatsappLoginCtaBodyText.value = cta["body-text"] || "";
+  if (whatsappLoginCtaFooterText) whatsappLoginCtaFooterText.value = cta["footer-text"] || "";
+  if (whatsappLoginCtaButtonLabel) whatsappLoginCtaButtonLabel.value = cta["button-label"] || "Open Login";
+}
+
+function updateWhatsappLoginSettings() {
+  const configObj = ensureConnectorObjectDefaults("whatsapp");
+  const cta = ensureWhatsappLoginSettingsDefaults(configObj);
+  if (!cta) return;
+  cta["header-image-url"] = whatsappLoginCtaHeaderImageUrl?.value?.trim() || "";
+  cta["body-text"] = whatsappLoginCtaBodyText?.value?.trim() || "";
+  cta["footer-text"] = whatsappLoginCtaFooterText?.value?.trim() || "";
+  cta["button-label"] = whatsappLoginCtaButtonLabel?.value?.trim() || "Open Login";
+  connectorContents.whatsapp = stringifySimpleYaml(configObj) || defaultConnectorTemplate("whatsapp");
+  renderConnectorPreview("whatsapp");
+  if (activeConnectorsTab === "whatsapp") {
+    renderConnectorTab("whatsapp");
+  }
+}
 function buildConnectorsYaml() {
   const source = connectorsYamlObject?.connectors ? connectorsYamlObject : {
     connectors: { ...connectorSettings }
@@ -2821,6 +2914,9 @@ function ensureConnectorObjectDefaults(key) {
   if (!current[key] || typeof current[key] !== "object") {
     current[key] = current[key] && typeof current[key] === "object" ? current[key] : {};
   }
+  if (key === "whatsapp") {
+    ensureWhatsappLoginSettingsDefaults(current);
+  }
   connectorYamlObjects[key] = current;
   connectorContents[key] = stringifySimpleYaml(current) || defaultConnectorTemplate(key);
   return current;
@@ -2831,7 +2927,6 @@ function syncConnectorObjectFromContent(key) {
   ensureConnectorObjectDefaults(key);
   connectorContents[key] = stringifySimpleYaml(connectorYamlObjects[key]);
 }
-
 function renderConnectorsGeneral() {
   if (!connectorsPreview || !connectorsFileName || !connectorsStatus) {
     return;
@@ -2891,6 +2986,9 @@ function renderConnectorTab(key) {
     tree.classList.toggle("hidden", !enabled);
     if (enabled) {
       const configObj = ensureConnectorObjectDefaults(key);
+      if (key === "whatsapp") {
+        ensureWhatsappLoginSettingsDefaults(configObj);
+      }
       renderYamlTree(tree, configObj, (path, value) => {
         setNestedValue(configObj, path, value);
         connectorContents[key] = stringifySimpleYaml(configObj);
@@ -2931,9 +3029,11 @@ function setActiveConnectorsTab(target) {
 
   if (CONNECTOR_KEYS.includes(selected)) {
     renderConnectorTab(selected);
+    if (selected === "whatsapp") {
+      renderWhatsappLoginSettings();
+    }
   }
 }
-
 async function loadConnectorsPanel() {
   if (connectorsLoading) {
     return;
@@ -2943,6 +3043,7 @@ async function loadConnectorsPanel() {
   await Promise.all(CONNECTOR_KEYS.map((key) => loadConnectorFile(key)));
   renderConnectorsGeneral();
   CONNECTOR_KEYS.forEach(renderConnectorTab);
+    renderWhatsappLoginSettings();
   setActiveConnectorsTab("general");
   connectorsLoading = false;
 }
@@ -2953,6 +3054,7 @@ async function reloadConnectorsConfigFromSource() {
     syncConnectorsFromContent();
     renderConnectorsGeneral();
     CONNECTOR_KEYS.forEach(renderConnectorTab);
+  renderWhatsappLoginSettings();
     if (connectorsStatus) {
       connectorsStatus.textContent = `Reloaded from ${connectorsFileName?.textContent || "connectors-local.yml"}`;
       connectorsStatus.className = "hint";
@@ -2967,6 +3069,7 @@ async function reloadConnectorsConfigFromSource() {
   await loadConnectorsConfig();
   renderConnectorsGeneral();
   CONNECTOR_KEYS.forEach(renderConnectorTab);
+  renderWhatsappLoginSettings();
 }
 
 async function reloadConnectorFromSource(key) {
@@ -2975,6 +3078,9 @@ async function reloadConnectorFromSource(key) {
     connectorContents[key] = connectorOriginalContents[key];
     syncConnectorObjectFromContent(key);
     renderConnectorTab(key);
+  if (key === "whatsapp") {
+    renderWhatsappLoginSettings();
+  }
     if (status) {
       status.textContent = `Reloaded from ${connectorFileNames[key] || `${key}-local.yml`}`;
       status.className = "hint";
@@ -2988,6 +3094,9 @@ async function reloadConnectorFromSource(key) {
   }
   await loadConnectorFile(key);
   renderConnectorTab(key);
+  if (key === "whatsapp") {
+    renderWhatsappLoginSettings();
+  }
 }
 
 function extractConnectorFlags(entries) {
@@ -3115,7 +3224,13 @@ function defaultConnectorTemplate(key) {
         "  callback-url: ${app.public-base-url}/webhook/whatsapp  # Public webhook endpoint for WhatsApp callbacks",
         "  verify-token: YOUR_WHATSAPP_VERIFY_TOKEN               # Verification token configured in Meta App settings",
         "  phone-number-id: YOUR_PHONE_NUMBER_ID                  # WhatsApp Business phone number ID",
-        "  access-token: YOUR_WHATSAPP_ACCESS_TOKEN               # WhatsApp Graph API access token"
+        "  access-token: YOUR_WHATSAPP_ACCESS_TOKEN               # WhatsApp Graph API access token",
+        "  login-settings:",
+        "    cta:",
+        "      header-image-url: ",
+        "      body-text: ",
+        "      footer-text: ",
+        "      button-label: Open Login"
       ].join("\n");
     case "messenger":
       return [
@@ -4198,10 +4313,16 @@ menuItemsParentMenuSelect.addEventListener("change", updateAddFormSubmenuOptions
 if (productFeatureSelect) {
   productFeatureSelect.addEventListener("change", renderProductFeatureMenuFields);
 }
-[productFeatureOutputTypeSelect, productFeatureOutputHeaderText, productFeatureOutputBodyText, productFeatureOutputFooterText, productFeatureOutputButtonText].forEach((input) => {
+[productFeatureOutputTypeSelect, productFeatureOutputHeaderText, productFeatureOutputHeaderImageUrl, productFeatureOutputBodyText, productFeatureOutputFooterText, productFeatureOutputButtonText].forEach((input) => {
   if (input) {
     input.addEventListener("change", updateProductFeatureMenuFromForm);
     input.addEventListener("input", updateProductFeatureMenuFromForm);
+  }
+});
+[whatsappLoginCtaHeaderImageUrl, whatsappLoginCtaBodyText, whatsappLoginCtaFooterText, whatsappLoginCtaButtonLabel].forEach((input) => {
+  if (input) {
+    input.addEventListener("change", updateWhatsappLoginSettings);
+    input.addEventListener("input", updateWhatsappLoginSettings);
   }
 });
 itemTypeSelect.addEventListener("change", toggleAddFormFields);
@@ -4504,3 +4625,14 @@ document.getElementById("notificationMessage").addEventListener("input", hideNot
 document.getElementById("notificationChannel").addEventListener("click", hideNotificationResult);
 document.getElementById("notificationChatId").addEventListener("click", hideNotificationResult);
 document.getElementById("notificationMessage").addEventListener("click", hideNotificationResult);
+
+
+
+
+
+
+
+
+
+
+

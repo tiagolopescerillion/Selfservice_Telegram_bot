@@ -7,6 +7,7 @@ import com.selfservice.application.config.UxProperties;
 import com.selfservice.application.config.ConnectorsProperties;
 import com.selfservice.application.service.FindUserService;
 import com.selfservice.application.service.ImpersonationService;
+import com.selfservice.application.service.AccountBalanceService;
 import com.selfservice.telegrambot.service.TelegramService;
 import com.selfservice.telegrambot.service.UserSessionService;
 import com.selfservice.whatsapp.service.WhatsappService;
@@ -19,6 +20,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Map;
+import java.math.BigDecimal;
 
 @RestController
 public class OAuthCallbackController {
@@ -27,6 +29,7 @@ public class OAuthCallbackController {
     private final OAuthSessionService oauth;
     private final TelegramService telegram;
     private final UserSessionService sessions;
+    private final com.selfservice.application.service.ProductService productService;
     private final FindUserService findUserService;
     private final ImpersonationService impersonationService;
     private final WhatsappService whatsappService;
@@ -34,20 +37,24 @@ public class OAuthCallbackController {
     private final OperationsMonitoringService monitoringService;
     private final UxProperties uxProperties;
     private final ConnectorsProperties connectorsProperties;
+    private final AccountBalanceService accountBalanceService;
 
     public OAuthCallbackController(OAuthSessionService oauth,
                                    TelegramService telegram,
                                    UserSessionService sessions,
+                                   com.selfservice.application.service.ProductService productService,
                                    FindUserService findUserService,
                                    ImpersonationService impersonationService,
                                    WhatsappService whatsappService,
                                    WhatsappSessionService whatsappSessions,
                                    OperationsMonitoringService monitoringService,
                                    UxProperties uxProperties,
-                                   ConnectorsProperties connectorsProperties) {
+                                   ConnectorsProperties connectorsProperties,
+                                   AccountBalanceService accountBalanceService) {
         this.oauth = oauth;
         this.telegram = telegram;
         this.sessions = sessions;
+        this.productService = productService;
         this.findUserService = findUserService;
         this.impersonationService = impersonationService;
         this.whatsappService = whatsappService;
@@ -55,6 +62,7 @@ public class OAuthCallbackController {
         this.monitoringService = monitoringService;
         this.uxProperties = uxProperties;
         this.connectorsProperties = connectorsProperties;
+        this.accountBalanceService = accountBalanceService;
     }
 
     @GetMapping(value = "/oauth/callback", produces = MediaType.TEXT_HTML_VALUE)
@@ -204,13 +212,24 @@ public class OAuthCallbackController {
                         } else {
                             telegram.sendMessage(chatId, noAccountsMessage);
                         }
-                    } else if (accounts.size() == 1) {
-                        var onlyAccount = accounts.get(0);
-                        sessions.selectAccount(chatId, onlyAccount);
-                        telegram.sendLoggedInMenu(chatId, onlyAccount, false, greeting);
                     } else {
-                        sessions.clearSelectedAccount(chatId);
-                        telegram.sendAccountPage(chatId, accounts, 0, greeting);
+                        // Select first account and auto-select first service if available; always show combined card
+                        var firstAccount = accounts.get(0);
+                        sessions.selectAccount(chatId, firstAccount);
+                        com.selfservice.application.dto.ServiceSummary firstService = null;
+                        try {
+                            String accessToken = (at instanceof String) ? (String) at : null;
+                            if (accessToken != null) {
+                                var servicesResult = productService.getMainServices(accessToken, firstAccount.accountId());
+                                if (!servicesResult.hasError() && servicesResult.services() != null && !servicesResult.services().isEmpty()) {
+                                    sessions.saveServices(chatId, servicesResult.services());
+                                    firstService = servicesResult.services().get(0);
+                                    sessions.selectService(chatId, firstService);
+                                }
+                            }
+                        } catch (Exception ignored) {
+                        }
+                        telegram.sendAccountServiceCard(chatId, firstAccount, firstService, accounts.size() > 1, greeting);
                     }
                 } else {
                     sessions.clearSelectedAccount(chatId);
@@ -220,28 +239,41 @@ public class OAuthCallbackController {
 
             if (whatsappUser && whatsappChatId != null) {
                 String greeting = (findUserResult.givenName() != null && !findUserResult.givenName().isBlank())
-                        ? "Welcome " + findUserResult.givenName() + "!"
+                        ? "Hello " + findUserResult.givenName()
                         : null;
 
                 if (findUserResult.success()) {
-                    if (greeting != null) {
-                        whatsappService.sendText(whatsappChatId, greeting);
-                    }
                     if (!setContextOnLogin) {
                         whatsappSessions.clearSelectedAccount(whatsappChatId);
                         whatsappService.sendLoggedInMenu(whatsappChatId, null, false, null);
                     } else if (accounts.isEmpty()) {
                         whatsappSessions.clearSelectedAccount(whatsappChatId);
-                        whatsappService.sendText(whatsappChatId, whatsappService.translate(whatsappChatId,
-                                "NoBillingAccountsFound"));
-                        whatsappService.sendLoginMenu(whatsappChatId);
-                    } else if (accounts.size() == 1) {
-                        var onlyAccount = accounts.get(0);
-                        whatsappSessions.selectAccount(whatsappChatId, onlyAccount);
-                        whatsappService.sendLoggedInMenu(whatsappChatId, onlyAccount, false, greeting);
+                        whatsappService.sendAccountServiceCard(whatsappChatId, null, null, false, greeting);
                     } else {
-                        whatsappSessions.clearSelectedAccount(whatsappChatId);
-                        whatsappService.sendAccountPage(whatsappChatId, accounts, 0, greeting);
+                        // Always select first account and auto-select first service; show combined card
+                        var firstAccount = accounts.get(0);
+                        whatsappSessions.selectAccount(whatsappChatId, firstAccount);
+                        com.selfservice.application.dto.ServiceSummary firstService = null;
+                        try {
+                            String accessToken = (at instanceof String) ? (String) at : null;
+                            if (accessToken != null) {
+                                var servicesResult = productService.getMainServices(accessToken, firstAccount.accountId());
+                                if (!servicesResult.hasError() && servicesResult.services() != null && !servicesResult.services().isEmpty()) {
+                                    whatsappSessions.saveServices(whatsappChatId, servicesResult.services());
+                                    firstService = servicesResult.services().get(0);
+                                    whatsappSessions.selectService(whatsappChatId, firstService);
+                                }
+                            }
+                        } catch (Exception ignored) {
+                        }
+                        var balance = accountBalanceService.lookup((String) at, firstAccount.accountId());
+                        if (balance.hasDueBalance()) {
+                            whatsappService.sendAccountBalanceAlert(whatsappChatId, firstAccount, firstService, greeting,
+                                    balance.current(), balance.overdue());
+                        } else {
+                            // Send combined account+service card including greeting in the card header
+                            whatsappService.sendAccountServiceCard(whatsappChatId, firstAccount, firstService, accounts.size() > 1, greeting);
+                        }
                     }
                 } else {
                     whatsappService.sendText(whatsappChatId, accountListMessage);
@@ -267,3 +299,4 @@ public class OAuthCallbackController {
         }
     }
 }
+

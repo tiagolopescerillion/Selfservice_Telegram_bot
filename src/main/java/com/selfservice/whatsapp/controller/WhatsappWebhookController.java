@@ -10,6 +10,7 @@ import com.selfservice.application.dto.ServiceSummary;
 import com.selfservice.application.dto.TroubleTicketListResult;
 import com.selfservice.application.dto.TroubleTicketSummary;
 import com.selfservice.application.service.ContextTraceLogger;
+import com.selfservice.application.service.AccountBalanceService;
 import com.selfservice.application.service.InvoiceService;
 import com.selfservice.application.service.ProductService;
 import com.selfservice.application.service.TroubleTicketService;
@@ -37,6 +38,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 import java.util.Map;
+import java.math.BigDecimal;
 import java.util.Objects;
 
 @RestController
@@ -58,6 +60,7 @@ public class WhatsappWebhookController {
     private final BusinessMenuConfigurationProvider menuConfigurationProvider;
     private final ServiceFunctionExecutor serviceFunctionExecutor;
     private final ContextTraceLogger contextTraceLogger;
+    private final AccountBalanceService accountBalanceService;
 
     public WhatsappWebhookController(
             WhatsappService whatsappService,
@@ -72,7 +75,8 @@ public class WhatsappWebhookController {
             ConnectorsProperties connectorsProperties,
             BusinessMenuConfigurationProvider menuConfigurationProvider,
             ServiceFunctionExecutor serviceFunctionExecutor,
-            ContextTraceLogger contextTraceLogger) {
+            ContextTraceLogger contextTraceLogger,
+            AccountBalanceService accountBalanceService) {
         this.whatsappService = whatsappService;
         this.oauthSessionService = oauthSessionService;
         this.sessionService = sessionService;
@@ -86,6 +90,7 @@ public class WhatsappWebhookController {
         this.menuConfigurationProvider = menuConfigurationProvider;
         this.serviceFunctionExecutor = serviceFunctionExecutor;
         this.contextTraceLogger = contextTraceLogger;
+        this.accountBalanceService = accountBalanceService;
     }
 
     @GetMapping
@@ -281,6 +286,27 @@ public class WhatsappWebhookController {
             }
         }
 
+        if (selectionContext == WhatsappSessionService.SelectionContext.ACCOUNT_BALANCE_ALERT) {
+            if (lower.equals(WhatsappService.INTERACTIVE_ID_ACCOUNT_BALANCE_CONTINUE.toLowerCase())) {
+                sessionService.setSelectionContext(userId, WhatsappSessionService.SelectionContext.NONE);
+                whatsappService.goHomeBusinessMenu(userId);
+                AccountSummary selected = sessionService.getSelectedAccount(userId);
+                ServiceSummary selectedService = sessionService.getSelectedService(userId);
+                whatsappService.sendAccountServiceCard(from, selected, selectedService,
+                        sessionService.getAccounts(userId).size() > 1, null);
+                return;
+            }
+            if (lower.equals(WhatsappService.INTERACTIVE_ID_ACCOUNT_BALANCE_PAY_NOW.toLowerCase())) {
+                sessionService.setSelectionContext(userId, WhatsappSessionService.SelectionContext.NONE);
+                whatsappService.sendText(from, whatsappService.translate(from, "HelloCerillionMessage"));
+                whatsappService.goHomeBusinessMenu(userId);
+                AccountSummary selected = sessionService.getSelectedAccount(userId);
+                ServiceSummary selectedService = sessionService.getSelectedService(userId);
+                whatsappService.sendAccountServiceCard(from, selected, selectedService,
+                        sessionService.getAccounts(userId).size() > 1, null);
+                return;
+            }
+        }
         if (lower.equals("unsubscribe")) {
             sessionService.setOptIn(userId, false);
             monitoringService.recordActivity("WhatsApp", userId, null, hasValidToken,
@@ -530,7 +556,6 @@ public class WhatsappWebhookController {
                 sendLoginPrompt(from, sessionKey);
             } else {
                 sessionService.clearSelectedAccount(userId);
-                whatsappService.sendText(from, whatsappService.translate(from, "ChooseAccountToContinue"));
                 whatsappService.sendAccountPage(from, accounts, 0);
             }
             return;
@@ -643,7 +668,6 @@ public class WhatsappWebhookController {
                         sendLoginPrompt(from, sessionKey);
                     } else {
                         sessionService.clearSelectedAccount(userId);
-                        whatsappService.sendText(from, whatsappService.translate(from, "ChooseAccountToContinue"));
                         whatsappService.sendAccountPage(from, accounts, 0);
                     }
                 }
@@ -719,7 +743,6 @@ public class WhatsappWebhookController {
                     sendLoginPrompt(from, sessionKey);
                 } else {
                     sessionService.clearSelectedAccount(userId);
-                    whatsappService.sendText(from, whatsappService.translate(from, "ChooseAccountToContinue"));
                     whatsappService.sendAccountPage(from, accounts, 0);
                 }
                 return;
@@ -817,9 +840,59 @@ public class WhatsappWebhookController {
         }
         AccountSummary selected = accounts.get(index);
         sessionService.selectAccount(userId, selected);
-        whatsappService.sendText(userId, whatsappService.format(userId, "SelectedAccount", selected.displayLabel()));
+        // Do not send a separate 'SelectedAccount' text; show combined card below instead.
+        String token = sessionService.getValidAccessToken(userId);
+
+        // Auto-fetch services for this account and select the first service if available
+        try {
+            if (token != null) {
+                ServiceListResult services = productService.getMainServices(token, selected.accountId());
+                if (services.hasError()) {
+                    sessionService.clearServices(userId);
+                    whatsappService.sendText(userId, whatsappService.format(userId, "UnableToRetrieveServices", services.errorMessage()));
+                    whatsappService.goHomeBusinessMenu(userId);
+                    whatsappService.sendLoggedInMenu(userId, selected, accounts.size() > 1);
+                    return;
+                } else if (services.services() == null || services.services().isEmpty()) {
+                    sessionService.clearServices(userId);
+                    whatsappService.goHomeBusinessMenu(userId);
+                    if (!showPostAccountSelectionPrompt(userId, userId, token, selected, null, null)) {
+                        return;
+                    }
+                    whatsappService.sendAccountServiceCard(userId, selected, null, accounts.size() > 1, null);
+                    return;
+                } else {
+                        sessionService.saveServices(userId, services.services());
+                        var firstService = services.services().get(0);
+                        sessionService.selectService(userId, firstService);
+                        whatsappService.goHomeBusinessMenu(userId);
+                        if (!showPostAccountSelectionPrompt(userId, userId, token, selected, firstService, null)) {
+                            return;
+                        }
+                        // Show combined account+service card (no greeting when user changes account)
+                        whatsappService.sendAccountServiceCard(userId, selected, firstService, accounts.size() > 1, null);
+                    return;
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Failed to auto-fetch services for account {}", selected.accountId(), e);
+        }
+        // If services couldn't be fetched, fall back to showing logged-in menu
         whatsappService.goHomeBusinessMenu(userId);
         whatsappService.sendLoggedInMenu(userId, selected, accounts.size() > 1);
+    }
+
+    private boolean showPostAccountSelectionPrompt(String userId, String to, String token, AccountSummary selected,
+            ServiceSummary selectedService, String greeting) {
+        if (selected == null || token == null || token.isBlank()) {
+            return true;
+        }
+        var result = accountBalanceService.lookup(token, selected.accountId());
+        if (!result.hasDueBalance()) {
+            return true;
+        }
+        whatsappService.sendAccountBalanceAlert(to, selected, selectedService, greeting, result.current(), result.overdue());
+        return false;
     }
 
     private void handleServiceSelection(String userId, String from, String lower) {
@@ -830,13 +903,10 @@ public class WhatsappWebhookController {
         } else {
             ServiceSummary selectedService = services.get(index);
             sessionService.selectService(userId, selectedService);
-            String name = (selectedService.productName() == null || selectedService.productName().isBlank())
-                    ? whatsappService.translate(userId, "UnknownService")
-                    : selectedService.productName().strip();
-            String number = (selectedService.accessNumber() == null || selectedService.accessNumber().isBlank())
-                    ? whatsappService.translate(userId, "NoAccessNumber")
-                    : selectedService.accessNumber().strip();
-            whatsappService.sendText(from, whatsappService.format(userId, "ServiceSelected", name, number));
+                // Show combined account+service card (no greeting when user changes service)
+                AccountSummary selectedAccount = sessionService.getSelectedAccount(from);
+                whatsappService.sendAccountServiceCard(from, selectedAccount, selectedService, sessionService.getAccounts(from).size() > 1, null);
+            return;
         }
         sessionService.setSelectionContext(userId, WhatsappSessionService.SelectionContext.NONE);
         sendBusinessMenu(from, userId);
@@ -855,21 +925,14 @@ public class WhatsappWebhookController {
             whatsappService.sendLoggedInMenu(userId, selected, sessionService.getAccounts(userId).size() > 1);
         } else if (services.services().isEmpty()) {
             sessionService.clearServices(userId);
-            whatsappService.sendText(userId, whatsappService.format(userId, "NoServicesForAccount", selected.accountId()));
-            whatsappService.sendLoggedInMenu(userId, selected, sessionService.getAccounts(userId).size() > 1);
+            whatsappService.sendAccountServiceCard(userId, selected, null, sessionService.getAccounts(userId).size() > 1, null);
         } else {
             sessionService.saveServices(userId, services.services());
             if (services.services().size() == 1) {
                 ServiceSummary onlyService = services.services().get(0);
                 sessionService.selectService(userId, onlyService);
-                String name = (onlyService.productName() == null || onlyService.productName().isBlank())
-                        ? whatsappService.translate(userId, "UnknownService")
-                        : onlyService.productName().strip();
-                String number = (onlyService.accessNumber() == null || onlyService.accessNumber().isBlank())
-                        ? whatsappService.translate(userId, "NoAccessNumber")
-                        : onlyService.accessNumber().strip();
-                whatsappService.sendText(userId, whatsappService.format(userId, "ServiceSelected", name, number));
-                whatsappService.sendLoggedInMenu(userId, selected, sessionService.getAccounts(userId).size() > 1);
+                whatsappService.sendAccountServiceCard(userId, selected, onlyService,
+                        sessionService.getAccounts(userId).size() > 1, null);
             } else {
                 whatsappService.sendServicePage(userId, services.services(), 0);
             }
@@ -995,7 +1058,6 @@ public class WhatsappWebhookController {
             sendLoginPrompt(userId, sessionKey);
             return false;
         }
-        whatsappService.sendText(userId, whatsappService.translate(userId, "ChooseAccountToContinue"));
         whatsappService.sendAccountPage(userId, accounts, 0);
         return false;
     }
@@ -1231,6 +1293,10 @@ public class WhatsappWebhookController {
         if (interactive == null) {
             return null;
         }
+        Map<String, Object> buttonReply = (Map<String, Object>) interactive.get("button_reply");
+        if (buttonReply != null) {
+            return (String) buttonReply.get("id");
+        }
         Map<String, Object> button = (Map<String, Object>) interactive.get("button");
         if (button != null) {
             Map<String, Object> reply = (Map<String, Object>) button.get("reply");
@@ -1243,3 +1309,6 @@ public class WhatsappWebhookController {
         return null;
     }
 }
+
+
+

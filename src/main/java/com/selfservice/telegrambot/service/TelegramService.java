@@ -88,6 +88,9 @@ public class TelegramService {
     public static final String CALLBACK_OPT_IN_PROMPT = "OPT_IN_PROMPT";
     public static final String CALLBACK_OPT_IN_ACCEPT = "OPT_IN_ACCEPT";
     public static final String CALLBACK_OPT_IN_DECLINE = "OPT_IN_DECLINE";
+    
+    public static final String INTERACTIVE_ID_ACCOUNT_BALANCE_PAY_NOW = "ACCOUNT_BALANCE_PAY_NOW";
+    public static final String INTERACTIVE_ID_ACCOUNT_BALANCE_CONTINUE = "ACCOUNT_BALANCE_CONTINUE";
 
     private final RestTemplate rest = new RestTemplate();
     private final String baseUrl;
@@ -386,6 +389,13 @@ public class TelegramService {
             if (!showChangeAccountOption && isChangeAccountItem(item)) {
                 continue;
             }
+            // hide service selector unless more than one service available
+            if (CALLBACK_SELECT_SERVICE.equalsIgnoreCase(item.callbackData()) || CALLBACK_SELECT_SERVICE.equalsIgnoreCase(item.function())) {
+                int svcCount = userSessionService.getServices(chatId).size();
+                if (svcCount <= 1) {
+                    continue;
+                }
+            }
             if (!shouldDisplayBusinessMenuItem(item, depth, hasAlternateAccount, loggedIn)) {
                 continue;
             }
@@ -437,6 +447,74 @@ public class TelegramService {
         Map<String, Object> body = Map.of(
                 "chat_id", chatId,
                 "text", menuText.toString(),
+                "reply_markup", replyMarkup);
+
+        post(url, body, headers);
+    }
+
+    public void sendAccountServiceCard(long chatId, AccountSummary account, com.selfservice.application.dto.ServiceSummary service, boolean showChangeAccountOption, String greeting) {
+        String url = baseUrl + "/sendMessage";
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+
+        List<List<Map<String, Object>>> keyboard = new ArrayList<>();
+        String menuId = resolveCurrentMenuId(chatId);
+        List<BusinessMenuItem> menuItems = menuConfigurationProvider.getMenuItems(menuId);
+        boolean loggedIn = isLoggedIn(chatId);
+        boolean hasAlternateAccount = hasAlternateAccount(chatId);
+        int depth = userSessionService.getBusinessMenuDepth(chatId, menuConfigurationProvider.getRootMenuId());
+
+        for (BusinessMenuItem item : menuItems) {
+            if (!showChangeAccountOption && isChangeAccountItem(item)) {
+                continue;
+            }
+            if (CALLBACK_SELECT_SERVICE.equalsIgnoreCase(item.callbackData()) || CALLBACK_SELECT_SERVICE.equalsIgnoreCase(item.function())) {
+                int svcCount = userSessionService.getServices(chatId).size();
+                if (svcCount <= 1) {
+                    continue;
+                }
+            }
+            if (!shouldDisplayBusinessMenuItem(item, depth, hasAlternateAccount, loggedIn)) {
+                continue;
+            }
+            if (item.isSubMenu() && !menuConfigurationProvider.menuExists(item.submenuId())) {
+                continue;
+            }
+
+            Map<String, Object> button = new HashMap<>();
+            button.put("text", resolveMenuLabel(chatId, item));
+            if (item.isWeblink()) {
+                String resolvedUrl = resolveWeblinkUrl(chatId, item);
+                if (resolvedUrl == null || resolvedUrl.isBlank()) {
+                    continue;
+                }
+                button.put("url", resolvedUrl);
+            } else {
+                button.put("callback_data", resolveCallback(item));
+            }
+            keyboard.add(List.of(button));
+        }
+
+        StringBuilder header = new StringBuilder();
+        if (greeting != null && !greeting.isBlank()) {
+            header.append(greeting).append("\n");
+        }
+        if (account == null) {
+            header.append(translate(chatId, "NoBillingAccountsFound"));
+        } else {
+            header.append(translate(chatId, "SelectedAccountInfo")).append("\n").append(account.accountId()).append(" - ").append(account.truncatedName());
+        }
+        if (service == null) {
+            header.append("\n").append(translate(chatId, "NoServicesForAccount"));
+        } else {
+            header.append("\n").append(translate(chatId, "SelectedServiceInfo")).append("\n").append(service.productName() == null ? "" : service.productName()).append(" - ").append(service.accessNumber() == null ? "" : service.accessNumber());
+        }
+
+        Map<String, Object> replyMarkup = Map.of("inline_keyboard", keyboard);
+
+        Map<String, Object> body = Map.of(
+                "chat_id", chatId,
+                "text", header.toString(),
                 "reply_markup", replyMarkup);
 
         post(url, body, headers);
@@ -914,6 +992,33 @@ public class TelegramService {
         Map<String, Object> body = Map.of(
                 "chat_id", chatId,
                 "text", format(chatId, "InvoiceActionsPrompt", invoice.id()),
+                "reply_markup", replyMarkup);
+
+        post(url, body, headers);
+    }
+
+    public void sendAccountBalanceAlert(long chatId, AccountSummary account, java.math.BigDecimal current, java.math.BigDecimal overdue) {
+        if (account == null || account.accountId() == null || account.accountId().isBlank()) {
+            return;
+        }
+
+        String message = "Account No: " + account.accountId().trim()
+                + "\nAmount Due: " + (current == null ? "0" : current.toPlainString())
+                + "\nAmount Overdue: " + (overdue == null ? "0" : overdue.toPlainString());
+
+        List<List<Map<String, Object>>> rows = new ArrayList<>();
+        rows.add(List.of(Map.of("text", "Pay Now", "callback_data", INTERACTIVE_ID_ACCOUNT_BALANCE_PAY_NOW)));
+        rows.add(List.of(Map.of("text", "Continue", "callback_data", INTERACTIVE_ID_ACCOUNT_BALANCE_CONTINUE)));
+
+        String url = baseUrl + "/sendMessage";
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+
+        Map<String, Object> replyMarkup = Map.of("inline_keyboard", rows);
+
+        Map<String, Object> body = Map.of(
+                "chat_id", chatId,
+                "text", message,
                 "reply_markup", replyMarkup);
 
         post(url, body, headers);

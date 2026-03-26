@@ -333,6 +333,7 @@ public class BusinessMenuConfigurationProvider {
             MenuOutputConfiguration output = new MenuOutputConfiguration();
             output.setMessageType(value.getMessageType());
             output.setHeaderText(value.getHeaderText());
+            output.setHeaderImageUrl(value.getHeaderImageUrl());
             output.setBodyText(value.getBodyText());
             output.setFooterText(value.getFooterText());
             output.setButtonText(value.getButtonText());
